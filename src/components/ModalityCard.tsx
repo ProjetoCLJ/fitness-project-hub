@@ -13,7 +13,7 @@ export const ModalityCard = ({ image, title, description, onClick }: ModalityCar
       className="overflow-hidden cursor-pointer hover:shadow-medium transition-smooth border-2 hover:border-primary/50 group"
       onClick={onClick}
     >
-      <div className="relative h-48 w-full overflow-hidden">
+      <div className="relative h-24 sm:h-48 w-full overflow-hidden">
         <img
           src={image}
           alt={title}
@@ -21,9 +21,9 @@ export const ModalityCard = ({ image, title, description, onClick }: ModalityCar
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
       </div>
-      <div className="p-6 text-center space-y-2">
-        <h3 className="font-semibold text-lg text-foreground">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="p-3 sm:p-6 text-center space-y-1 sm:space-y-2">
+        <h3 className="font-semibold text-sm sm:text-lg text-foreground">{title}</h3>
+        <p className="hidden sm:block text-sm text-muted-foreground">{description}</p>
       </div>
     </Card>
   );

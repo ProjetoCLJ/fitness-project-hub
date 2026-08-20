@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dumbbell, User, LogOut, Calendar, History, DollarSign, BookOpen, TrendingUp, ChevronDown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { SideMenu } from "@/components/SideMenu";
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -24,15 +25,18 @@ export const Header = ({ onLoginClick }: HeaderProps) => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="p-2 bg-gradient-primary rounded-lg shadow-soft group-hover:shadow-medium transition-smooth">
-              <Dumbbell className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-              FitConnect
-            </span>
-          </Link>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <SideMenu onLoginClick={onLoginClick} />
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="p-2 bg-gradient-primary rounded-lg shadow-soft group-hover:shadow-medium transition-smooth">
+                <Dumbbell className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <span className="text-lg sm:text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+                FitConnect
+              </span>
+            </Link>
+          </div>
 
           <nav className="hidden md:flex items-center gap-6">
             <Link to="/" className="text-foreground/80 hover:text-foreground transition-smooth">
@@ -40,9 +44,6 @@ export const Header = ({ onLoginClick }: HeaderProps) => {
             </Link>
             <Link to="/trainers" className="text-foreground/80 hover:text-foreground transition-smooth">
               Encontrar Personal
-            </Link>
-            <Link to="/about" className="text-foreground/80 hover:text-foreground transition-smooth">
-              Sobre
             </Link>
           </nav>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,53 +6,56 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   Target,
   Dumbbell,
   Apple,
   ShieldAlert,
   Users,
-  History,
   Clock,
   CheckCircle2,
+  History as HistoryIcon,
 } from "lucide-react";
 import StudentHistory from "@/components/dashboard/student/StudentHistory";
+import { WorkoutExecutionDialog } from "@/components/plan/WorkoutExecutionDialog";
+import { ClientPlan, Workout, getPlan, recordExecution } from "@/lib/planStore";
 
-const weekWorkouts = [
-  {
-    day: "Segunda",
-    name: "Treino A - Inferiores",
-    exercises: [
-      { name: "Agachamento livre", sets: 4, reps: "10-12", load: "40kg", rest: "90s" },
-      { name: "Leg press", sets: 3, reps: "12-15", load: "120kg", rest: "60s" },
-      { name: "Cadeira extensora", sets: 3, reps: "15", load: "30kg", rest: "45s" },
-    ],
-  },
-  {
-    day: "Quarta",
-    name: "Treino B - Superiores",
-    exercises: [
-      { name: "Supino reto", sets: 4, reps: "8-10", load: "50kg", rest: "90s" },
-      { name: "Puxada frontal", sets: 3, reps: "10-12", load: "45kg", rest: "60s" },
-      { name: "Desenvolvimento", sets: 3, reps: "10", load: "20kg", rest: "60s" },
-    ],
-  },
-  {
-    day: "Sexta",
-    name: "Treino C - Full Body",
-    exercises: [
-      { name: "Levantamento terra", sets: 4, reps: "8", load: "60kg", rest: "120s" },
-      { name: "Remada curvada", sets: 3, reps: "10", load: "40kg", rest: "60s" },
-      { name: "Prancha", sets: 3, reps: "45s", load: "-", rest: "30s" },
-    ],
-  },
-];
+// Demonstração local: o cliente autenticado (mock) representa sempre
+// o cliente "1" (Maria Fernanda) da carteira do profissional, permitindo
+// que edições feitas em ClientProfilePro apareçam aqui no mesmo navegador.
+const CURRENT_CLIENT_ID = "1";
 
 const MyPlan = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [tab, setTab] = useState("overview");
+  const [plan, setPlan] = useState<ClientPlan | null>(null);
+  const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
 
-  if (!user || user.userType !== "student") return null;
+  useEffect(() => {
+    setPlan(getPlan(CURRENT_CLIENT_ID));
+  }, []);
+
+  if (!user || user.userType !== "student" || !plan) return null;
+
+  const handleWorkoutComplete = (result: {
+    completedExercises: { name: string; sets: number; reps: string; load: string }[];
+    observations?: string;
+  }) => {
+    if (!activeWorkout) return;
+    const updated = recordExecution(CURRENT_CLIENT_ID, {
+      workoutId: activeWorkout.id,
+      workoutName: activeWorkout.name,
+      date: new Date().toISOString(),
+      ...result,
+    });
+    setPlan(updated);
+    toast({
+      title: "Treino concluído!",
+      description: `${activeWorkout.name} registrado no seu histórico.`,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,14 +88,14 @@ const MyPlan = () => {
                 <Target className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Objetivo atual</p>
-                  <p className="font-medium">Melhorar condicionamento físico</p>
+                  <p className="font-medium">{plan.objective}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Dumbbell className="h-5 w-5 text-primary mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Estratégia de treinamento</p>
-                  <p className="font-medium">4 sessões semanais - hipertrofia</p>
+                  <p className="font-medium">{plan.strategy}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -117,15 +120,17 @@ const MyPlan = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Última atualização</p>
-                  <p className="font-medium">28/11/2024</p>
+                  <p className="font-medium">
+                    {new Date(plan.updatedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+                  </p>
                 </div>
               </div>
             </Card>
           </TabsContent>
 
           <TabsContent value="workouts" className="space-y-4">
-            {weekWorkouts.map((workout) => (
-              <Card key={workout.day} className="p-4 sm:p-6">
+            {plan.workouts.map((workout) => (
+              <Card key={workout.id} className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <Badge variant="secondary" className="mb-1">{workout.day}</Badge>
@@ -134,7 +139,7 @@ const MyPlan = () => {
                 </div>
                 <div className="space-y-2 mb-4">
                   {workout.exercises.map((ex) => (
-                    <div key={ex.name} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/30">
+                    <div key={ex.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-muted/30">
                       <span className="font-medium">{ex.name}</span>
                       <span className="text-muted-foreground text-xs">
                         {ex.sets}x{ex.reps} · {ex.load} · desc. {ex.rest}
@@ -142,12 +147,19 @@ const MyPlan = () => {
                     </div>
                   ))}
                 </div>
-                <Button variant="hero" className="w-full">
+                <Button variant="hero" className="w-full" onClick={() => setActiveWorkout(workout)}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Iniciar treino
                 </Button>
               </Card>
             ))}
+
+            <WorkoutExecutionDialog
+              workout={activeWorkout}
+              open={!!activeWorkout}
+              onOpenChange={(open) => !open && setActiveWorkout(null)}
+              onComplete={handleWorkoutComplete}
+            />
           </TabsContent>
 
           <TabsContent value="nutrition" className="space-y-4">
@@ -229,8 +241,47 @@ const MyPlan = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="history">
-            <StudentHistory />
+          <TabsContent value="history" className="space-y-6">
+            <div>
+              <h2 className="font-semibold text-base sm:text-lg mb-3 flex items-center gap-2">
+                <HistoryIcon className="h-5 w-5 text-primary" />
+                Treinos executados
+              </h2>
+              {plan.executions.length === 0 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">
+                  Nenhum treino registrado ainda. Conclua um treino na aba Treinos para começar seu histórico.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {plan.executions.map((exec) => (
+                    <Card key={exec.id} className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium">{exec.workoutName}</p>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(exec.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                        </span>
+                      </div>
+                      <div className="space-y-1 mb-2">
+                        {exec.completedExercises.map((ex) => (
+                          <div key={ex.name} className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{ex.name}</span>
+                            <span>{ex.sets}x{ex.reps} · {ex.load}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {exec.observations && (
+                        <p className="text-xs italic text-muted-foreground pt-2 border-t">"{exec.observations}"</p>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="font-semibold text-base sm:text-lg mb-3">Aulas com profissionais</h2>
+              <StudentHistory />
+            </div>
           </TabsContent>
         </Tabs>
       </div>

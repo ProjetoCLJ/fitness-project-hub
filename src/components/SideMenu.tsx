@@ -15,13 +15,13 @@ import {
   Search,
   User,
   LogOut,
-  Calendar,
-  History,
-  DollarSign,
-  BookOpen,
-  TrendingUp,
+  ClipboardList,
+  Trophy,
+  Users,
+  CalendarDays,
+  Wallet,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SideMenuProps {
@@ -38,13 +38,22 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
     setOpen(false);
   };
 
-  const goToTab = (tab: string) => {
-    if (user?.userType === "trainer") {
-      goTo(`/dashboard/trainer?tab=${tab}`);
-    } else {
-      goTo(`/dashboard/student?tab=${tab}`);
-    }
-  };
+  const clientLinks = [
+    { label: "Início", icon: Home, path: "/dashboard/student" },
+    { label: "Meu Plano", icon: ClipboardList, path: "/dashboard/student/plan" },
+    { label: "Profissionais", icon: Search, path: "/trainers" },
+    { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
+  ];
+
+  const trainerLinks = [
+    { label: "Início", icon: Home, path: "/dashboard/trainer" },
+    { label: "Clientes", icon: Users, path: "/dashboard/trainer/clients" },
+    { label: "Agenda", icon: CalendarDays, path: "/dashboard/trainer/agenda" },
+    { label: "Financeiro", icon: Wallet, path: "/dashboard/trainer/financial" },
+  ];
+
+  const profilePath = user?.userType === "trainer" ? "/dashboard/trainer/profile" : "/dashboard/student/profile";
+  const links = user?.userType === "trainer" ? trainerLinks : clientLinks;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -60,7 +69,7 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
               <Dumbbell className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="bg-gradient-hero bg-clip-text text-transparent">
-              FitConnect
+              FIT
             </span>
           </SheetTitle>
         </SheetHeader>
@@ -80,91 +89,70 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
           </div>
         )}
 
-        <nav className="flex-1 flex flex-col gap-1 py-4">
-          <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/")}>
-            <Home className="h-4 w-4" />
-            Início
-          </Button>
-          <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/trainers")}>
-            <Search className="h-4 w-4" />
-            Encontrar Personal
-          </Button>
+        {isAuthenticated && user ? (
+          <>
+            <nav className="flex-1 flex flex-col gap-1 py-4">
+              {links.map((link) => (
+                <Button
+                  key={link.path}
+                  variant="ghost"
+                  className="justify-start gap-3"
+                  onClick={() => goTo(link.path)}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </Button>
+              ))}
+            </nav>
 
-          {isAuthenticated && user?.userType === "trainer" && (
-            <>
-              <div className="mt-4 mb-1 px-3 text-xs font-semibold uppercase text-muted-foreground">
-                Painel do Professor
-              </div>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("profile")}>
+            <div className="border-t border-border pt-4 space-y-1">
+              <Button
+                variant="ghost"
+                className="justify-start gap-3 w-full"
+                onClick={() => goTo(profilePath)}
+              >
                 <User className="h-4 w-4" />
                 Perfil
               </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("schedule")}>
-                <Calendar className="h-4 w-4" />
-                Agenda
+              <Button
+                variant="ghost"
+                className="justify-start gap-3 w-full text-destructive hover:text-destructive"
+                onClick={() => {
+                  logout();
+                  setOpen(false);
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
               </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("pricing")}>
-                <DollarSign className="h-4 w-4" />
-                Preços
+            </div>
+          </>
+        ) : (
+          <>
+            <nav className="flex-1 flex flex-col gap-1 py-4">
+              <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/")}>
+                <Home className="h-4 w-4" />
+                Início
               </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("classes")}>
-                <BookOpen className="h-4 w-4" />
-                Aulas
+              <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/trainers")}>
+                <Search className="h-4 w-4" />
+                Encontrar Personal
               </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("earnings")}>
-                <TrendingUp className="h-4 w-4" />
-                Faturamento
+            </nav>
+            <div className="border-t border-border pt-4">
+              <Button
+                variant="hero"
+                className="w-full"
+                onClick={() => {
+                  setOpen(false);
+                  onLoginClick();
+                }}
+              >
+                Entrar
               </Button>
-            </>
-          )}
-
-          {isAuthenticated && user?.userType === "student" && (
-            <>
-              <div className="mt-4 mb-1 px-3 text-xs font-semibold uppercase text-muted-foreground">
-                Painel do Aluno
-              </div>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("bookings")}>
-                <Calendar className="h-4 w-4" />
-                Meus Agendamentos
-              </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("history")}>
-                <History className="h-4 w-4" />
-                Histórico
-              </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goToTab("profile")}>
-                <User className="h-4 w-4" />
-                Perfil
-              </Button>
-            </>
-          )}
-        </nav>
-
-        <div className="border-t border-border pt-4">
-          {isAuthenticated ? (
-            <Button
-              variant="ghost"
-              className="justify-start gap-3 w-full text-destructive hover:text-destructive"
-              onClick={() => {
-                logout();
-                setOpen(false);
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
-          ) : (
-            <Button
-              variant="hero"
-              className="w-full"
-              onClick={() => {
-                setOpen(false);
-                onLoginClick();
-              }}
-            >
-              Entrar
-            </Button>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );

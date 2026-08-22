@@ -26,6 +26,7 @@ const ClientProfilePro = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [objectiveDraft, setObjectiveDraft] = useState("");
   const [strategyDraft, setStrategyDraft] = useState("");
+  const [approachDraft, setApproachDraft] = useState("");
 
   const client = mockClients.find((c) => c.id === id) ?? mockClients[0];
 
@@ -34,12 +35,17 @@ const ClientProfilePro = () => {
     setPlan(loaded);
     setObjectiveDraft(loaded.objective);
     setStrategyDraft(loaded.strategy);
+    setApproachDraft(loaded.trainingApproach);
   }, [client.id]);
 
   if (!user || user.userType !== "trainer" || !plan) return null;
 
   const saveStrategy = () => {
-    const updated = savePlanEdits(client.id, { objective: objectiveDraft, strategy: strategyDraft });
+    const updated = savePlanEdits(client.id, {
+      objective: objectiveDraft,
+      strategy: strategyDraft,
+      trainingApproach: approachDraft,
+    });
     setPlan(updated);
     toast({ title: "Plano atualizado", description: "O cliente já visualiza a nova versão." });
   };
@@ -142,6 +148,10 @@ const ClientProfilePro = () => {
               <div className="space-y-2">
                 <Label htmlFor="strategy">Estratégia de treinamento</Label>
                 <Textarea id="strategy" value={strategyDraft} onChange={(e) => setStrategyDraft(e.target.value)} rows={2} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="approach">Abordagem, progressões e prazos</Label>
+                <Textarea id="approach" value={approachDraft} onChange={(e) => setApproachDraft(e.target.value)} rows={4} />
               </div>
               <Button variant="hero" onClick={saveStrategy}>
                 Salvar plano

@@ -40,6 +40,7 @@ export interface ClientPlan {
   clientId: string;
   objective: string;
   strategy: string;
+  trainingApproach: string;
   workouts: Workout[];
   executions: WorkoutExecution[];
   versions: PlanVersion[];
@@ -85,6 +86,9 @@ const defaultPlan = (clientId: string): ClientPlan => ({
   clientId,
   objective: "Melhorar condicionamento físico",
   strategy: "4 sessões semanais - hipertrofia",
+  trainingApproach:
+    "Progressão de carga semanal com foco em hipertrofia nas primeiras 8 semanas, seguida por um bloco de definição. " +
+    "Reavaliação de cargas a cada 4 semanas. Prazo estimado para o próximo objetivo: 12 semanas.",
   workouts: defaultWorkouts,
   executions: [],
   versions: [],
@@ -95,7 +99,9 @@ export const getPlan = (clientId: string): ClientPlan => {
   const raw = localStorage.getItem(STORAGE_PREFIX + clientId);
   if (!raw) return defaultPlan(clientId);
   try {
-    return JSON.parse(raw) as ClientPlan;
+    // Mescla com os defaults para cobrir campos adicionados depois que
+    // dados antigos já foram salvos no localStorage deste navegador.
+    return { ...defaultPlan(clientId), ...(JSON.parse(raw) as Partial<ClientPlan>) } as ClientPlan;
   } catch {
     return defaultPlan(clientId);
   }
@@ -108,7 +114,7 @@ const persist = (plan: ClientPlan) => {
 /** Salva alterações feitas pelo profissional, preservando a versão anterior no histórico. */
 export const savePlanEdits = (
   clientId: string,
-  edits: { objective?: string; strategy?: string; workouts?: Workout[] }
+  edits: { objective?: string; strategy?: string; trainingApproach?: string; workouts?: Workout[] }
 ): ClientPlan => {
   const current = getPlan(clientId);
   const previousVersion: PlanVersion = {

@@ -9,16 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Star, MapPin, Calendar, DollarSign, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Star, MapPin, Calendar, DollarSign, Filter, ChevronDown, ChevronUp, History } from "lucide-react";
 import MapView from "@/components/MapView";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SchedulePreview } from "@/components/SchedulePreview";
+import { useAuth } from "@/contexts/AuthContext";
+import StudentHistory from "@/components/dashboard/student/StudentHistory";
 
 const Trainers = () => {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const city = searchParams.get("city") || "";
   const modality = searchParams.get("modality") || "";
   const date = searchParams.get("date") || "";
@@ -91,14 +96,21 @@ const Trainers = () => {
       <div className="container mx-auto px-4 pt-24 pb-12">
         {/* Search Summary */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="mb-4"
-          >
-            <ChevronDown className="h-4 w-4 mr-2 rotate-90" />
-            Voltar
-          </Button>
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+            >
+              <ChevronDown className="h-4 w-4 mr-2 rotate-90" />
+              Voltar
+            </Button>
+            {user?.userType === "student" && (
+              <Button variant="outline" onClick={() => setHistoryOpen(true)}>
+                <History className="h-4 w-4 mr-2" />
+                Histórico de aulas
+              </Button>
+            )}
+          </div>
           <h1 className="text-3xl font-bold mb-2">
             Professores disponíveis
             {city && <span className="text-primary"> em {city}</span>}
@@ -278,6 +290,15 @@ const Trainers = () => {
       </div>
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Histórico de aulas</DialogTitle>
+          </DialogHeader>
+          <StudentHistory />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

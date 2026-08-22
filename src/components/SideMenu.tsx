@@ -41,6 +41,7 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
   const clientLinks = [
     { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Meu Plano", icon: ClipboardList, path: "/dashboard/student/plan" },
+    { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
     { label: "Profissionais", icon: Search, path: "/trainers" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
   ];

@@ -13,6 +13,7 @@ import Trainers from "./pages/Trainers";
 import TrainerProfile from "./pages/TrainerProfile";
 import ClientHome from "./pages/client/ClientHome";
 import MyPlan from "./pages/client/MyPlan";
+import Workouts from "./pages/client/Workouts";
 import Challenges from "./pages/client/Challenges";
 import ClientProfilePage from "./pages/client/ClientProfilePage";
 import ProHome from "./pages/pro/ProHome";
@@ -42,6 +43,7 @@ const App = () => (
             {/* Cliente */}
             <Route path="/dashboard/student" element={<ClientHome />} />
             <Route path="/dashboard/student/plan" element={<MyPlan />} />
+            <Route path="/dashboard/student/workouts" element={<Workouts />} />
             <Route path="/dashboard/student/challenges" element={<Challenges />} />
             <Route path="/dashboard/student/profile" element={<ClientProfilePage />} />
 

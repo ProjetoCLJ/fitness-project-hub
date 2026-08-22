@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Package, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getBasePrice, setBasePrice as persistBasePrice } from "@/lib/financeStore";
 
 interface PricingPackage {
   id: number;
@@ -19,7 +20,7 @@ interface PricingPackage {
 
 const TrainerPricing = () => {
   const { toast } = useToast();
-  const [basePrice, setBasePrice] = useState("150.00");
+  const [basePrice, setBasePrice] = useState(() => getBasePrice().toFixed(2));
   const [packages, setPackages] = useState<PricingPackage[]>([
     { id: 1, name: "Pacote 4 aulas", classesCount: 4, price: 570, discountPercentage: 5, isActive: true },
     { id: 2, name: "Pacote 8 aulas", classesCount: 8, price: 1080, discountPercentage: 10, isActive: true },
@@ -91,6 +92,8 @@ const TrainerPricing = () => {
   };
 
   const handleSave = () => {
+    const parsed = parseFloat(basePrice);
+    if (Number.isFinite(parsed)) persistBasePrice(parsed);
     toast({
       title: "Preços atualizados!",
       description: "Suas alterações foram salvas com sucesso.",

@@ -159,6 +159,25 @@ export const acceptSuggestion = (bookingId: string): Booking[] => {
   return data.bookings;
 };
 
+const toISODate = (date: Date) => date.toISOString().slice(0, 10);
+
+/**
+ * Soma os horários livres entre hoje e `days` dias à frente (inclusive).
+ * Considera apenas disponibilidade já marcada pelo profissional, menos
+ * bloqueios e aulas confirmadas — nunca assume 100% de ocupação.
+ */
+export const getAvailableSlotsCount = (days: number, durationMinutes = 60): number => {
+  let total = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    total += getAvailableSlots(toISODate(date), durationMinutes).length;
+  }
+  return total;
+};
+
 export const getBookingsForTrainer = (trainerId: string): Booking[] =>
   getData().bookings.filter((b) => b.trainerId === trainerId);
 

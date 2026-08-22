@@ -1,27 +1,55 @@
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import {
   Flame,
   Trophy,
   TrendingUp,
-  Calendar,
   Clock,
   User,
   Target,
   Play,
   ChevronRight,
+  CalendarClock,
+  Check,
 } from "lucide-react";
+import { Booking, acceptSuggestion, getBookingsForClient } from "@/lib/agendaStore";
+
+// Demonstração local: o cliente autenticado (mock) representa sempre
+// o cliente "1" (Maria Fernanda) na agendaStore.
+const CURRENT_CLIENT_ID = "1";
+
+const formatBookingDate = (dateISO: string, startTime: string) =>
+  `${new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}, ${startTime}`;
 
 const ClientHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  useEffect(() => {
+    setBookings(getBookingsForClient(CURRENT_CLIENT_ID));
+  }, []);
 
   if (!user || user.userType !== "student") return null;
+
+  const nextConfirmed = bookings
+    .filter((b) => b.status === "confirmed")
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
+  const pendingOrSuggested = bookings.filter((b) => b.status === "pending" || b.status === "suggested");
+
+  const handleAcceptSuggestion = (bookingId: string) => {
+    const updated = acceptSuggestion(bookingId);
+    setBookings(updated.filter((b) => b.clientId === CURRENT_CLIENT_ID));
+    toast({ title: "Horário confirmado!", description: "A aula foi reservada na sua agenda." });
+  };
 
   // Mock data - dados virão do backend em fase futura
   const fitScore = 1850;
@@ -35,12 +63,6 @@ const ClientHome = () => {
     time: "Hoje, 18:00",
     objective: "Hipertrofia",
     trainerName: "Carlos Silva",
-  };
-
-  const nextAppointment = {
-    professional: "Carlos Silva",
-    role: "Personal Trainer",
-    date: "Hoje, 18:00",
   };
 
   const weekProgress = {
@@ -119,16 +141,55 @@ const ClientHome = () => {
         {/* Próximo atendimento */}
         <Card className="p-4 sm:p-6 mb-4">
           <h2 className="font-semibold text-base sm:text-lg mb-3">Próximo atendimento</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">{nextAppointment.professional}</p>
-              <p className="text-sm text-muted-foreground">{nextAppointment.role}</p>
+          {nextConfirmed ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Carlos Silva</p>
+                <p className="text-sm text-muted-foreground">Personal Trainer</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">{formatBookingDate(nextConfirmed.date, nextConfirmed.startTime)}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium">{nextAppointment.date}</p>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum atendimento confirmado ainda.</p>
+          )}
         </Card>
+
+        {/* Solicitações de agendamento */}
+        {pendingOrSuggested.length > 0 && (
+          <Card className="p-4 sm:p-6 mb-4">
+            <h2 className="font-semibold text-base sm:text-lg mb-3 flex items-center gap-2">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              Solicitações de agendamento
+            </h2>
+            <div className="space-y-3">
+              {pendingOrSuggested.map((b) => (
+                <div key={b.id} className="p-3 rounded-md bg-muted/30 space-y-2">
+                  {b.status === "pending" ? (
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Aguardando resposta do profissional</span>
+                      <Badge variant="outline">{formatBookingDate(b.date, b.startTime)}</Badge>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Novo horário sugerido</span>
+                        <Badge variant="secondary">
+                          {b.suggestion ? formatBookingDate(b.suggestion.date, b.suggestion.startTime) : ""}
+                        </Badge>
+                      </div>
+                      <Button size="sm" className="w-full" onClick={() => handleAcceptSuggestion(b.id)}>
+                        <Check className="h-4 w-4 mr-1" />
+                        Aceitar novo horário
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Progresso semanal */}
         <Card className="p-4 sm:p-6 mb-4">

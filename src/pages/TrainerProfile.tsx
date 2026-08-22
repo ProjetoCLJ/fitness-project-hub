@@ -7,11 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Star, MapPin, Calendar, DollarSign, Instagram, Facebook, Linkedin, ArrowLeft, Trophy } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { BookingRequestDialog } from "@/components/agenda/BookingRequestDialog";
+import { createProposal } from "@/lib/agendaStore";
+
+// Demonstração local: este perfil (id "1") representa o mesmo profissional
+// "trainer-1" usado pela agendaStore, e o aluno autenticado (mock)
+// representa sempre o cliente "1" (Maria Fernanda).
+const TRAINER_ID = "trainer-1";
+const CURRENT_CLIENT_ID = "1";
 
 const TrainerProfile = () => {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   // Mock data - In real app, this would come from API
   const trainer = {
@@ -237,7 +250,12 @@ const TrainerProfile = () => {
                 )}
 
                 <div className="space-y-3">
-                  <Button variant="hero" size="lg" className="w-full">
+                  <Button
+                    variant="hero"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => (isAuthenticated ? setBookingOpen(true) : setLoginOpen(true))}
+                  >
                     Agendar Aula
                   </Button>
                   <Button variant="outline" size="lg" className="w-full">
@@ -266,6 +284,15 @@ const TrainerProfile = () => {
       </div>
 
       <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <BookingRequestDialog
+        open={bookingOpen}
+        onOpenChange={setBookingOpen}
+        trainerName={trainer.name}
+        onSubmit={(date, startTime, endTime) => {
+          createProposal(TRAINER_ID, CURRENT_CLIENT_ID, user?.profile.fullName ?? "Aluno", date, startTime, endTime);
+          toast({ title: "Proposta enviada!", description: `Aguardando resposta de ${trainer.name}.` });
+        }}
+      />
     </div>
   );
 };

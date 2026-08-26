@@ -5,22 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { RestTimer } from "@/components/plan/RestTimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Dumbbell, Check } from "lucide-react";
 import { ExerciseLog, Plan, SetLog, getActivePlan, getPlans, recordExecution } from "@/lib/planStore";
+import { NumberStepper } from "@/components/ui/number-stepper";
 
 const CURRENT_CLIENT_ID = "1";
 
@@ -180,100 +173,135 @@ const WorkoutSession = () => {
           <span className="text-sm text-muted-foreground">{doneSets}/{totalSets} séries</span>
         </div>
 
-        <Progress value={(doneSets / totalSets) * 100} className="h-1.5 mb-4" />
+        <Progress value={(doneSets / totalSets) * 100} className="h-2 mb-4" />
 
-        <h1 className="text-lg sm:text-2xl font-bold mb-1">{workout.name}</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Exercício {exerciseIndex + 1} de {workout.exercises.length}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-lg sm:text-2xl font-bold">{workout.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Exercício {exerciseIndex + 1} de {workout.exercises.length}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            {workout.exercises.map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 w-6 rounded-full ${i === exerciseIndex ? "bg-primary" : i < exerciseIndex ? "bg-primary/40" : "bg-muted"}`}
+              />
+            ))}
+          </div>
+        </div>
 
         {(linkedWithNext || linkedWithPrev) && (
-          <Badge variant="secondary" className="mb-2">
+          <Badge variant="secondary" className="mb-3">
             <Link2 className="h-3 w-3 mr-1" />
             Superset {linkedWithPrev ? `com ${prevExercise?.name}` : `com ${nextExercise?.name}`}
           </Badge>
         )}
 
-        <Card className="p-4 sm:p-6 space-y-4">
-          <div className="flex items-start justify-between gap-2">
-            {draft?.swapping ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  autoFocus
-                  value={draft.performedName}
-                  onChange={(e) => updateDraft((d) => ({ ...d, performedName: e.target.value }))}
-                  placeholder="Novo exercício"
-                />
-                <Button variant="ghost" size="icon" onClick={toggleSwap}>
-                  <X className="h-4 w-4" />
+        <Card className="overflow-hidden mb-4">
+          <div className="bg-gradient-hero p-4 sm:p-6 text-primary-foreground">
+            <div className="flex items-start justify-between gap-2">
+              {draft?.swapping ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    autoFocus
+                    value={draft.performedName}
+                    onChange={(e) => updateDraft((d) => ({ ...d, performedName: e.target.value }))}
+                    placeholder="Novo exercício"
+                    className="bg-background text-foreground"
+                  />
+                  <Button variant="secondary" size="icon" onClick={toggleSwap}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-primary-foreground/20 flex items-center justify-center shrink-0">
+                    <Dumbbell className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">{draft?.performedName}</h2>
+                    {draft && draft.performedName !== exercise.name && (
+                      <p className="text-xs opacity-80">no lugar de {exercise.name}</p>
+                    )}
+                    <p className="text-sm opacity-90 mt-0.5">
+                      {exercise.sets}x{exercise.reps} · {exercise.load} · descanso {exercise.rest}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {!draft?.swapping && (
+                <Button variant="secondary" size="sm" onClick={toggleSwap} className="shrink-0">
+                  <Repeat className="h-3.5 w-3.5 mr-1" />
+                  Trocar
                 </Button>
-              </div>
-            ) : (
-              <div>
-                <h2 className="text-xl font-semibold">{draft?.performedName}</h2>
-                {draft && draft.performedName !== exercise.name && (
-                  <p className="text-xs text-muted-foreground">no lugar de {exercise.name}</p>
-                )}
-                <p className="text-sm text-muted-foreground mt-1">
-                  Planejado: {exercise.sets}x{exercise.reps} · {exercise.load} · descanso {exercise.rest}
-                </p>
-              </div>
-            )}
-            {!draft?.swapping && (
-              <Button variant="outline" size="sm" onClick={toggleSwap} className="shrink-0">
-                <Repeat className="h-3.5 w-3.5 mr-1" />
-                Trocar
-              </Button>
-            )}
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="p-4 sm:p-6 space-y-3">
             {draft?.sets.map((set) => (
               <div
                 key={`${exercise.id}-${set.setNumber}`}
-                className={`flex items-center gap-2 p-2 rounded-md border ${set.done ? "bg-primary/5 border-primary/30" : "border-border"}`}
+                className={`rounded-xl border-2 p-3 transition-smooth ${set.done ? "bg-primary/5 border-primary" : "border-border"}`}
               >
-                <Checkbox checked={set.done} onCheckedChange={() => toggleSetDone(set.setNumber)} />
-                <span className="text-sm text-muted-foreground w-14 shrink-0">Série {set.setNumber}</span>
-                <Input
-                  value={set.weight}
-                  onChange={(e) => setValue(set.setNumber, "weight", e.target.value)}
-                  placeholder="Peso"
-                  className="h-9 text-sm"
-                />
-                <Input
-                  value={set.reps}
-                  onChange={(e) => setValue(set.setNumber, "reps", e.target.value)}
-                  placeholder="Reps"
-                  className="h-9 text-sm"
-                />
-                <Select
-                  value={set.effort !== undefined ? String(set.effort) : undefined}
-                  onValueChange={(v) => setEffort(set.setNumber, Number(v))}
-                >
-                  <SelectTrigger className="h-9 text-xs w-16 shrink-0">
-                    <SelectValue placeholder="RIR" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[0, 1, 2, 3, 4, 5].map((v) => (
-                      <SelectItem key={v} value={String(v)}>{v} RIR</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-sm flex items-center gap-2">
+                    <span className={`h-6 w-6 rounded-full flex items-center justify-center text-xs ${set.done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                      {set.setNumber}
+                    </span>
+                    Série {set.setNumber}
+                  </span>
+                  <Button
+                    type="button"
+                    variant={set.done ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => toggleSetDone(set.setNumber)}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {set.done ? "Feita" : "Marcar"}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 text-center">Peso</p>
+                    <NumberStepper value={set.weight} onChange={(v) => setValue(set.setNumber, "weight", v)} suffix="kg" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 text-center">Reps</p>
+                    <NumberStepper value={set.reps} onChange={(v) => setValue(set.setNumber, "reps", v)} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-1">
+                  {[0, 1, 2, 3, 4, 5].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setEffort(set.setNumber, v)}
+                      className={`h-7 w-7 rounded-full text-xs font-medium transition-smooth ${
+                        set.effort === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-1">RIR</span>
+                </div>
               </div>
             ))}
-            <p className="text-xs text-muted-foreground">RIR = repetições que ainda conseguiria fazer (0 = até a falha). Opcional.</p>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ex-notes" className="text-sm">Sensações / desconforto</Label>
-            <Textarea
-              id="ex-notes"
-              value={draft?.notes ?? ""}
-              onChange={(e) => updateDraft((d) => ({ ...d, notes: e.target.value }))}
-              placeholder="Como esse exercício se sentiu hoje?"
-              rows={2}
-            />
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="ex-notes" className="text-sm">Sensações / desconforto</Label>
+              <Textarea
+                id="ex-notes"
+                value={draft?.notes ?? ""}
+                onChange={(e) => updateDraft((d) => ({ ...d, notes: e.target.value }))}
+                placeholder="Como esse exercício se sentiu hoje?"
+                rows={2}
+              />
+            </div>
           </div>
         </Card>
 

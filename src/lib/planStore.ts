@@ -15,6 +15,8 @@ export interface Exercise {
   reps: string;
   load: string;
   rest: string;
+  /** Exercícios com o mesmo supersetGroup são executados em sequência, sem descanso entre eles. */
+  supersetGroup?: string;
 }
 
 export interface Workout {
@@ -30,6 +32,8 @@ export interface SetLog {
   setNumber: number;
   weight: string;
   reps: string;
+  /** RIR (repetições em reserva), 0-5. Opcional — nem todo cliente registra esforço. */
+  effort?: number;
 }
 
 /** Execução de um exercício dentro de um treino: pode ter sido trocado naquele dia. */
@@ -39,6 +43,8 @@ export interface ExerciseLog {
   performedName: string;
   sets: SetLog[];
   notes?: string;
+  /** true quando a maior carga desta sessão superou o recorde anterior do exercício. */
+  isPR?: boolean;
 }
 
 export interface WorkoutExecution {
@@ -87,8 +93,8 @@ const defaultWorkouts: Workout[] = [
     name: "Treino A - Inferiores",
     exercises: [
       { id: "e1", name: "Agachamento livre", sets: 4, reps: "10-12", load: "45kg", rest: "90s" },
-      { id: "e2", name: "Leg press", sets: 3, reps: "12-15", load: "120kg", rest: "60s" },
-      { id: "e3", name: "Cadeira extensora", sets: 3, reps: "15", load: "30kg", rest: "45s" },
+      { id: "e2", name: "Leg press", sets: 3, reps: "12-15", load: "120kg", rest: "0s", supersetGroup: "ss1" },
+      { id: "e3", name: "Cadeira extensora", sets: 3, reps: "15", load: "30kg", rest: "45s", supersetGroup: "ss1" },
     ],
   },
   {

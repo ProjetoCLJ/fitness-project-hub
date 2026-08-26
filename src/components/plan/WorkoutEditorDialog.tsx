@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Link2, Link2Off } from "lucide-react";
 import { Exercise, Workout } from "@/lib/planStore";
 import { exerciseLibrary } from "@/data/exerciseLibrary";
 
@@ -62,6 +62,24 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
     setDraft((prev) => ({ ...prev, exercises: prev.exercises.filter((ex) => ex.id !== id) }));
   };
 
+  const toggleSuperset = (index: number) => {
+    if (index === 0) return;
+    setDraft((prev) => {
+      const exercises = [...prev.exercises];
+      const current = exercises[index];
+      const previous = exercises[index - 1];
+      const isLinked = !!current.supersetGroup && current.supersetGroup === previous.supersetGroup;
+      if (isLinked) {
+        exercises[index] = { ...current, supersetGroup: undefined };
+      } else {
+        const groupId = previous.supersetGroup ?? crypto.randomUUID();
+        exercises[index - 1] = { ...previous, supersetGroup: groupId };
+        exercises[index] = { ...current, supersetGroup: groupId };
+      }
+      return { ...prev, exercises };
+    });
+  };
+
   const canSave = draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0);
 
   const handleSave = () => {
@@ -101,25 +119,45 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
 
           <div className="space-y-3">
             <Label>Exercícios</Label>
-            {draft.exercises.map((ex) => (
-              <div key={ex.id} className="p-3 border rounded-md space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={ex.name}
-                    onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
-                    placeholder="Nome do exercício"
-                    className="flex-1"
-                    list="exercise-library-options"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeExercise(ex.id)}
-                    disabled={draft.exercises.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Use o ícone de corrente para unir um exercício ao anterior como superset (executados em sequência, sem descanso entre eles).
+            </p>
+            {draft.exercises.map((ex, index) => {
+              const previous = index > 0 ? draft.exercises[index - 1] : null;
+              const isLinked = !!ex.supersetGroup && !!previous && ex.supersetGroup === previous.supersetGroup;
+              return (
+                <div key={ex.id}>
+                  {isLinked && (
+                    <div className="text-xs font-medium text-primary mb-1 ml-1">↳ Superset</div>
+                  )}
+                  <div className={`p-3 border rounded-md space-y-2 ${isLinked ? "border-primary/40 bg-primary/5" : ""}`}>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={ex.name}
+                        onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
+                        placeholder="Nome do exercício"
+                        className="flex-1"
+                        list="exercise-library-options"
+                      />
+                      {index > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleSuperset(index)}
+                          title={isLinked ? "Desfazer superset" : "Unir como superset"}
+                        >
+                          {isLinked ? <Link2Off className="h-4 w-4 text-primary" /> : <Link2 className="h-4 w-4" />}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeExercise(ex.id)}
+                        disabled={draft.exercises.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                 <div className="grid grid-cols-4 gap-2">
                   <div>
                     <Label className="text-xs">Séries</Label>
@@ -156,8 +194,10 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
                     />
                   </div>
                 </div>
-              </div>
-            ))}
+                  </div>
+                </div>
+              );
+            })}
             <Button variant="outline" className="w-full" onClick={addExercise}>
               <Plus className="h-4 w-4 mr-2" />
               Adicionar exercício

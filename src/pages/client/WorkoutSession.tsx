@@ -11,14 +11,27 @@ import { RestTimer } from "@/components/plan/RestTimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle } from "lucide-react";
-import { ExerciseLog, Plan, SetLog, getActivePlan, recordExecution } from "@/lib/planStore";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Trophy } from "lucide-react";
+import { ExerciseLog, Plan, SetLog, getActivePlan, getPlans, recordExecution } from "@/lib/planStore";
 
 const CURRENT_CLIENT_ID = "1";
 
 const parseRestSeconds = (rest: string) => {
   const match = rest.match(/(\d+)/);
   return match ? Number(match[1]) : 60;
+};
+
+const parseWeight = (weight: string) => {
+  const match = weight.match(/(\d+(\.\d+)?)/);
+  return match ? Number(match[1]) : 0;
 };
 
 interface ExerciseDraft {
@@ -64,6 +77,10 @@ const WorkoutSession = () => {
 
   const exercise = workout.exercises[exerciseIndex];
   const draft = drafts[exercise.id];
+  const nextExercise = workout.exercises[exerciseIndex + 1];
+  const prevExercise = workout.exercises[exerciseIndex - 1];
+  const linkedWithNext = !!exercise.supersetGroup && nextExercise?.supersetGroup === exercise.supersetGroup;
+  const linkedWithPrev = !!exercise.supersetGroup && prevExercise?.supersetGroup === exercise.supersetGroup;
 
   const totalSets = workout.exercises.reduce((sum, ex) => sum + ex.sets, 0);
   const doneSets = Object.values(drafts).reduce((sum, d) => sum + d.sets.filter((s) => s.done).length, 0);
@@ -80,7 +97,8 @@ const WorkoutSession = () => {
       ...d,
       sets: d.sets.map((s) => (s.setNumber === setNumber ? { ...s, done: willBeDone } : s)),
     }));
-    if (willBeDone) {
+    // Em superset, o descanso só começa depois do último exercício do grupo.
+    if (willBeDone && !linkedWithNext) {
       setRestSeconds(parseRestSeconds(exercise.rest));
     }
   };
@@ -89,22 +107,39 @@ const WorkoutSession = () => {
     updateDraft((d) => ({ ...d, sets: d.sets.map((s) => (s.setNumber === setNumber ? { ...s, [field]: value } : s)) }));
   };
 
+  const setEffort = (setNumber: number, effort: number) => {
+    updateDraft((d) => ({ ...d, sets: d.sets.map((s) => (s.setNumber === setNumber ? { ...s, effort } : s)) }));
+  };
+
   const toggleSwap = () => {
     updateDraft((d) => ({ ...d, swapping: !d.swapping, performedName: d.swapping ? exercise.name : d.performedName }));
   };
 
   const finishWorkout = () => {
+    const priorExecutions = getPlans(CURRENT_CLIENT_ID).flatMap((p) => p.executions);
+
     const exerciseLogs: ExerciseLog[] = workout.exercises
       .map((ex) => {
         const d = drafts[ex.id];
         const completedSets = d.sets.filter((s) => s.done).map(({ done, ...rest }) => rest);
         if (completedSets.length === 0) return null;
+        const performedName = d.performedName.trim() || ex.name;
+        const topWeight = Math.max(...completedSets.map((s) => parseWeight(s.weight)), 0);
+        const priorBest = Math.max(
+          0,
+          ...priorExecutions.flatMap((exec) =>
+            exec.exerciseLogs
+              .filter((log) => log.performedName === performedName)
+              .flatMap((log) => log.sets.map((s) => parseWeight(s.weight)))
+          )
+        );
         return {
           exerciseId: ex.id,
           plannedName: ex.name,
-          performedName: d.performedName.trim() || ex.name,
+          performedName,
           sets: completedSets,
           notes: d.notes.trim() || undefined,
+          isPR: topWeight > 0 && topWeight > priorBest,
         };
       })
       .filter((log): log is ExerciseLog => log !== null);
@@ -122,7 +157,13 @@ const WorkoutSession = () => {
       observations: observations.trim() || undefined,
     });
 
-    toast({ title: "Treino concluído!", description: `${workout.name} registrado no seu histórico.` });
+    const prCount = exerciseLogs.filter((l) => l.isPR).length;
+    toast({
+      title: "Treino concluído!",
+      description: prCount > 0
+        ? `${workout.name} registrado — ${prCount} ${prCount > 1 ? "recordes pessoais" : "recorde pessoal"}! 🏆`
+        : `${workout.name} registrado no seu histórico.`,
+    });
     navigate("/dashboard/student/workouts");
   };
 
@@ -145,6 +186,13 @@ const WorkoutSession = () => {
         <p className="text-sm text-muted-foreground mb-6">
           Exercício {exerciseIndex + 1} de {workout.exercises.length}
         </p>
+
+        {(linkedWithNext || linkedWithPrev) && (
+          <Badge variant="secondary" className="mb-2">
+            <Link2 className="h-3 w-3 mr-1" />
+            Superset {linkedWithPrev ? `com ${prevExercise?.name}` : `com ${nextExercise?.name}`}
+          </Badge>
+        )}
 
         <Card className="p-4 sm:p-6 space-y-4">
           <div className="flex items-start justify-between gap-2">
@@ -182,7 +230,7 @@ const WorkoutSession = () => {
           <div className="space-y-2">
             {draft?.sets.map((set) => (
               <div
-                key={set.setNumber}
+                key={`${exercise.id}-${set.setNumber}`}
                 className={`flex items-center gap-2 p-2 rounded-md border ${set.done ? "bg-primary/5 border-primary/30" : "border-border"}`}
               >
                 <Checkbox checked={set.done} onCheckedChange={() => toggleSetDone(set.setNumber)} />
@@ -199,8 +247,22 @@ const WorkoutSession = () => {
                   placeholder="Reps"
                   className="h-9 text-sm"
                 />
+                <Select
+                  value={set.effort !== undefined ? String(set.effort) : undefined}
+                  onValueChange={(v) => setEffort(set.setNumber, Number(v))}
+                >
+                  <SelectTrigger className="h-9 text-xs w-16 shrink-0">
+                    <SelectValue placeholder="RIR" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 1, 2, 3, 4, 5].map((v) => (
+                      <SelectItem key={v} value={String(v)}>{v} RIR</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             ))}
+            <p className="text-xs text-muted-foreground">RIR = repetições que ainda conseguiria fazer (0 = até a falha). Opcional.</p>
           </div>
 
           <div className="space-y-2">

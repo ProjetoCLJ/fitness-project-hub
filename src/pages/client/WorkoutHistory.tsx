@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, History } from "lucide-react";
+import { ArrowLeft, History, Trophy } from "lucide-react";
 import { getPlans } from "@/lib/planStore";
 
 const CURRENT_CLIENT_ID = "1";
@@ -54,16 +54,23 @@ const WorkoutHistory = () => {
                 <div className="space-y-2">
                   {exec.exerciseLogs.map((log) => (
                     <div key={log.exerciseId} className="text-xs">
-                      <p className="font-medium text-foreground">
+                      <p className="font-medium text-foreground flex items-center gap-1">
                         {log.performedName}
                         {log.performedName !== log.plannedName && (
                           <span className="text-muted-foreground font-normal"> (trocado de {log.plannedName})</span>
+                        )}
+                        {log.isPR && (
+                          <span className="inline-flex items-center gap-0.5 text-amber-600 font-normal">
+                            <Trophy className="h-3 w-3" />
+                            PR
+                          </span>
                         )}
                       </p>
                       <div className="flex flex-wrap gap-2 mt-1 text-muted-foreground">
                         {log.sets.map((set) => (
                           <span key={set.setNumber} className="px-2 py-0.5 rounded bg-muted/50">
                             S{set.setNumber}: {set.weight} · {set.reps}
+                            {set.effort !== undefined && ` · ${set.effort} RIR`}
                           </span>
                         ))}
                       </div>

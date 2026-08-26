@@ -388,15 +388,19 @@ const ClientProfilePro = () => {
                   <div className="space-y-2">
                     {exec.exerciseLogs.map((log) => (
                       <div key={log.exerciseId} className="text-xs p-2 rounded-md bg-muted/30">
-                        <p className="font-medium text-foreground">
+                        <p className="font-medium text-foreground flex items-center gap-1">
                           {log.performedName}
                           {log.performedName !== log.plannedName && (
                             <span className="text-muted-foreground font-normal"> (trocado de {log.plannedName})</span>
                           )}
+                          {log.isPR && <span className="text-amber-600">🏆 PR</span>}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-1 text-muted-foreground">
                           {log.sets.map((set) => (
-                            <span key={set.setNumber}>S{set.setNumber}: {set.weight} · {set.reps}</span>
+                            <span key={set.setNumber}>
+                              S{set.setNumber}: {set.weight} · {set.reps}
+                              {set.effort !== undefined && ` · ${set.effort} RIR`}
+                            </span>
                           ))}
                         </div>
                         {log.notes && <p className="italic text-muted-foreground mt-1">"{log.notes}"</p>}

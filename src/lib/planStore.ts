@@ -1,7 +1,12 @@
-// Store local (localStorage) do plano de treino de um cliente.
+// Store local (localStorage) dos planos de um cliente.
 // Simula a camada de dados até termos um backend real: permite que a
 // edição feita pelo profissional (ClientProfilePro) seja refletida na
-// visão do cliente (MyPlan) dentro do mesmo navegador.
+// visão do cliente (MyPlan/Workouts) dentro do mesmo navegador.
+//
+// Um cliente tem um histórico de Planos (entidades independentes e
+// completas — objetivo, prazo, estratégias, treinos, profissionais
+// responsáveis). Só um plano fica "active" por vez; ao criar um novo,
+// o anterior é marcado "completed" e preservado no histórico.
 
 export interface Exercise {
   id: string;
@@ -20,34 +25,60 @@ export interface Workout {
   observations?: string;
 }
 
+/** Peso e repetições realmente executados em uma série específica. */
+export interface SetLog {
+  setNumber: number;
+  weight: string;
+  reps: string;
+}
+
+/** Execução de um exercício dentro de um treino: pode ter sido trocado naquele dia. */
+export interface ExerciseLog {
+  exerciseId: string;
+  plannedName: string;
+  performedName: string;
+  sets: SetLog[];
+  notes?: string;
+}
+
 export interface WorkoutExecution {
   id: string;
   workoutId: string;
   workoutName: string;
   date: string;
-  completedExercises: { name: string; sets: number; reps: string; load: string }[];
+  exerciseLogs: ExerciseLog[];
   observations?: string;
 }
 
 export interface PlanVersion {
   timestamp: string;
   objective: string;
-  strategy: string;
+  trainingStrategy: string;
   workouts: Workout[];
 }
 
-export interface ClientPlan {
+export interface Plan {
+  id: string;
   clientId: string;
+  title: string;
   objective: string;
-  strategy: string;
+  deadline: string;
+  trainingStrategy: string;
   trainingApproach: string;
+  nutritionStrategy: string;
+  trainerName: string;
+  nutritionistName: string;
   workouts: Workout[];
   executions: WorkoutExecution[];
   versions: PlanVersion[];
+  progress: number;
+  status: "active" | "completed";
+  startDate: string;
+  endDate?: string;
   updatedAt: string;
 }
 
-const STORAGE_PREFIX = "fit_plan_";
+const STORAGE_PREFIX = "fit_plans_";
 
 const defaultWorkouts: Workout[] = [
   {
@@ -55,7 +86,7 @@ const defaultWorkouts: Workout[] = [
     day: "Segunda",
     name: "Treino A - Inferiores",
     exercises: [
-      { id: "e1", name: "Agachamento livre", sets: 4, reps: "10-12", load: "40kg", rest: "90s" },
+      { id: "e1", name: "Agachamento livre", sets: 4, reps: "10-12", load: "45kg", rest: "90s" },
       { id: "e2", name: "Leg press", sets: 3, reps: "12-15", load: "120kg", rest: "60s" },
       { id: "e3", name: "Cadeira extensora", sets: 3, reps: "15", load: "30kg", rest: "45s" },
     ],
@@ -82,67 +113,132 @@ const defaultWorkouts: Workout[] = [
   },
 ];
 
-const defaultPlan = (clientId: string): ClientPlan => ({
-  clientId,
-  objective: "Melhorar condicionamento físico",
-  strategy: "4 sessões semanais - hipertrofia",
-  trainingApproach:
-    "Progressão de carga semanal com foco em hipertrofia nas primeiras 8 semanas, seguida por um bloco de definição. " +
-    "Reavaliação de cargas a cada 4 semanas. Prazo estimado para o próximo objetivo: 12 semanas.",
-  workouts: defaultWorkouts,
-  executions: [],
-  versions: [],
-  updatedAt: new Date(2024, 10, 28).toISOString(),
-});
+const addMonths = (date: Date, months: number) => {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+};
 
-export const getPlan = (clientId: string): ClientPlan => {
+const defaultPlan = (clientId: string): Plan => {
+  const start = new Date(2024, 10, 1);
+  return {
+    id: crypto.randomUUID(),
+    clientId,
+    title: "Plano de Condicionamento — Nov/2024",
+    objective: "Melhorar condicionamento físico",
+    deadline: addMonths(start, 3).toISOString(),
+    trainingStrategy: "4 sessões semanais - hipertrofia",
+    trainingApproach:
+      "Progressão de carga semanal com foco em hipertrofia nas primeiras 8 semanas, seguida por um bloco de definição. " +
+      "Reavaliação de cargas a cada 4 semanas.",
+    nutritionStrategy: "Reeducação alimentar com déficit calórico moderado, priorizando proteína magra e hidratação.",
+    trainerName: "Carlos Silva",
+    nutritionistName: "Maria Santos",
+    workouts: defaultWorkouts,
+    executions: [],
+    versions: [],
+    progress: 45,
+    status: "active",
+    startDate: start.toISOString(),
+    updatedAt: new Date(2024, 10, 28).toISOString(),
+  };
+};
+
+export const getPlans = (clientId: string): Plan[] => {
   const raw = localStorage.getItem(STORAGE_PREFIX + clientId);
-  if (!raw) return defaultPlan(clientId);
+  if (!raw) {
+    const seeded = [defaultPlan(clientId)];
+    localStorage.setItem(STORAGE_PREFIX + clientId, JSON.stringify(seeded));
+    return seeded;
+  }
   try {
-    // Mescla com os defaults para cobrir campos adicionados depois que
-    // dados antigos já foram salvos no localStorage deste navegador.
-    return { ...defaultPlan(clientId), ...(JSON.parse(raw) as Partial<ClientPlan>) } as ClientPlan;
+    return JSON.parse(raw) as Plan[];
   } catch {
-    return defaultPlan(clientId);
+    return [defaultPlan(clientId)];
   }
 };
 
-const persist = (plan: ClientPlan) => {
-  localStorage.setItem(STORAGE_PREFIX + plan.clientId, JSON.stringify(plan));
+export const getActivePlan = (clientId: string): Plan | undefined =>
+  getPlans(clientId).find((p) => p.status === "active");
+
+const persist = (clientId: string, plans: Plan[]) => {
+  localStorage.setItem(STORAGE_PREFIX + clientId, JSON.stringify(plans));
 };
 
-/** Salva alterações feitas pelo profissional, preservando a versão anterior no histórico. */
-export const savePlanEdits = (
-  clientId: string,
-  edits: { objective?: string; strategy?: string; trainingApproach?: string; workouts?: Workout[] }
-): ClientPlan => {
-  const current = getPlan(clientId);
-  const previousVersion: PlanVersion = {
-    timestamp: current.updatedAt,
-    objective: current.objective,
-    strategy: current.strategy,
-    workouts: current.workouts,
-  };
-  const updated: ClientPlan = {
-    ...current,
-    ...edits,
-    versions: [previousVersion, ...current.versions].slice(0, 20),
-    updatedAt: new Date().toISOString(),
-  };
-  persist(updated);
+export type PlanEdits = Partial<
+  Pick<
+    Plan,
+    | "objective"
+    | "trainingStrategy"
+    | "trainingApproach"
+    | "nutritionStrategy"
+    | "deadline"
+    | "trainerName"
+    | "nutritionistName"
+    | "workouts"
+    | "progress"
+  >
+>;
+
+/** Salva alterações feitas pelo profissional no plano indicado, preservando a versão anterior. */
+export const savePlanEdits = (clientId: string, planId: string, edits: PlanEdits): Plan[] => {
+  const plans = getPlans(clientId);
+  const updated = plans.map((plan) => {
+    if (plan.id !== planId) return plan;
+    const previousVersion: PlanVersion = {
+      timestamp: plan.updatedAt,
+      objective: plan.objective,
+      trainingStrategy: plan.trainingStrategy,
+      workouts: plan.workouts,
+    };
+    return {
+      ...plan,
+      ...edits,
+      versions: [previousVersion, ...plan.versions].slice(0, 20),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+  persist(clientId, updated);
   return updated;
 };
 
-/** Registra a execução de um treino pelo cliente. */
+/** Encerra o plano ativo e cria um novo plano ativo para o cliente. */
+export const createPlan = (
+  clientId: string,
+  data: Pick<Plan, "title" | "objective" | "deadline" | "trainingStrategy" | "trainingApproach" | "nutritionStrategy" | "trainerName" | "nutritionistName">
+): Plan[] => {
+  const plans = getPlans(clientId);
+  const now = new Date().toISOString();
+  const closed = plans.map((p) => (p.status === "active" ? { ...p, status: "completed" as const, endDate: now } : p));
+  const newPlan: Plan = {
+    id: crypto.randomUUID(),
+    clientId,
+    ...data,
+    workouts: [],
+    executions: [],
+    versions: [],
+    progress: 0,
+    status: "active",
+    startDate: now,
+    updatedAt: now,
+  };
+  const updated = [...closed, newPlan];
+  persist(clientId, updated);
+  return updated;
+};
+
+/** Registra a execução de um treino (dentro de um plano específico) pelo cliente. */
 export const recordExecution = (
   clientId: string,
+  planId: string,
   execution: Omit<WorkoutExecution, "id">
-): ClientPlan => {
-  const current = getPlan(clientId);
-  const updated: ClientPlan = {
-    ...current,
-    executions: [{ ...execution, id: crypto.randomUUID() }, ...current.executions],
-  };
-  persist(updated);
+): Plan[] => {
+  const plans = getPlans(clientId);
+  const updated = plans.map((plan) =>
+    plan.id === planId
+      ? { ...plan, executions: [{ ...execution, id: crypto.randomUUID() }, ...plan.executions] }
+      : plan
+  );
+  persist(clientId, updated);
   return updated;
 };

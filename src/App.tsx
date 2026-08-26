@@ -13,7 +13,12 @@ import Trainers from "./pages/Trainers";
 import TrainerProfile from "./pages/TrainerProfile";
 import ClientHome from "./pages/client/ClientHome";
 import MyPlan from "./pages/client/MyPlan";
+import PlanHistory from "./pages/client/PlanHistory";
 import Workouts from "./pages/client/Workouts";
+import WorkoutSession from "./pages/client/WorkoutSession";
+import WorkoutHistory from "./pages/client/WorkoutHistory";
+import Library from "./pages/client/Library";
+import Stats from "./pages/client/Stats";
 import Challenges from "./pages/client/Challenges";
 import ClientProfilePage from "./pages/client/ClientProfilePage";
 import ProHome from "./pages/pro/ProHome";
@@ -43,7 +48,12 @@ const App = () => (
             {/* Cliente */}
             <Route path="/dashboard/student" element={<ClientHome />} />
             <Route path="/dashboard/student/plan" element={<MyPlan />} />
+            <Route path="/dashboard/student/plan/history" element={<PlanHistory />} />
             <Route path="/dashboard/student/workouts" element={<Workouts />} />
+            <Route path="/dashboard/student/workouts/session/:workoutId" element={<WorkoutSession />} />
+            <Route path="/dashboard/student/workouts/history" element={<WorkoutHistory />} />
+            <Route path="/dashboard/student/library" element={<Library />} />
+            <Route path="/dashboard/student/stats" element={<Stats />} />
             <Route path="/dashboard/student/challenges" element={<Challenges />} />
             <Route path="/dashboard/student/profile" element={<ClientProfilePage />} />
 

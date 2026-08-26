@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
-import { ClientPlan, getPlan } from "@/lib/planStore";
+import { Plan, getActivePlan } from "@/lib/planStore";
 
 const CURRENT_CLIENT_ID = "1";
 const TRAINER_PROFILE_PATH = "/trainer/1";
@@ -16,10 +16,10 @@ const TRAINER_PROFILE_PATH = "/trainer/1";
 const ClientProfilePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [plan, setPlan] = useState<ClientPlan | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
-    setPlan(getPlan(CURRENT_CLIENT_ID));
+    setPlan(getActivePlan(CURRENT_CLIENT_ID) ?? null);
   }, []);
 
   if (!user || user.userType !== "student" || !plan) return null;
@@ -43,11 +43,13 @@ const ClientProfilePage = () => {
             <div className="flex items-start justify-between mb-2">
               <div>
                 <p className="font-semibold">{plan.objective}</p>
-                <p className="text-sm text-muted-foreground">Prazo: 3 meses</p>
+                <p className="text-sm text-muted-foreground">
+                  Prazo: {new Date(plan.deadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+                </p>
               </div>
               <Badge>Em andamento</Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-2">Progresso estimado: 60%</p>
+            <p className="text-sm text-muted-foreground mt-2">Progresso estimado: {plan.progress}%</p>
           </Card>
         </div>
 
@@ -82,10 +84,12 @@ const ClientProfilePage = () => {
                 onClick={() => navigate(TRAINER_PROFILE_PATH)}
               >
                 <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">CS</AvatarFallback>
+                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                    {plan.trainerName.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-primary hover:underline">Carlos Silva</p>
+                  <p className="font-medium text-primary hover:underline">{plan.trainerName}</p>
                   <p className="text-sm text-muted-foreground">Personal Trainer</p>
                 </div>
               </button>
@@ -96,10 +100,12 @@ const ClientProfilePage = () => {
             <Card className="p-4 sm:p-6 flex items-center gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">MS</AvatarFallback>
+                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">
+                    {plan.nutritionistName.split(" ").map((n) => n[0]).join("")}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium">Maria Santos</p>
+                  <p className="font-medium">{plan.nutritionistName}</p>
                   <p className="text-sm text-muted-foreground">Nutricionista</p>
                 </div>
               </div>

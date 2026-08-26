@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { Exercise, Workout } from "@/lib/planStore";
+import { exerciseLibrary } from "@/data/exerciseLibrary";
 
 interface WorkoutEditorDialogProps {
   workout: Workout | null;
@@ -108,6 +109,7 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
                     onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
                     placeholder="Nome do exercício"
                     className="flex-1"
+                    list="exercise-library-options"
                   />
                   <Button
                     variant="ghost"
@@ -177,6 +179,12 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
             Salvar treino
           </Button>
         </div>
+
+        <datalist id="exercise-library-options">
+          {exerciseLibrary.map((ex) => (
+            <option key={ex.id} value={ex.name} />
+          ))}
+        </datalist>
       </DialogContent>
     </Dialog>
   );

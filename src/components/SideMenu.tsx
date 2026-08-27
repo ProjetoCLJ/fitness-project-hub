@@ -7,7 +7,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Menu,
   Dumbbell,
@@ -20,7 +19,6 @@ import {
   Users,
   CalendarDays,
   Wallet,
-  BookOpen,
   LineChart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -44,7 +42,7 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
     { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Meu Plano", icon: ClipboardList, path: "/dashboard/student/plan" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
-    { label: "Biblioteca", icon: BookOpen, path: "/dashboard/student/library" },
+    // Biblioteca temporariamente oculta do menu (página segue disponível em /dashboard/student/library).
     { label: "Estatísticas", icon: LineChart, path: "/dashboard/student/stats" },
     { label: "Profissionais", icon: Search, path: "/trainers" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
@@ -78,21 +76,6 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
             </span>
           </SheetTitle>
         </SheetHeader>
-
-        {isAuthenticated && user && (
-          <div className="flex items-center gap-3 py-4 border-b border-border">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={user.profile.profileImageUrl} />
-              <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                {user.profile.fullName.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="font-semibold truncate">{user.profile.fullName}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-          </div>
-        )}
 
         {isAuthenticated && user ? (
           <>

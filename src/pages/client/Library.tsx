@@ -8,13 +8,13 @@ import { Search, Dumbbell, HeartPulse, PersonStanding, Bone, Hand, CircleDot, Ac
 import { EQUIPMENT_TYPES, Equipment, MUSCLE_GROUPS, MuscleGroup, exerciseLibrary } from "@/data/exerciseLibrary";
 
 const GROUP_STYLE: Record<MuscleGroup, { icon: typeof Dumbbell; className: string }> = {
-  Peito: { icon: Dumbbell, className: "bg-red-500/10 text-red-600" },
-  Costas: { icon: Bone, className: "bg-blue-500/10 text-blue-600" },
-  Pernas: { icon: PersonStanding, className: "bg-green-500/10 text-green-600" },
-  Ombros: { icon: CircleDot, className: "bg-amber-500/10 text-amber-600" },
-  Braços: { icon: Hand, className: "bg-purple-500/10 text-purple-600" },
-  Core: { icon: Activity, className: "bg-orange-500/10 text-orange-600" },
-  Cardio: { icon: HeartPulse, className: "bg-pink-500/10 text-pink-600" },
+  Peito: { icon: Dumbbell, className: "bg-primary/10 text-primary" },
+  Costas: { icon: Bone, className: "bg-secondary/10 text-secondary" },
+  Pernas: { icon: PersonStanding, className: "bg-primary/20 text-primary" },
+  Ombros: { icon: CircleDot, className: "bg-foreground/10 text-foreground" },
+  Braços: { icon: Hand, className: "bg-secondary/20 text-secondary" },
+  Core: { icon: Activity, className: "bg-muted-foreground/15 text-muted-foreground" },
+  Cardio: { icon: HeartPulse, className: "bg-accent/10 text-accent" },
 };
 
 const Library = () => {

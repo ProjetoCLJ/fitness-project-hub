@@ -60,7 +60,7 @@ const WorkoutHistory = () => {
                           <span className="text-muted-foreground font-normal"> (trocado de {log.plannedName})</span>
                         )}
                         {log.isPR && (
-                          <span className="inline-flex items-center gap-0.5 text-amber-600 font-normal">
+                          <span className="inline-flex items-center gap-0.5 text-primary font-normal">
                             <Trophy className="h-3 w-3" />
                             PR
                           </span>

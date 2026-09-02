@@ -393,7 +393,7 @@ const ClientProfilePro = () => {
                           {log.performedName !== log.plannedName && (
                             <span className="text-muted-foreground font-normal"> (trocado de {log.plannedName})</span>
                           )}
-                          {log.isPR && <span className="text-amber-600">🏆 PR</span>}
+                          {log.isPR && <span className="text-primary">🏆 PR</span>}
                         </p>
                         <div className="flex flex-wrap gap-2 mt-1 text-muted-foreground">
                           {log.sets.map((set) => (

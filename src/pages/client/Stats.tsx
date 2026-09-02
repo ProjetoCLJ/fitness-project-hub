@@ -196,7 +196,7 @@ const Stats = () => {
             <div className="text-xs text-muted-foreground">Semanas seguidas</div>
           </Card>
           <Card className="p-3 sm:p-4 text-center">
-            <Trophy className="h-4 w-4 text-amber-500 mx-auto mb-1" />
+            <Trophy className="h-4 w-4 text-primary mx-auto mb-1" />
             <div className="text-lg sm:text-2xl font-bold">{prCount}</div>
             <div className="text-xs text-muted-foreground">Recordes</div>
           </Card>

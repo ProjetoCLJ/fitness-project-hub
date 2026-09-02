@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +17,6 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toast } = useToast();
-  const [userType, setUserType] = useState<"student" | "trainer">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -35,18 +33,18 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
     }
 
     try {
-      await login(email, password, userType);
+      await login(email, password);
       onOpenChange(false);
     } catch (error) {
       toast({
-        title: "Erro ao fazer login",
-        description: "Verifique suas credenciais e tente novamente",
+        title: "Não foi possível entrar",
+        description: "E-mail ou senha inválidos. Ainda não tem conta? Cadastre-se abaixo.",
         variant: "destructive"
       });
     }
   };
 
-  const handleSignupRedirect = () => {
+  const handleSignupRedirect = (userType: "student" | "trainer") => {
     onOpenChange(false);
     navigate(userType === "trainer" ? "/register/trainer" : "/register/student");
   };
@@ -56,7 +54,7 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-            Bem-vindo ao FitConnect
+            Bem-vindo ao FIT
           </DialogTitle>
           <DialogDescription>
             Entre com sua conta ou crie uma nova para começar
@@ -72,24 +70,10 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
           <TabsContent value="login" className="space-y-4">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label>Tipo de Usuário</Label>
-                <RadioGroup value={userType} onValueChange={(value) => setUserType(value as "student" | "trainer")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="student" id="student" />
-                    <Label htmlFor="student" className="cursor-pointer">Aluno</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="trainer" id="trainer" />
-                    <Label htmlFor="trainer" className="cursor-pointer">Professor</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
+                <Input
+                  id="email"
+                  type="email"
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -99,8 +83,8 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
 
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
-                <Input 
-                  id="password" 
+                <Input
+                  id="password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
@@ -115,23 +99,13 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
             </form>
           </TabsContent>
 
-          <TabsContent value="signup" className="space-y-4">
-            <div className="space-y-2">
-              <Label>Eu sou...</Label>
-              <RadioGroup value={userType} onValueChange={(value) => setUserType(value as "student" | "trainer")}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="student" id="signup-student" />
-                  <Label htmlFor="signup-student" className="cursor-pointer">Aluno - Quero encontrar um personal</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="trainer" id="signup-trainer" />
-                  <Label htmlFor="signup-trainer" className="cursor-pointer">Professor - Quero oferecer meus serviços</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <Button onClick={handleSignupRedirect} className="w-full" variant="hero" size="lg">
-              Continuar Cadastro
+          <TabsContent value="signup" className="space-y-3">
+            <p className="text-sm text-muted-foreground">Como você quer usar o FIT?</p>
+            <Button onClick={() => handleSignupRedirect("student")} className="w-full" variant="hero" size="lg">
+              Sou aluno — quero encontrar um profissional
+            </Button>
+            <Button onClick={() => handleSignupRedirect("trainer")} className="w-full" variant="outline" size="lg">
+              Sou profissional — quero oferecer meus serviços
             </Button>
           </TabsContent>
         </Tabs>

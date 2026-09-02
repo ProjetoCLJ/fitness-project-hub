@@ -9,10 +9,13 @@ import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { accountExists, registerAccount } from "@/lib/accountStore";
 
 const RegisterStudent = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     fullName: "",
     birthDate: "",
@@ -24,9 +27,9 @@ const RegisterStudent = () => {
     confirmPassword: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast({
         title: "Erro",
@@ -36,13 +39,29 @@ const RegisterStudent = () => {
       return;
     }
 
-    // Placeholder for registration logic
-    console.log("Student registration:", formData);
+    if (accountExists(formData.email)) {
+      toast({
+        title: "E-mail já cadastrado",
+        description: "Já existe uma conta com esse e-mail. Tente entrar em vez de cadastrar.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    registerAccount({
+      email: formData.email,
+      password: formData.password,
+      userType: "student",
+      fullName: formData.fullName,
+      phone: formData.phone,
+    });
+
     toast({
       title: "Cadastro realizado!",
-      description: "Bem-vindo ao FitConnect",
+      description: "Bem-vindo ao FIT",
     });
-    navigate("/");
+
+    await login(formData.email, formData.password);
   };
 
   const handleChange = (field: string, value: string) => {

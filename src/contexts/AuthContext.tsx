@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { findAccount } from "@/lib/accountStore";
 
 interface User {
   id: string;
@@ -16,7 +17,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, userType: "trainer" | "student") => Promise<void>;
+  /** Autentica contra as contas cadastradas — o papel (aluno/profissional) vem da conta, nunca é escolhido no login. */
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -48,27 +50,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string, userType: "trainer" | "student") => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const mockUser: User = {
-        id: "mock-user-id",
-        email,
-        userType,
+      const account = findAccount(email, password);
+      if (!account) {
+        throw new Error("E-mail ou senha inválidos");
+      }
+
+      const loggedUser: User = {
+        id: `user-${account.email}`,
+        email: account.email,
+        userType: account.userType,
         profile: {
-          id: "mock-profile-id",
-          fullName: userType === "trainer" ? "Carlos Silva" : "Maria Fernanda",
-          phone: "(11) 99999-0000",
-        }
+          id: `profile-${account.email}`,
+          fullName: account.fullName,
+          phone: account.phone,
+        },
       };
 
-      setUser(mockUser);
-      localStorage.setItem("fitconnect_user", JSON.stringify(mockUser));
+      setUser(loggedUser);
+      localStorage.setItem("fitconnect_user", JSON.stringify(loggedUser));
 
-      navigate("/");
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
+      navigate(account.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student");
     } finally {
       setIsLoading(false);
     }

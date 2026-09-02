@@ -267,7 +267,7 @@ const Index = () => {
 
       {/* 7. FECHAMENTO */}
       <section className="relative py-24 sm:py-32 bg-background overflow-hidden text-center">
-        <span className="absolute inset-0 flex items-center justify-center text-[18rem] sm:text-[26rem] font-bold text-muted/40 select-none leading-none pointer-events-none">
+        <span className="absolute inset-0 flex items-center justify-center whitespace-nowrap text-8xl sm:text-[14rem] lg:text-[22rem] font-bold text-muted/50 select-none leading-none pointer-events-none">
           FIT
         </span>
         <div className="container mx-auto px-4 relative">

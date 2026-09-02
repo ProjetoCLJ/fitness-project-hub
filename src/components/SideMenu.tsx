@@ -26,9 +26,10 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface SideMenuProps {
   onLoginClick: () => void;
+  triggerClassName?: string;
 }
 
-export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
+export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -61,7 +62,7 @@ export const SideMenu = ({ onLoginClick }: SideMenuProps) => {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Abrir menu">
+        <Button variant="ghost" size="icon" aria-label="Abrir menu" className={triggerClassName}>
           <Menu className="h-6 w-6" />
         </Button>
       </SheetTrigger>

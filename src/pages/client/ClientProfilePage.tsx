@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, getActivePlan } from "@/lib/planStore";
 
 const CURRENT_CLIENT_ID = "1";
@@ -35,6 +36,8 @@ const ClientProfilePage = () => {
         </div>
 
         <StudentProfile />
+
+        <ThemeToggle />
 
         {/* Objetivos */}
         <div>

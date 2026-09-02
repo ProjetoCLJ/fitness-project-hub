@@ -47,6 +47,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        surface: "hsl(var(--surface))",
       },
       backgroundImage: {
         'gradient-primary': 'var(--gradient-primary)',

@@ -12,7 +12,7 @@ export const Header = ({ onLoginClick }: HeaderProps) => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur-lg border-b-2 border-primary/10 shadow-soft">
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">

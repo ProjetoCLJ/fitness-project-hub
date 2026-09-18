@@ -52,7 +52,7 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 220 13% 13%;
+    --background: 220 15% 5%;
     --foreground: 0 0% 98%;
 
     --card: 220 13% 18%;
@@ -99,6 +99,28 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  html {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 }
 

@@ -80,7 +80,7 @@ const Index = () => {
       <Header onLoginClick={() => setLoginOpen(true)} transparentOnTop />
 
       {/* 1. HERO — vídeo de fundo */}
-      <section className="relative h-[100svh] min-h-[560px] flex items-end overflow-hidden bg-secondary">
+      <section className="relative min-h-[100svh] flex items-end overflow-hidden bg-secondary">
         <video
           className="absolute inset-0 w-full h-full object-cover"
           src="/videos/hero-background.mp4"
@@ -90,9 +90,9 @@ const Index = () => {
           playsInline
         />
         <div className="absolute inset-0 bg-gradient-to-t from-secondary via-secondary/70 to-secondary/20" />
-        <div className="container mx-auto px-4 relative z-10 pb-20 sm:pb-28">
+        <div className="container mx-auto px-4 relative z-10 pt-28 pb-20 sm:pt-24 sm:pb-28">
           <div className="max-w-3xl">
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[0.95] text-white mb-6">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[0.95] text-white mb-6">
               Sua vida mais
               <br />
               <span className="text-primary">organizada.</span>

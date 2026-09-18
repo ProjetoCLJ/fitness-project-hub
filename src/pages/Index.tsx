@@ -5,6 +5,7 @@ import { LoginDialog } from "@/components/LoginDialog";
 import { PhoneFrame } from "@/components/landing/PhoneFrame";
 import { WaveDivider } from "@/components/landing/WaveDivider";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo/logo-header.png";
 import {
   Dumbbell,
   Apple,
@@ -296,10 +297,7 @@ const Index = () => {
           </div>
           <div className="flex flex-col sm:flex-row justify-between gap-6 border-t border-secondary-foreground/10 pt-8 text-sm opacity-70">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-gradient-primary rounded-md">
-                <Dumbbell className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-bold">FIT</span>
+              <img src={logo} alt="MyJourn" className="h-6 w-auto object-contain" />
               <span className="hidden sm:inline">— Seu fitness. Organizado em um só lugar.</span>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2">

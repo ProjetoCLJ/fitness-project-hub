@@ -7,6 +7,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo/logo-header.png";
 import {
   Menu,
   Dumbbell,
@@ -66,17 +67,14 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
           <Menu className="h-6 w-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 flex flex-col">
-        <SheetHeader className="text-left">
-          <SheetTitle className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-primary rounded-lg shadow-soft">
-              <Dumbbell className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="bg-gradient-hero bg-clip-text text-transparent">
-              FIT
-            </span>
+      <SheetContent side="left" className="w-72 flex flex-col p-0">
+        <SheetHeader className="text-left bg-secondary px-6 py-4">
+          <SheetTitle>
+            <img src={logo} alt="MyJourn" className="h-7 w-auto object-contain" />
           </SheetTitle>
         </SheetHeader>
+
+        <div className="flex-1 flex flex-col px-6 pb-6">
 
         {isAuthenticated && user ? (
           <>
@@ -142,6 +140,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
             </div>
           </>
         )}
+        </div>
       </SheetContent>
     </Sheet>
   );

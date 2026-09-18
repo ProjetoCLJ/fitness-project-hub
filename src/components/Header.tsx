@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dumbbell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SideMenu } from "@/components/SideMenu";
+import logo from "@/assets/logo/logo-header.png";
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -30,22 +30,21 @@ export const Header = ({ onLoginClick, transparentOnTop = false }: HeaderProps) 
       className={`fixed top-0 left-0 right-0 z-50 transition-smooth ${
         isTransparent
           ? "bg-transparent border-b-2 border-transparent"
-          : "bg-card/90 backdrop-blur-lg border-b-2 border-primary/10 shadow-soft"
+          : "bg-secondary/95 backdrop-blur-lg border-b-2 border-primary/10 shadow-soft"
       }`}
     >
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">
-            <SideMenu onLoginClick={onLoginClick} triggerClassName={isTransparent ? "text-white hover:bg-white/10" : undefined} />
+            <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />
           </div>
 
-          <Link to="/" className="flex items-center gap-2 group justify-self-center">
-            <div className="p-2 bg-gradient-primary rounded-lg shadow-soft group-hover:shadow-medium transition-smooth">
-              <Dumbbell className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className={`text-lg sm:text-xl font-bold ${isTransparent ? "text-white" : "bg-gradient-hero bg-clip-text text-transparent"}`}>
-              FIT
-            </span>
+          <Link to="/" className="flex items-center group justify-self-center">
+            <img
+              src={logo}
+              alt="MyJourn"
+              className="h-7 sm:h-8 w-auto object-contain"
+            />
           </Link>
 
           <div className="justify-self-end">

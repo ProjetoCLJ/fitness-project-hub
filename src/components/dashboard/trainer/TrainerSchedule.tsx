@@ -77,22 +77,19 @@ const TrainerSchedule = ({ trainerId = "trainer-1", onBookingsChange }: TrainerS
 
   const handleSlotClick = (slot: ScheduleSlot) => {
     if (slot.status === "outside" || slot.status === "past") return;
-    if (slot.status === "booked") {
-      setDetailSlot(slot);
-      return;
-    }
-    if (slot.status === "blocked") {
-      const result = toggleBlockedSlot(dateISO, slot.start, slot.end, trainerId);
-      if (result.ok) {
-        toast({ title: "Horário desbloqueado" });
-        refresh();
-      }
-      return;
-    }
-    // available
-    const result = toggleBlockedSlot(dateISO, slot.start, slot.end, trainerId);
+    setDetailSlot(slot);
+  };
+
+  const handleToggleBlock = () => {
+    if (!detailSlot) return;
+    const result = toggleBlockedSlot(dateISO, detailSlot.start, detailSlot.end, trainerId);
     if (result.ok) {
-      toast({ title: "Horário bloqueado", description: "Esse horário não ficará disponível para agendamento." });
+      toast(
+        detailSlot.status === "blocked"
+          ? { title: "Horário desbloqueado" }
+          : { title: "Horário bloqueado", description: "Esse horário não ficará disponível para agendamento." }
+      );
+      setDetailSlot(null);
       refresh();
     }
   };
@@ -210,12 +207,17 @@ const TrainerSchedule = ({ trainerId = "trainer-1", onBookingsChange }: TrainerS
       <Dialog open={!!detailSlot} onOpenChange={(open) => !open && setDetailSlot(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Detalhes da aula</DialogTitle>
+            <DialogTitle>
+              {detailSlot?.status === "booked" && "Detalhes da aula"}
+              {detailSlot?.status === "blocked" && "Horário bloqueado"}
+              {detailSlot?.status === "available" && "Horário disponível"}
+            </DialogTitle>
             <DialogDescription>
               {detailSlot && format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} · {detailSlot?.start} - {detailSlot?.end}
             </DialogDescription>
           </DialogHeader>
-          {detailSlot?.booking && (
+
+          {detailSlot?.status === "booked" && detailSlot.booking && (
             <div className="space-y-4">
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
@@ -239,6 +241,29 @@ const TrainerSchedule = ({ trainerId = "trainer-1", onBookingsChange }: TrainerS
                   Cancelar aula
                 </Button>
               </div>
+            </div>
+          )}
+
+          {detailSlot?.status === "blocked" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Este horário está bloqueado manualmente e não aparece como disponível para agendamento.
+              </p>
+              <Button className="w-full" onClick={handleToggleBlock}>
+                Desbloquear horário
+              </Button>
+            </div>
+          )}
+
+          {detailSlot?.status === "available" && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Este horário está livre para os alunos agendarem. Você pode bloqueá-lo se não quiser atender nesse período.
+              </p>
+              <Button variant="destructive" className="w-full" onClick={handleToggleBlock}>
+                <Lock className="h-4 w-4 mr-2" />
+                Bloquear horário
+              </Button>
             </div>
           )}
         </DialogContent>

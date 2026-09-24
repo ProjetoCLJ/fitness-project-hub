@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Check, X, Clock3, CalendarClock } from "lucide-react";
+import { Check, X, Clock3, CalendarClock } from "lucide-react";
 import TrainerSchedule from "@/components/dashboard/trainer/TrainerSchedule";
 import { Booking, getBookingsForTrainer, respondProposal } from "@/lib/agendaStore";
 
@@ -172,14 +172,7 @@ const Agenda = () => {
           </DialogContent>
         </Dialog>
 
-        <Card className="p-4 mb-4 flex items-start gap-3 bg-muted/30 border-dashed">
-          <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <p className="text-sm text-muted-foreground">
-            Visualização por dia/semana/mês chega na próxima fase. Por enquanto, gerencie seus horários abaixo.
-          </p>
-        </Card>
-
-        <TrainerSchedule />
+        <TrainerSchedule trainerId={TRAINER_ID} onBookingsChange={() => setBookings(getBookingsForTrainer(TRAINER_ID))} />
       </div>
     </div>
   );

@@ -112,7 +112,7 @@ const WorkoutSession = () => {
     const priorExecutions = getPlans(CURRENT_CLIENT_ID).flatMap((p) => p.executions);
 
     const exerciseLogs: ExerciseLog[] = workout.exercises
-      .map((ex) => {
+      .map((ex): ExerciseLog | null => {
         const d = drafts[ex.id];
         const completedSets = d.sets.filter((s) => s.done).map(({ done, ...rest }) => rest);
         if (completedSets.length === 0) return null;

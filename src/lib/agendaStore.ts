@@ -1,36 +1,41 @@
-// Store local (localStorage) de disponibilidade e agendamentos.
-// Simula o cruzamento de agenda cliente <-> profissional até termos
-// um backend real: regras de disponibilidade (pontuais e recorrentes),
-// horários bloqueados manualmente, e propostas de aula com aceite/
-// recusa/sugestão.
+// Store local (localStorage) de agenda do profissional.
+// Modelo unificado, inspirado no Google Agenda: tudo é um "evento"
+// (aula, bloqueio ou fora de expediente), pontual ou recorrente, com
+// suporte a editar/cancelar só uma ocorrência, "esta e as próximas"
+// ou a série inteira. Simula o cruzamento cliente <-> profissional
+// até termos um backend real.
 
+export type EventType = "aula" | "bloqueado" | "fora_expediente";
 export type RecurrenceType = "once" | "weekly";
+export type EditScope = "this" | "following" | "all";
 
-export interface AvailabilityRule {
+export interface ScheduleEvent {
   id: string;
   trainerId: string;
+  type: EventType;
+  /** Só usado (e editável) no tipo "bloqueado" — complemento opcional do título. */
+  title?: string;
+  /** Só usado no tipo "aula". */
+  studentNames?: string[];
   recurrence: RecurrenceType;
   /** yyyy-mm-dd — usado quando recurrence === "once". */
   date?: string;
   /** 0 = domingo .. 6 = sábado — usado quando recurrence === "weekly". */
   weekdays?: number[];
-  /** yyyy-mm-dd — a partir de quando a regra recorrente passa a valer. */
+  /** yyyy-mm-dd — a partir de quando a série vale (recurrence === "weekly"). */
   startDate: string;
   /** yyyy-mm-dd ou null (nunca termina) — usado quando recurrence === "weekly". */
   endDate: string | null;
+  /** Datas em que essa série não vale (cancelamento de uma ocorrência específica). */
+  excludedDates?: string[];
   startTime: string;
   endTime: string;
+  /** Referencia a Booking de origem (fluxo de solicitação do aluno), para manter os dois em sincronia. */
+  bookingId?: string;
   createdAt: string;
 }
 
-export interface BlockedSlot {
-  id: string;
-  trainerId: string;
-  date: string; // yyyy-mm-dd
-  startTime: string;
-  endTime: string;
-  reason?: string;
-}
+export type ScheduleEventInput = Omit<ScheduleEvent, "id" | "trainerId" | "createdAt">;
 
 export type BookingStatus = "pending" | "confirmed" | "rejected" | "suggested";
 
@@ -49,39 +54,27 @@ export interface Booking {
 }
 
 export interface AvailabilityConflict {
-  bookingId: string;
+  eventId: string;
   date: string;
   startTime: string;
   endTime: string;
-  clientName: string;
+  title: string;
 }
 
 interface AgendaData {
-  availabilityRules: AvailabilityRule[];
-  blockedSlots: BlockedSlot[];
+  events: ScheduleEvent[];
   bookings: Booking[];
 }
 
 const STORAGE_KEY = "fit_agenda";
 const DEFAULT_TRAINER_ID = "trainer-1";
 
-/** Janela do dia considerada na timeline (fora dela os horários não aparecem). */
+/** Janela do dia considerada na timeline. */
 export const DAY_TIMELINE_START = "06:00";
 export const DAY_TIMELINE_END = "22:00";
 
-const seedRules = (trainerId: string): AvailabilityRule[] => {
-  const createdAt = new Date().toISOString();
-  const base = { trainerId, recurrence: "weekly" as const, startDate: "2020-01-01", endDate: null, createdAt };
-  return [
-    { id: "seed-1", ...base, weekdays: [1, 2, 3, 4], startTime: "08:00", endTime: "12:00" },
-    { id: "seed-2", ...base, weekdays: [1, 2, 3, 4], startTime: "14:00", endTime: "19:00" },
-    { id: "seed-3", ...base, weekdays: [5], startTime: "08:00", endTime: "12:00" },
-  ];
-};
-
 const defaultData = (): AgendaData => ({
-  availabilityRules: seedRules(DEFAULT_TRAINER_ID),
-  blockedSlots: [],
+  events: [],
   bookings: [],
 });
 
@@ -91,8 +84,7 @@ const getData = (): AgendaData => {
   try {
     const parsed = JSON.parse(raw) as Partial<AgendaData>;
     return {
-      availabilityRules: parsed.availabilityRules ?? seedRules(DEFAULT_TRAINER_ID),
-      blockedSlots: parsed.blockedSlots ?? [],
+      events: parsed.events ?? [],
       bookings: parsed.bookings ?? [],
     };
   } catch {
@@ -107,89 +99,75 @@ const toMinutes = (time: string) => {
   return h * 60 + m;
 };
 
+const minutesToTime = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+
 const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
   toMinutes(aStart) < toMinutes(bEnd) && toMinutes(bStart) < toMinutes(aEnd);
 
-const contains = (windowStart: string, windowEnd: string, start: string, end: string) =>
-  toMinutes(windowStart) <= toMinutes(start) && toMinutes(end) <= toMinutes(windowEnd);
+const addDaysISO = (dateISO: string, days: number) => {
+  const d = new Date(`${dateISO}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
 
-/** Janelas de expediente (definidas pelas regras) que valem para uma data específica. */
-export const getWindowsForDate = (
-  dateISO: string,
-  trainerId: string = DEFAULT_TRAINER_ID
-): { start: string; end: string; ruleId: string }[] => {
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+export const eventTitle = (event: Pick<ScheduleEvent, "type" | "title" | "studentNames">): string => {
+  if (event.type === "aula") {
+    const names = event.studentNames ?? [];
+    if (names.length === 0) return "Aula";
+    if (names.length === 1) return `Aula - ${names[0]}`;
+    if (names.length === 2) return `Aula - ${names[0]}, ${names[1]}`;
+    return `Aula - ${names[0]} +${names.length - 1}`;
+  }
+  if (event.type === "fora_expediente") return "Fora de expediente";
+  return event.title ? `Bloqueado - ${event.title}` : "Bloqueado";
+};
+
+/** Eventos (já resolvida a recorrência) que valem para uma data específica. */
+export const getEventsForDate = (dateISO: string, trainerId: string = DEFAULT_TRAINER_ID): ScheduleEvent[] => {
   const data = getData();
   const dayOfWeek = new Date(`${dateISO}T00:00:00`).getDay();
 
-  return data.availabilityRules
-    .filter((rule) => rule.trainerId === trainerId)
-    .filter((rule) => {
-      if (rule.recurrence === "once") return rule.date === dateISO;
-      const afterStart = dateISO >= rule.startDate;
-      const beforeEnd = rule.endDate === null || dateISO <= rule.endDate;
-      return afterStart && beforeEnd && (rule.weekdays ?? []).includes(dayOfWeek);
-    })
-    .map((rule) => ({ start: rule.startTime, end: rule.endTime, ruleId: rule.id }));
+  return data.events
+    .filter((event) => event.trainerId === trainerId)
+    .filter((event) => {
+      if (event.excludedDates?.includes(dateISO)) return false;
+      if (event.recurrence === "once") return event.date === dateISO;
+      const afterStart = dateISO >= event.startDate;
+      const beforeEnd = event.endDate === null || dateISO <= event.endDate;
+      return afterStart && beforeEnd && (event.weekdays ?? []).includes(dayOfWeek);
+    });
 };
 
-/** Gera slots de 1h dentro das janelas de disponibilidade de um dia, removendo bloqueios e reservas confirmadas. */
-export const getAvailableSlots = (
-  dateISO: string,
-  durationMinutes = 60,
-  trainerId: string = DEFAULT_TRAINER_ID
-): { start: string; end: string }[] => {
-  const data = getData();
-  const windows = getWindowsForDate(dateISO, trainerId);
+const PRIORITY: Record<EventType, number> = { aula: 3, bloqueado: 2, fora_expediente: 1 };
 
-  const takenRanges = [
-    ...data.blockedSlots.filter((b) => b.date === dateISO && b.trainerId === trainerId).map((b) => ({ start: b.startTime, end: b.endTime })),
-    ...data.bookings
-      .filter((b) => b.date === dateISO && b.trainerId === trainerId && b.status === "confirmed")
-      .map((b) => ({ start: b.startTime, end: b.endTime })),
-  ];
-
-  const slots: { start: string; end: string }[] = [];
-  for (const window of windows) {
-    let cursor = toMinutes(window.start);
-    const windowEnd = toMinutes(window.end);
-    while (cursor + durationMinutes <= windowEnd) {
-      const start = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
-      const endMinutes = cursor + durationMinutes;
-      const end = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
-      const isTaken = takenRanges.some((r) => overlaps(start, end, r.start, r.end));
-      if (!isTaken) slots.push({ start, end });
-      cursor += durationMinutes;
-    }
-  }
-  return slots;
+const pickEvent = (events: ScheduleEvent[], start: string, end: string): ScheduleEvent | undefined => {
+  const matches = events.filter((e) => overlaps(start, end, e.startTime, e.endTime));
+  if (matches.length === 0) return undefined;
+  return matches.sort((a, b) => PRIORITY[b.type] - PRIORITY[a.type])[0];
 };
 
-export type ScheduleSlotStatus = "available" | "booked" | "blocked" | "outside" | "past";
+export type ScheduleSlotStatus = "available" | EventType;
 
 export interface ScheduleSlot {
   start: string;
   end: string;
   status: ScheduleSlotStatus;
-  booking?: Booking;
-  blockedId?: string;
+  event?: ScheduleEvent;
+  isPast: boolean;
 }
 
-/**
- * Timeline completa do dia (06:00–22:00), com o status de cada horário:
- * disponível, agendado, bloqueado, fora do expediente definido ou já passado.
- */
+/** Timeline completa do dia (06:00–22:00) com o evento (se houver) cobrindo cada horário. */
 export const getSlotsForDate = (
   dateISO: string,
   trainerId: string = DEFAULT_TRAINER_ID,
   durationMinutes = 60
 ): ScheduleSlot[] => {
-  const data = getData();
-  const windows = getWindowsForDate(dateISO, trainerId);
-  const blocked = data.blockedSlots.filter((b) => b.date === dateISO && b.trainerId === trainerId);
-  const bookings = data.bookings.filter((b) => b.date === dateISO && b.trainerId === trainerId && b.status === "confirmed");
+  const events = getEventsForDate(dateISO, trainerId);
 
   const now = new Date();
-  const isToday = dateISO === now.toISOString().slice(0, 10);
+  const today = todayISO();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const slots: ScheduleSlot[] = [];
@@ -197,116 +175,175 @@ export const getSlotsForDate = (
   const end = toMinutes(DAY_TIMELINE_END);
 
   while (cursor + durationMinutes <= end) {
-    const start = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
+    const start = minutesToTime(cursor);
     const slotEndMinutes = cursor + durationMinutes;
-    const slotEnd = `${String(Math.floor(slotEndMinutes / 60)).padStart(2, "0")}:${String(slotEndMinutes % 60).padStart(2, "0")}`;
+    const slotEnd = minutesToTime(slotEndMinutes);
 
-    const booking = bookings.find((b) => overlaps(start, slotEnd, b.startTime, b.endTime));
-    const blockedSlot = blocked.find((b) => overlaps(start, slotEnd, b.startTime, b.endTime));
-    const insideWindow = windows.some((w) => contains(w.start, w.end, start, slotEnd));
+    const event = pickEvent(events, start, slotEnd);
+    const isPast = dateISO < today || (dateISO === today && slotEndMinutes <= nowMinutes);
 
-    let status: ScheduleSlotStatus;
-    if (booking) status = "booked";
-    else if (blockedSlot) status = "blocked";
-    else if (!insideWindow) status = "outside";
-    else if (isToday && slotEndMinutes <= nowMinutes) status = "past";
-    else status = "available";
-
-    slots.push({ start, end: slotEnd, status, booking, blockedId: blockedSlot?.id });
+    slots.push({ start, end: slotEnd, status: event?.type ?? "available", event, isPast });
     cursor += durationMinutes;
   }
 
   return slots;
 };
 
-// ---------- Regras de disponibilidade ----------
-
-export const getAvailabilityRules = (trainerId: string = DEFAULT_TRAINER_ID): AvailabilityRule[] =>
-  getData().availabilityRules.filter((r) => r.trainerId === trainerId);
-
-export type AvailabilityRuleInput = Omit<AvailabilityRule, "id" | "trainerId" | "createdAt">;
-
-export const addAvailabilityRule = (
-  input: AvailabilityRuleInput,
+/** Slots livres (sem nenhum evento) — usado no fluxo do aluno para solicitar horário. */
+export const getAvailableSlots = (
+  dateISO: string,
+  durationMinutes = 60,
   trainerId: string = DEFAULT_TRAINER_ID
-): AvailabilityRule => {
-  const data = getData();
-  const rule: AvailabilityRule = {
-    ...input,
-    id: crypto.randomUUID(),
-    trainerId,
-    createdAt: new Date().toISOString(),
-  };
-  data.availabilityRules = [...data.availabilityRules, rule];
-  persist(data);
-  return rule;
+): { start: string; end: string }[] =>
+  getSlotsForDate(dateISO, trainerId, durationMinutes)
+    .filter((s) => s.status === "available" && !s.isPast)
+    .map((s) => ({ start: s.start, end: s.end }));
+
+export const getAvailableSlotsCount = (days: number, durationMinutes = 60): number => {
+  let total = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    total += getAvailableSlots(date.toISOString().slice(0, 10), durationMinutes).length;
+  }
+  return total;
 };
 
-export const deleteAvailabilityRule = (ruleId: string): void => {
+// ---------- CRUD de eventos ----------
+
+export const getScheduleEvents = (trainerId: string = DEFAULT_TRAINER_ID): ScheduleEvent[] =>
+  getData().events.filter((e) => e.trainerId === trainerId);
+
+export const createScheduleEvent = (
+  input: ScheduleEventInput,
+  trainerId: string = DEFAULT_TRAINER_ID
+): ScheduleEvent => {
   const data = getData();
-  data.availabilityRules = data.availabilityRules.filter((r) => r.id !== ruleId);
+  const event: ScheduleEvent = { ...input, id: crypto.randomUUID(), trainerId, createdAt: new Date().toISOString() };
+  data.events = [...data.events, event];
+  persist(data);
+  return event;
+};
+
+/** Atualiza um evento respeitando o escopo (esta ocorrência / esta e as próximas / série inteira). */
+export const updateScheduleEvent = (
+  eventId: string,
+  occurrenceDate: string,
+  scope: EditScope,
+  patch: ScheduleEventInput
+): void => {
+  const data = getData();
+  const original = data.events.find((e) => e.id === eventId);
+  if (!original) return;
+
+  if (original.recurrence === "once" || scope === "all") {
+    data.events = data.events.map((e) => (e.id === eventId ? { ...e, ...patch, id: e.id, trainerId: e.trainerId, createdAt: e.createdAt } : e));
+    persist(data);
+    return;
+  }
+
+  if (scope === "this") {
+    data.events = data.events.map((e) =>
+      e.id === eventId ? { ...e, excludedDates: [...(e.excludedDates ?? []), occurrenceDate] } : e
+    );
+    data.events.push({
+      ...patch,
+      recurrence: "once",
+      date: occurrenceDate,
+      startDate: occurrenceDate,
+      endDate: occurrenceDate,
+      id: crypto.randomUUID(),
+      trainerId: original.trainerId,
+      createdAt: new Date().toISOString(),
+    });
+    persist(data);
+    return;
+  }
+
+  // scope === "following"
+  if (occurrenceDate <= original.startDate) {
+    // Não há "antes" — a série inteira vira a nova configuração.
+    data.events = data.events.map((e) =>
+      e.id === eventId ? { ...e, ...patch, id: e.id, trainerId: e.trainerId, createdAt: e.createdAt } : e
+    );
+    persist(data);
+    return;
+  }
+
+  data.events = data.events.map((e) => (e.id === eventId ? { ...e, endDate: addDaysISO(occurrenceDate, -1) } : e));
+  data.events.push({
+    ...patch,
+    recurrence: "weekly",
+    startDate: occurrenceDate,
+    id: crypto.randomUUID(),
+    trainerId: original.trainerId,
+    createdAt: new Date().toISOString(),
+  });
+  persist(data);
+};
+
+/** Cancela/exclui um evento respeitando o escopo. */
+export const deleteScheduleEvent = (eventId: string, occurrenceDate: string, scope: EditScope): void => {
+  const data = getData();
+  const original = data.events.find((e) => e.id === eventId);
+  if (!original) return;
+
+  // Se o evento tinha uma reserva de aluno vinculada, cancela também para manter em sincronia.
+  if (original.bookingId) {
+    data.bookings = data.bookings.filter((b) => b.id !== original.bookingId);
+  }
+
+  if (original.recurrence === "once" || scope === "all") {
+    data.events = data.events.filter((e) => e.id !== eventId);
+    persist(data);
+    return;
+  }
+
+  if (scope === "this") {
+    data.events = data.events.map((e) =>
+      e.id === eventId ? { ...e, excludedDates: [...(e.excludedDates ?? []), occurrenceDate] } : e
+    );
+    persist(data);
+    return;
+  }
+
+  // scope === "following"
+  if (occurrenceDate <= original.startDate) {
+    data.events = data.events.filter((e) => e.id !== eventId);
+  } else {
+    data.events = data.events.map((e) => (e.id === eventId ? { ...e, endDate: addDaysISO(occurrenceDate, -1) } : e));
+  }
   persist(data);
 };
 
 /**
- * Compara os agendamentos confirmados com o expediente atual e retorna
- * quais deles ficaram "fora" das janelas de disponibilidade — ou seja,
- * uma inconsistência gerada por alguma alteração no expediente que
- * precisa ser resolvida manualmente pelo profissional.
+ * Aulas pontuais (concretas) que ficaram "cobertas" por um bloqueio no mesmo
+ * horário — inconsistência a resolver manualmente pelo profissional.
  */
 export const getScheduleConflicts = (trainerId: string = DEFAULT_TRAINER_ID): AvailabilityConflict[] => {
   const data = getData();
-  const confirmed = data.bookings.filter((b) => b.trainerId === trainerId && b.status === "confirmed");
+  const aulaOnceEvents = data.events.filter((e) => e.trainerId === trainerId && e.type === "aula" && e.recurrence === "once" && e.date);
 
   const conflicts: AvailabilityConflict[] = [];
-  for (const booking of confirmed) {
-    const windows = getWindowsForDate(booking.date, trainerId);
-    const covered = windows.some((w) => contains(w.start, w.end, booking.startTime, booking.endTime));
-    if (!covered) {
+  for (const aula of aulaOnceEvents) {
+    const dayEvents = getEventsForDate(aula.date as string, trainerId).filter((e) => e.id !== aula.id);
+    const blocking = dayEvents.find((e) => e.type === "bloqueado" && overlaps(aula.startTime, aula.endTime, e.startTime, e.endTime));
+    if (blocking) {
       conflicts.push({
-        bookingId: booking.id,
-        date: booking.date,
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-        clientName: booking.clientName,
+        eventId: aula.id,
+        date: aula.date as string,
+        startTime: aula.startTime,
+        endTime: aula.endTime,
+        title: eventTitle(aula),
       });
     }
   }
   return conflicts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
 };
 
-// ---------- Bloqueios manuais ----------
-
-/** Bloqueia ou desbloqueia um horário pontual. Recusa se já houver aluno agendado. */
-export const toggleBlockedSlot = (
-  dateISO: string,
-  startTime: string,
-  endTime: string,
-  trainerId: string = DEFAULT_TRAINER_ID
-): { ok: boolean; reason?: "booked" } => {
-  const data = getData();
-  const hasBooking = data.bookings.some(
-    (b) => b.trainerId === trainerId && b.date === dateISO && b.status === "confirmed" && overlaps(startTime, endTime, b.startTime, b.endTime)
-  );
-  if (hasBooking) return { ok: false, reason: "booked" };
-
-  const existing = data.blockedSlots.find(
-    (b) => b.trainerId === trainerId && b.date === dateISO && overlaps(startTime, endTime, b.startTime, b.endTime)
-  );
-
-  if (existing) {
-    data.blockedSlots = data.blockedSlots.filter((b) => b.id !== existing.id);
-  } else {
-    data.blockedSlots = [
-      ...data.blockedSlots,
-      { id: crypto.randomUUID(), trainerId, date: dateISO, startTime, endTime },
-    ];
-  }
-  persist(data);
-  return { ok: true };
-};
-
-// ---------- Propostas / agendamentos ----------
+// ---------- Propostas / agendamentos do fluxo do aluno ----------
 
 export const createProposal = (
   trainerId: string,
@@ -346,6 +383,31 @@ export const respondProposal = (
     return { ...b, status: "suggested" as const, suggestion };
   });
   persist(data);
+
+  if (action === "accept") {
+    const booking = data.bookings.find((b) => b.id === bookingId);
+    if (booking) {
+      data.events = [
+        ...data.events,
+        {
+          id: crypto.randomUUID(),
+          trainerId: booking.trainerId,
+          type: "aula",
+          studentNames: [booking.clientName],
+          recurrence: "once",
+          date: booking.date,
+          startDate: booking.date,
+          endDate: booking.date,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          bookingId: booking.id,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      persist(data);
+    }
+  }
+
   return data.bookings;
 };
 
@@ -366,30 +428,12 @@ export const acceptSuggestion = (bookingId: string): Booking[] => {
   return data.bookings;
 };
 
-/** Cancela uma aula confirmada — o horário volta a aparecer como disponível. */
+/** Cancela uma aula confirmada (fora do fluxo de eventos) — o horário volta a ficar disponível. */
 export const cancelBooking = (bookingId: string): void => {
   const data = getData();
   data.bookings = data.bookings.filter((b) => b.id !== bookingId);
+  data.events = data.events.filter((e) => e.bookingId !== bookingId);
   persist(data);
-};
-
-const toISODate = (date: Date) => date.toISOString().slice(0, 10);
-
-/**
- * Soma os horários livres entre hoje e `days` dias à frente (inclusive).
- * Considera apenas disponibilidade já marcada pelo profissional, menos
- * bloqueios e aulas confirmadas — nunca assume 100% de ocupação.
- */
-export const getAvailableSlotsCount = (days: number, durationMinutes = 60): number => {
-  let total = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  for (let i = 0; i < days; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + i);
-    total += getAvailableSlots(toISODate(date), durationMinutes).length;
-  }
-  return total;
 };
 
 export const getBookingsForTrainer = (trainerId: string): Booking[] =>
@@ -397,3 +441,14 @@ export const getBookingsForTrainer = (trainerId: string): Booking[] =>
 
 export const getBookingsForClient = (clientId: string): Booking[] =>
   getData().bookings.filter((b) => b.clientId === clientId);
+
+/** Nomes de alunos já conhecidos (com base no histórico de solicitações) — placeholder até termos vínculo real aluno/profissional. */
+export const getKnownStudentNames = (trainerId: string = DEFAULT_TRAINER_ID): string[] => {
+  const data = getData();
+  const names = new Set<string>();
+  data.bookings.filter((b) => b.trainerId === trainerId).forEach((b) => names.add(b.clientName));
+  data.events
+    .filter((e) => e.trainerId === trainerId && e.type === "aula")
+    .forEach((e) => e.studentNames?.forEach((n) => names.add(n)));
+  return Array.from(names).sort();
+};

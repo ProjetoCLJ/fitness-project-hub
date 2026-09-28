@@ -36,6 +36,7 @@ const Agenda = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [scheduleRefresh, setScheduleRefresh] = useState(0);
   const [suggestingId, setSuggestingId] = useState<string | null>(null);
   const [suggestDate, setSuggestDate] = useState("");
   const [suggestStart, setSuggestStart] = useState("");
@@ -55,6 +56,7 @@ const Agenda = () => {
   const handleRespond = (id: string, action: "accept" | "reject") => {
     const updated = respondProposal(id, action);
     setBookings(updated.filter((b) => b.trainerId === TRAINER_ID));
+    if (action === "accept") setScheduleRefresh((k) => k + 1);
     toast({
       title: action === "accept" ? "Aula confirmada!" : "Proposta recusada",
       description: action === "accept" ? "O horário foi reservado na sua agenda." : "O cliente será avisado.",
@@ -172,7 +174,11 @@ const Agenda = () => {
           </DialogContent>
         </Dialog>
 
-        <TrainerSchedule trainerId={TRAINER_ID} onBookingsChange={() => setBookings(getBookingsForTrainer(TRAINER_ID))} />
+        <TrainerSchedule
+          trainerId={TRAINER_ID}
+          refreshSignal={scheduleRefresh}
+          onBookingsChange={() => setBookings(getBookingsForTrainer(TRAINER_ID))}
+        />
       </div>
     </div>
   );

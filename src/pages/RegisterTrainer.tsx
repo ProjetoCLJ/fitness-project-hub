@@ -10,12 +10,11 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { accountExists, registerAccount } from "@/lib/accountStore";
 
 const RegisterTrainer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     fullName: "",
     birthDate: "",
@@ -47,29 +46,36 @@ const RegisterTrainer = () => {
       return;
     }
 
-    if (accountExists(formData.email)) {
+    try {
+      await register({
+        email: formData.email,
+        password: formData.password,
+        userType: "trainer",
+        fullName: formData.fullName,
+        phone: formData.phone,
+        birthDate: formData.birthDate,
+        gender: formData.gender,
+        cref: formData.cref,
+        startDate: formData.startDate,
+        basePrice: formData.classValue ? Number(formData.classValue) : undefined,
+        description: formData.description,
+        objectives: formData.objectives,
+        instagram: formData.instagram,
+        facebook: formData.facebook,
+        linkedin: formData.linkedin,
+      });
+
       toast({
-        title: "E-mail já cadastrado",
-        description: "Já existe uma conta com esse e-mail. Tente entrar em vez de cadastrar.",
+        title: "Cadastro realizado!",
+        description: "Bem-vindo ao FIT",
+      });
+    } catch (error) {
+      toast({
+        title: "Não foi possível cadastrar",
+        description: error instanceof Error ? error.message : "Tente novamente.",
         variant: "destructive"
       });
-      return;
     }
-
-    registerAccount({
-      email: formData.email,
-      password: formData.password,
-      userType: "trainer",
-      fullName: formData.fullName,
-      phone: formData.phone,
-    });
-
-    toast({
-      title: "Cadastro realizado!",
-      description: "Bem-vindo ao FIT",
-    });
-
-    await login(formData.email, formData.password);
   };
 
   const handleChange = (field: string, value: string) => {

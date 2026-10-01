@@ -90,7 +90,6 @@ const Index = () => {
           loop
           playsInline
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-secondary via-secondary/70 to-secondary/20" />
         <div className="container mx-auto px-4 relative z-10 pt-28 pb-20 sm:pt-24 sm:pb-28">
           <div className="max-w-3xl">
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[0.95] text-white mb-6">

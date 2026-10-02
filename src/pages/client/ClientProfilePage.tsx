@@ -11,19 +11,19 @@ import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, getActivePlan } from "@/lib/planStore";
 
-const CURRENT_CLIENT_ID = "1";
-const TRAINER_PROFILE_PATH = "/trainer/1";
+const TRAINER_PROFILE_PATH = "/trainers";
 
 const ClientProfilePage = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
-    setPlan(getActivePlan(CURRENT_CLIENT_ID) ?? null);
-  }, []);
+    setPlan(getActivePlan(clientId) ?? null);
+  }, [clientId]);
 
-  if (!user || user.userType !== "student" || !plan) return null;
+  if (!user || user.userType !== "student") return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,35 +43,34 @@ const ClientProfilePage = () => {
         <div>
           <h2 className="font-semibold text-base sm:text-lg mb-3">Objetivos</h2>
           <Card className="p-4 sm:p-6">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <p className="font-semibold">{plan.objective}</p>
-                <p className="text-sm text-muted-foreground">
-                  Prazo: {new Date(plan.deadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                </p>
-              </div>
-              <Badge>Em andamento</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">Progresso estimado: {plan.progress}%</p>
+            {plan ? (
+              <>
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-semibold">{plan.objective}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Prazo: {new Date(plan.deadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                  <Badge>Em andamento</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">Progresso estimado: {plan.progress}%</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum objetivo definido ainda.</p>
+            )}
           </Card>
         </div>
 
         {/* Restrições */}
         <div>
           <h2 className="font-semibold text-base sm:text-lg mb-3">Restrições</h2>
-          <Card className="p-4 sm:p-6 space-y-3">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-start gap-3">
               <ShieldAlert className="h-5 w-5 text-destructive mt-0.5" />
               <div>
                 <p className="text-sm text-muted-foreground">Restrições físicas</p>
-                <p className="font-medium">Leve desconforto no joelho direito — evitar impacto</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <ShieldAlert className="h-5 w-5 text-destructive mt-0.5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Restrições alimentares</p>
-                <p className="font-medium">Intolerância à lactose</p>
+                <p className="font-medium">Nenhuma restrição registrada</p>
               </div>
             </div>
           </Card>
@@ -80,7 +79,7 @@ const ClientProfilePage = () => {
         {/* Profissionais */}
         <div>
           <h2 className="font-semibold text-base sm:text-lg mb-3">Profissionais</h2>
-          <div className="space-y-3">
+          {plan ? (
             <Card className="p-4 sm:p-6 flex items-center gap-4">
               <button
                 className="flex items-center gap-4 flex-1 text-left"
@@ -100,23 +99,14 @@ const ClientProfilePage = () => {
                 Trocar
               </Button>
             </Card>
-            <Card className="p-4 sm:p-6 flex items-center gap-4">
-              <div className="flex items-center gap-4 flex-1">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                    {plan.nutritionistName.split(" ").map((n) => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{plan.nutritionistName}</p>
-                  <p className="text-sm text-muted-foreground">Nutricionista</p>
-                </div>
-              </div>
+          ) : (
+            <Card className="p-4 sm:p-6 flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">Você ainda não tem um profissional vinculado.</p>
               <Button variant="outline" size="sm" onClick={() => navigate("/trainers")}>
-                Trocar
+                Encontrar
               </Button>
             </Card>
-          </div>
+          )}
         </div>
       </div>
     </div>

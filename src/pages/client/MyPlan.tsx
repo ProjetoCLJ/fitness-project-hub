@@ -5,33 +5,35 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Target, Dumbbell, Apple, ChevronRight, CalendarClock, History } from "lucide-react";
+import { Target, Dumbbell, ChevronRight, CalendarClock, History } from "lucide-react";
 import { Plan, getActivePlan } from "@/lib/planStore";
 
-// Demonstração local: o cliente autenticado (mock) representa sempre
-// o cliente "1" (Maria Fernanda) da carteira do profissional, e o
-// Personal Trainer é sempre "Carlos Silva" (perfil público id "1").
-const CURRENT_CLIENT_ID = "1";
-const TRAINER_PROFILE_PATH = "/trainer/1";
-
-type PlanSection = "overview" | "nutrition";
-
-const SECTIONS: { key: PlanSection; label: string }[] = [
-  { key: "overview", label: "Visão geral" },
-  { key: "nutrition", label: "Nutrição" },
-];
+const TRAINER_PROFILE_PATH = "/trainers";
 
 const MyPlan = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
-  const [section, setSection] = useState<PlanSection>("overview");
   const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
-    setPlan(getActivePlan(CURRENT_CLIENT_ID) ?? null);
-  }, []);
+    setPlan(getActivePlan(clientId) ?? null);
+  }, [clientId]);
 
-  if (!user || user.userType !== "student" || !plan) return null;
+  if (!user || user.userType !== "student") return null;
+
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onLoginClick={() => {}} />
+        <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            Você ainda não tem um plano ativo. Assim que seu profissional criar um, ele aparece aqui.
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const daysLeft = Math.max(
     0,
@@ -42,30 +44,8 @@ const MyPlan = () => {
     <div className="min-h-screen bg-background">
       <Header onLoginClick={() => {}} />
 
-      <div className="pt-16 sm:pt-20">
-        <div className="border-b border-border bg-background sticky top-16 sm:top-20 z-40">
-          <div className="container mx-auto px-4 py-3 max-w-3xl overflow-x-auto">
-            <div className="inline-flex gap-2">
-              {SECTIONS.map((s) => (
-                <Button
-                  key={s.key}
-                  size="sm"
-                  variant={section === s.key ? "default" : "outline"}
-                  onClick={() => setSection(s.key)}
-                  className="rounded-full"
-                >
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 pb-24 sm:pb-12 pt-6 max-w-3xl space-y-4">
-        {section === "overview" && (
-          <>
-            <Card className="p-4 sm:p-6 space-y-4">
+      <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-4">
+        <Card className="p-4 sm:p-6 space-y-4">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-sm text-muted-foreground">{plan.title}</p>
@@ -111,13 +91,6 @@ const MyPlan = () => {
                   <p className="text-sm text-muted-foreground mt-1">{plan.trainingApproach}</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <Apple className="h-5 w-5 text-primary mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Estratégia nutricional</p>
-                  <p className="font-medium">{plan.nutritionStrategy}</p>
-                </div>
-              </div>
               <Button
                 variant="outline"
                 className="w-full"
@@ -130,10 +103,6 @@ const MyPlan = () => {
                   <p className="text-sm text-muted-foreground">Personal Trainer</p>
                   <p className="font-medium text-primary hover:underline">{plan.trainerName}</p>
                 </button>
-                <div>
-                  <p className="text-sm text-muted-foreground">Nutricionista</p>
-                  <p className="font-medium">{plan.nutritionistName}</p>
-                </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Início do plano</p>
                   <p className="font-medium">
@@ -156,22 +125,6 @@ const MyPlan = () => {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </Card>
-          </>
-        )}
-
-        {section === "nutrition" && (
-          <Card className="p-4 sm:p-6 space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Estratégia nutricional</p>
-              <p className="font-medium">{plan.nutritionStrategy}</p>
-            </div>
-            <div className="space-y-3 pt-2 border-t">
-              {["Café da manhã - 07:00", "Almoço - 12:30", "Lanche - 16:00", "Jantar - 20:00"].map((meal) => (
-                <div key={meal} className="text-sm">{meal}</div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );

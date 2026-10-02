@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,31 +13,44 @@ import {
   TrendingUp,
   ChevronRight,
 } from "lucide-react";
+import { Booking, getAvailableSlotsCount, getBookingsForTrainer, getScheduleEvents } from "@/lib/agendaStore";
+
+const formatDate = (dateISO: string) =>
+  new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 
 const ProHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [availableSlotsWeek, setAvailableSlotsWeek] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    setBookings(getBookingsForTrainer(user.id));
+    setAvailableSlotsWeek(getScheduleEvents(user.id).length === 0 ? 0 : getAvailableSlotsCount(7, 60, user.id));
+  }, [user]);
 
   if (!user || user.userType !== "trainer") return null;
 
+  const pendingRequests = bookings
+    .filter((b) => b.status === "pending")
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const upcomingAppointments = bookings
+    .filter((b) => b.status === "confirmed" && b.date >= today)
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
+    .slice(0, 5);
+
+  const activeClients = new Set(bookings.filter((b) => b.status === "confirmed").map((b) => b.clientId)).size;
+
   const indicators = [
-    { label: "Clientes ativos", value: "18", icon: Users },
-    { label: "Atendimentos na semana", value: "12", icon: Calendar },
-    { label: "Solicitações pendentes", value: "3", icon: Bell },
-    { label: "Horários disponíveis", value: "8h", icon: Clock },
-    { label: "Faturamento atual", value: "R$ 4.800", icon: DollarSign },
-    { label: "Potencial de faturamento", value: "R$ 800", icon: TrendingUp },
-  ];
-
-  const upcomingAppointments = [
-    { client: "Maria Fernanda", time: "Hoje, 14:00", type: "Musculação" },
-    { client: "João Pedro", time: "Hoje, 16:00", type: "Avaliação física" },
-    { client: "Beatriz Lima", time: "Amanhã, 09:00", type: "Musculação" },
-  ];
-
-  const pendingRequests = [
-    { client: "Lucas Rodrigues", requestedTime: "Sexta, 10:00" },
-    { client: "Ana Costa", requestedTime: "Sexta, 15:00" },
+    { label: "Clientes ativos", value: String(activeClients), icon: Users },
+    { label: "Atendimentos na semana", value: String(upcomingAppointments.length), icon: Calendar },
+    { label: "Solicitações pendentes", value: String(pendingRequests.length), icon: Bell },
+    { label: "Horários disponíveis", value: String(availableSlotsWeek), icon: Clock },
+    { label: "Faturamento atual", value: "R$ 0", icon: DollarSign },
+    { label: "Potencial de faturamento", value: "R$ 0", icon: TrendingUp },
   ];
 
   return (
@@ -69,9 +83,11 @@ const ProHome = () => {
             </div>
             <div className="space-y-3">
               {pendingRequests.map((req) => (
-                <div key={req.client} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
-                  <span className="font-medium">{req.client}</span>
-                  <span className="text-muted-foreground">{req.requestedTime}</span>
+                <div key={req.id} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
+                  <span className="font-medium">{req.clientName}</span>
+                  <span className="text-muted-foreground">
+                    {formatDate(req.date)} · {req.startTime}
+                  </span>
                 </div>
               ))}
             </div>
@@ -81,17 +97,22 @@ const ProHome = () => {
         {/* Próximos atendimentos */}
         <Card className="p-4 sm:p-6 mb-4">
           <h2 className="font-semibold text-base sm:text-lg mb-3">Próximos atendimentos</h2>
-          <div className="space-y-3">
-            {upcomingAppointments.map((appt) => (
-              <div key={`${appt.client}-${appt.time}`} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
-                <div>
-                  <p className="font-medium">{appt.client}</p>
-                  <p className="text-xs text-muted-foreground">{appt.type}</p>
+          {upcomingAppointments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum atendimento confirmado ainda.</p>
+          ) : (
+            <div className="space-y-3">
+              {upcomingAppointments.map((appt) => (
+                <div key={appt.id} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
+                  <div>
+                    <p className="font-medium">{appt.clientName}</p>
+                  </div>
+                  <span className="text-muted-foreground text-xs">
+                    {formatDate(appt.date)} · {appt.startTime}
+                  </span>
                 </div>
-                <span className="text-muted-foreground text-xs">{appt.time}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         {/* Atalho para clientes */}

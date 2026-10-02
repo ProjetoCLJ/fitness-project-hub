@@ -1,32 +1,95 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface FormState {
+  fullName: string;
+  email: string;
+  phone: string;
+  birthDate: string;
+  description: string;
+  fitnessGoals: string;
+}
+
+const emptyForm: FormState = {
+  fullName: "",
+  email: "",
+  phone: "",
+  birthDate: "",
+  description: "",
+  fitnessGoals: "",
+};
 
 const StudentProfile = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    fullName: "Maria Fernanda",
-    email: "maria.fernanda@email.com",
-    phone: "(11) 99999-1001",
-    birthDate: "1992-01-20",
-    description: "Busco emagrecimento e condicionamento físico",
-    fitnessGoals: "Perder peso e ganhar condicionamento físico. Gostaria de melhorar minha saúde e ter mais disposição no dia a dia."
-  });
+  const { user } = useAuth();
+  const [formData, setFormData] = useState<FormState>(emptyForm);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("student_profiles")
+        .select("profile_id, description, fitness_goals, profiles(full_name, email, phone, birth_date)")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (data) {
+        setProfileId(data.profile_id);
+        const profile = data.profiles as { full_name: string; email: string; phone: string | null; birth_date: string | null } | null;
+        setFormData({
+          fullName: profile?.full_name ?? user.profile.fullName,
+          email: profile?.email ?? user.email,
+          phone: profile?.phone ?? user.profile.phone,
+          birthDate: profile?.birth_date ?? "",
+          description: data.description ?? "",
+          fitnessGoals: data.fitness_goals ?? "",
+        });
+      }
+      setIsLoading(false);
+    })();
+  }, [user]);
+
+  const handleChange = (field: keyof FormState, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Perfil atualizado!",
-      description: "Suas informações foram salvas com sucesso.",
-    });
+  const handleSave = async () => {
+    if (!user || !profileId) return;
+    setIsSaving(true);
+    try {
+      await supabase
+        .from("student_profiles")
+        .update({ description: formData.description || null, fitness_goals: formData.fitnessGoals || null })
+        .eq("id", user.id);
+
+      await supabase
+        .from("profiles")
+        .update({
+          full_name: formData.fullName,
+          phone: formData.phone || null,
+          birth_date: formData.birthDate || null,
+        })
+        .eq("id", profileId);
+
+      toast({ title: "Perfil atualizado!", description: "Suas informações foram salvas com sucesso." });
+    } catch {
+      toast({ title: "Não foi possível salvar", description: "Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) return null;
 
   return (
     <div className="space-y-6">
@@ -44,12 +107,7 @@ const StudentProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-            />
+            <Input id="email" type="email" value={formData.email} disabled />
           </div>
 
           <div className="space-y-2">
@@ -100,8 +158,8 @@ const StudentProfile = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} variant="hero" size="lg">
-          Salvar Alterações
+        <Button onClick={handleSave} variant="hero" size="lg" disabled={isSaving}>
+          {isSaving ? "Salvando..." : "Salvar Alterações"}
         </Button>
       </div>
     </div>

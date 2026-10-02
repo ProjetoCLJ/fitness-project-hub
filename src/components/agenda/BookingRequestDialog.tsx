@@ -18,16 +18,17 @@ interface BookingRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trainerName: string;
+  trainerId: string;
   onSubmit: (date: string, startTime: string, endTime: string) => void;
 }
 
-export const BookingRequestDialog = ({ open, onOpenChange, trainerName, onSubmit }: BookingRequestDialogProps) => {
+export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerId, onSubmit }: BookingRequestDialogProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
   const [sent, setSent] = useState(false);
 
   const dateISO = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const slots = useMemo(() => (dateISO ? getAvailableSlots(dateISO) : []), [dateISO]);
+  const slots = useMemo(() => (dateISO ? getAvailableSlots(dateISO, 60, trainerId) : []), [dateISO, trainerId]);
 
   const handleSelectDate = (date: Date | undefined) => {
     setSelectedDate(date);

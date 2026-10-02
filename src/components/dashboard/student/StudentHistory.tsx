@@ -24,48 +24,7 @@ interface ClassHistory {
 const StudentHistory = () => {
   const { toast } = useToast();
   const [filter, setFilter] = useState<"all" | "rated" | "unrated">("all");
-  const [classes, setClasses] = useState<ClassHistory[]>([
-    {
-      id: 1,
-      trainerName: "Pedro Almeida",
-      date: "2024-11-28",
-      startTime: "15:00",
-      endTime: "16:00",
-      gym: "Fórmula Academia - Zona Norte",
-      price: 130,
-      rating: 5,
-      review: "Excelente professor! Muito atencioso e com ótima metodologia."
-    },
-    {
-      id: 2,
-      trainerName: "Carlos Silva",
-      date: "2024-11-25",
-      startTime: "14:00",
-      endTime: "15:00",
-      gym: "Smart Fit - Zona Sul",
-      price: 150,
-      rating: 5,
-      review: "Carlos é um profissional excepcional. Treinos personalizados!"
-    },
-    {
-      id: 3,
-      trainerName: "Ana Santos",
-      date: "2024-11-20",
-      startTime: "07:00",
-      endTime: "08:00",
-      gym: "Bodytech - Paulista",
-      price: 180
-    },
-    {
-      id: 4,
-      trainerName: "Mariana Oliveira",
-      date: "2024-11-15",
-      startTime: "09:00",
-      endTime: "10:00",
-      gym: "Smart Fit - Zona Sul",
-      price: 160
-    }
-  ]);
+  const [classes, setClasses] = useState<ClassHistory[]>([]);
 
   const [reviewDialog, setReviewDialog] = useState<{ open: boolean; classId: number | null }>({
     open: false,
@@ -176,6 +135,9 @@ const StudentHistory = () => {
         </div>
 
         <div className="space-y-4">
+          {filteredClasses.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">Nenhuma aula realizada ainda.</p>
+          )}
           {filteredClasses.map((classItem) => (
             <Card key={classItem.id} className="p-6 hover:shadow-medium transition-smooth">
               <div className="flex items-start justify-between mb-4">

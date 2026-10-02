@@ -8,20 +8,34 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, ChevronRight, History, Flame, Dumbbell } from "lucide-react";
 import { Plan, Workout, getActivePlan } from "@/lib/planStore";
 
-const CURRENT_CLIENT_ID = "1";
 
 const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
 const Workouts = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
-    setPlan(getActivePlan(CURRENT_CLIENT_ID) ?? null);
-  }, []);
+    setPlan(getActivePlan(clientId) ?? null);
+  }, [clientId]);
 
-  if (!user || user.userType !== "student" || !plan) return null;
+  if (!user || user.userType !== "student") return null;
+
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onLoginClick={() => {}} />
+        <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
+          <h1 className="text-xl sm:text-3xl font-bold mb-6">Treinos</h1>
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            Você ainda não tem treinos. Assim que seu profissional criar seu plano, eles aparecem aqui.
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const todayName = WEEKDAYS[new Date().getDay()];
   const todayWorkout = plan.workouts.find((w) => w.day === todayName);

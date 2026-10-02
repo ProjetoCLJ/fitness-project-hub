@@ -15,26 +15,15 @@ interface BodyWeightData {
 
 const STORAGE_PREFIX = "fit_bodyweight_";
 
-const defaultData = (): BodyWeightData => ({
-  entries: [
-    { id: "bw1", date: new Date(2024, 10, 1).toISOString(), weight: 68 },
-    { id: "bw2", date: new Date(2024, 10, 15).toISOString(), weight: 67.2 },
-    { id: "bw3", date: new Date(2024, 11, 1).toISOString(), weight: 66.5 },
-  ],
-  goal: 63,
-});
+const emptyData = (): BodyWeightData => ({ entries: [] });
 
 const load = (clientId: string): BodyWeightData => {
   const raw = localStorage.getItem(STORAGE_PREFIX + clientId);
-  if (!raw) {
-    const seeded = defaultData();
-    localStorage.setItem(STORAGE_PREFIX + clientId, JSON.stringify(seeded));
-    return seeded;
-  }
+  if (!raw) return emptyData();
   try {
     return JSON.parse(raw) as BodyWeightData;
   } catch {
-    return defaultData();
+    return emptyData();
   }
 };
 

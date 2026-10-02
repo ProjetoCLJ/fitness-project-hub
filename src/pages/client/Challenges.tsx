@@ -1,25 +1,15 @@
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
-import { Trophy, Flame, Users, Sparkles } from "lucide-react";
+import { Trophy, Sparkles } from "lucide-react";
 
 const Challenges = () => {
   const { user } = useAuth();
 
   if (!user || user.userType !== "student") return null;
 
-  const fitScore = 1850;
-  const rankingPosition = 18;
-
-  const activeChallenge = {
-    name: "Consistência - Academia FIT",
-    description: "Complete os treinos planejados durante 4 semanas",
-    participants: 124,
-    progressWeeks: 2,
-    totalWeeks: 4,
-  };
+  // Pontuação e ranking ainda não têm backend — ficam zerados até existirem.
+  const fitScore = 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,23 +31,11 @@ const Challenges = () => {
             </div>
             <span className="text-2xl font-bold">{fitScore}</span>
           </div>
-          <p className="text-sm opacity-90 mt-1">Você está em #{rankingPosition} no ranking geral</p>
+          <p className="text-sm opacity-90 mt-1">Você ainda não aparece no ranking geral</p>
         </Card>
 
-        <Card className="p-4 sm:p-6 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-base sm:text-lg">{activeChallenge.name}</h2>
-            <Badge variant="secondary">Ativo</Badge>
-          </div>
-          <p className="text-sm text-muted-foreground mb-4">{activeChallenge.description}</p>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Users className="h-4 w-4" />
-            {activeChallenge.participants} participantes
-          </div>
-          <Progress value={(activeChallenge.progressWeeks / activeChallenge.totalWeeks) * 100} className="h-2 mb-1" />
-          <p className="text-xs text-muted-foreground">
-            Semana {activeChallenge.progressWeeks} de {activeChallenge.totalWeeks}
-          </p>
+        <Card className="p-4 sm:p-6 mb-4 text-center text-sm text-muted-foreground">
+          Nenhum desafio ativo no momento.
         </Card>
 
         <Card className="p-6 sm:p-8 text-center border-dashed">

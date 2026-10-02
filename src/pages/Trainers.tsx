@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { LoginDialog } from "@/components/LoginDialog";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Star, MapPin, Calendar, DollarSign, Filter, ChevronDown, ChevronUp, History } from "lucide-react";
-import MapView from "@/components/MapView";
+import { Star, Calendar, DollarSign, Filter, ChevronDown, ChevronUp, History } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { SchedulePreview } from "@/components/SchedulePreview";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import StudentHistory from "@/components/dashboard/student/StudentHistory";
+
+interface TrainerCard {
+  id: string;
+  name: string;
+  photo: string;
+  rating: number;
+  reviews: number;
+  price: number;
+  experience: number;
+  specialties: string[];
+}
 
 const Trainers = () => {
   const [loginOpen, setLoginOpen] = useState(false);
@@ -29,65 +39,34 @@ const Trainers = () => {
   const date = searchParams.get("date") || "";
   const gym = searchParams.get("gym") || "";
 
-  // Mock data - In real app, this would come from API
-  const trainers = [
-    {
-      id: 1,
-      name: "Carlos Silva",
-      photo: "",
-      rating: 4.8,
-      reviews: 124,
-      coords: [-23.5629, -46.6544],
-      price: 150,
-      experience: 8,
-      specialties: ["Musculação", "Hipertrofia"],
-      location: "Academia Gaviões - João Moura",
-      address: "Rua João Moura, 375",
-      available: true,
-      schedule: [
-        { start: "08:00", end: "09:00", available: true },
-        { start: "09:00", end: "10:00", available: true },
-        { start: "10:00", end: "11:00", available: false },
-        { start: "14:00", end: "15:00", available: true },
-        { start: "15:00", end: "16:00", available: true },
-        { start: "16:00", end: "17:00", available: true }
-      ]
-    },
-    {
-      id: 2,
-      name: "Ana Santos",
-      photo: "",
-      rating: 4.9,
-      reviews: 98,
-      coords: [-23.5710, -46.6470],
-      price: 180,
-      experience: 10,
-      specialties: ["Yoga", "Pilates"],
-      location: "CEPE - Cidade Universitária",
-      address: "Av. Prof. Luciano Gualberto, 380",
-      available: true,
-      schedule: [
-        { start: "07:00", end: "08:00", available: true },
-        { start: "08:00", end: "09:00", available: true },
-        { start: "17:00", end: "18:00", available: true },
-        { start: "18:00", end: "19:00", available: true }
-      ]
-    },
-    {
-      id: 3,
-      name: "Roberto Costa",
-      photo: "",
-      rating: 4.7,
-      reviews: 156,
-      coords: [-23.5580, -46.6330],
-      price: 140,
-      experience: 6,
-      specialties: ["CrossFit", "Funcional"],
-      location: "São Paulo - Centro",
-      available: false,
-      schedule: []
-    }
-  ];
+  const [trainers, setTrainers] = useState<TrainerCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("trainer_profiles")
+        .select("id, experience_years, base_price, rating, total_reviews, is_active, profiles(full_name, profile_image_url), trainer_specialties(specialties(name))")
+        .eq("is_active", true);
+
+      const rows = (data ?? []).map((row) => {
+        const profile = row.profiles as { full_name: string; profile_image_url: string | null } | null;
+        const specs = (row.trainer_specialties as { specialties: { name: string } | null }[] | null) ?? [];
+        return {
+          id: row.id,
+          name: profile?.full_name ?? "Profissional",
+          photo: profile?.profile_image_url ?? "",
+          rating: Number(row.rating ?? 0),
+          reviews: row.total_reviews ?? 0,
+          price: Number(row.base_price ?? 0),
+          experience: row.experience_years ?? 0,
+          specialties: specs.map((sp) => sp.specialties?.name).filter((n): n is string => !!n),
+        };
+      });
+      setTrainers(rows);
+      setIsLoading(false);
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -116,7 +95,7 @@ const Trainers = () => {
             {city && <span className="text-primary"> em {city}</span>}
           </h1>
           <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            <span>{trainers.length} profissionais encontrados</span>
+            <span>{isLoading ? "Buscando..." : `${trainers.length} ${trainers.length === 1 ? "profissional encontrado" : "profissionais encontrados"}`}</span>
             {modality && <span>• Modalidade: <strong className="text-foreground">{modality}</strong></span>}
             {gym && gym !== "nenhuma" && <span>• Academia: <strong className="text-foreground">{gym}</strong></span>}
           </div>
@@ -199,26 +178,12 @@ const Trainers = () => {
             </Collapsible>
           </div>
 
-          {/* Map */}
-          <div className="lg:col-span-5">
-            <Card className="h-[600px] sticky top-24 overflow-hidden">
-              <div className="w-full h-full">
-                <MapView
-                  center={[trainers[0].coords[0], trainers[0].coords[1]]}
-                  zoom={12}
-                  markers={trainers.map((t) => ({
-                    ...(t.address ? {} : { position: [t.coords[0], t.coords[1]] as [number, number] }),
-                    label: t.name,
-                    address: t.address,
-                  }))}
-                />
-              </div>
-            </Card>
-          </div>
-
           {/* Trainers List */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-9">
             <div className="space-y-4">
+              {!isLoading && trainers.length === 0 && (
+                <Card className="p-8 text-center text-sm text-muted-foreground">Nenhum profissional encontrado.</Card>
+              )}
               {trainers.map((trainer) => (
                 <Card 
                   key={trainer.id}
@@ -237,10 +202,6 @@ const Trainers = () => {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="text-xl font-bold">{trainer.name}</h3>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <MapPin className="h-4 w-4" />
-                            {trainer.location}
-                          </div>
                         </div>
                         <div className="text-right">
                           <div className="text-2xl font-bold text-primary">R$ {trainer.price}</div>
@@ -251,7 +212,7 @@ const Trainers = () => {
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-1">
                           <Star className="h-5 w-5 fill-accent text-accent" />
-                          <span className="font-semibold">{trainer.rating}</span>
+                          <span className="font-semibold">{trainer.reviews > 0 ? trainer.rating.toFixed(1) : "Novo"}</span>
                           <span className="text-sm text-muted-foreground">({trainer.reviews} avaliações)</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm">
@@ -266,20 +227,8 @@ const Trainers = () => {
                             {specialty}
                           </Badge>
                         ))}
-                        {trainer.available ? (
-                          <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
-                            Disponível
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            Indisponível
-                          </Badge>
-                        )}
                       </div>
 
-                      {date && trainer.schedule && trainer.schedule.length > 0 && (
-                        <SchedulePreview date={date} slots={trainer.schedule} />
-                      )}
                     </div>
                   </div>
                 </Card>

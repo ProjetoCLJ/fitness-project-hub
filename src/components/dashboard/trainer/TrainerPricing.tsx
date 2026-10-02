@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Package, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getBasePrice, setBasePrice as persistBasePrice } from "@/lib/financeStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PricingPackage {
   id: number;
@@ -20,12 +21,19 @@ interface PricingPackage {
 
 const TrainerPricing = () => {
   const { toast } = useToast();
-  const [basePrice, setBasePrice] = useState(() => getBasePrice().toFixed(2));
-  const [packages, setPackages] = useState<PricingPackage[]>([
-    { id: 1, name: "Pacote 4 aulas", classesCount: 4, price: 570, discountPercentage: 5, isActive: true },
-    { id: 2, name: "Pacote 8 aulas", classesCount: 8, price: 1080, discountPercentage: 10, isActive: true },
-    { id: 3, name: "Pacote 12 aulas", classesCount: 12, price: 1530, discountPercentage: 15, isActive: true },
-  ]);
+  const { user } = useAuth();
+  const [basePrice, setBasePrice] = useState("0.00");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("trainer_profiles")
+      .select("base_price")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBasePrice(Number(data?.base_price ?? 0).toFixed(2)));
+  }, [user]);
+  const [packages, setPackages] = useState<PricingPackage[]>([]);
 
   const [newPackage, setNewPackage] = useState({
     name: "",
@@ -54,7 +62,7 @@ const TrainerPricing = () => {
     const price = calculatePackagePrice(classes, discount);
 
     const pkg: PricingPackage = {
-      id: Math.max(...packages.map(p => p.id)) + 1,
+      id: packages.length === 0 ? 1 : Math.max(...packages.map(p => p.id)) + 1,
       name: newPackage.name,
       classesCount: classes,
       price: price,
@@ -91,9 +99,15 @@ const TrainerPricing = () => {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const parsed = parseFloat(basePrice);
-    if (Number.isFinite(parsed)) persistBasePrice(parsed);
+    if (user && Number.isFinite(parsed)) {
+      const { error } = await supabase.from("trainer_profiles").update({ base_price: parsed }).eq("id", user.id);
+      if (error) {
+        toast({ title: "Não foi possível salvar", description: "Tente novamente.", variant: "destructive" });
+        return;
+      }
+    }
     toast({
       title: "Preços atualizados!",
       description: "Suas alterações foram salvas com sucesso.",
@@ -128,6 +142,10 @@ const TrainerPricing = () => {
           <Package className="h-6 w-6 text-primary" />
           Pacotes de Aulas
         </h2>
+
+        {packages.length === 0 && (
+          <p className="text-sm text-muted-foreground mb-6">Nenhum pacote criado ainda.</p>
+        )}
 
         <div className="space-y-4 mb-6">
           {packages.map((pkg) => (

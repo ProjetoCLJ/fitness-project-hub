@@ -18,9 +18,6 @@ import { Check, X, Clock3, CalendarClock } from "lucide-react";
 import TrainerSchedule from "@/components/dashboard/trainer/TrainerSchedule";
 import { Booking, getBookingsForTrainer, respondProposal } from "@/lib/agendaStore";
 
-// Demonstração local: o profissional autenticado (mock) representa
-// sempre "trainer-1", o mesmo id usado no perfil público (id "1").
-const TRAINER_ID = "trainer-1";
 
 const formatDate = (dateISO: string) =>
   new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
@@ -34,6 +31,7 @@ const statusLabel: Record<Booking["status"], string> = {
 
 const Agenda = () => {
   const { user } = useAuth();
+  const trainerId = user?.id ?? "";
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [scheduleRefresh, setScheduleRefresh] = useState(0);
@@ -43,8 +41,8 @@ const Agenda = () => {
   const [suggestEnd, setSuggestEnd] = useState("");
 
   useEffect(() => {
-    setBookings(getBookingsForTrainer(TRAINER_ID));
-  }, []);
+    setBookings(getBookingsForTrainer(trainerId));
+  }, [trainerId]);
 
   if (!user || user.userType !== "trainer") return null;
 
@@ -55,7 +53,7 @@ const Agenda = () => {
 
   const handleRespond = (id: string, action: "accept" | "reject") => {
     const updated = respondProposal(id, action);
-    setBookings(updated.filter((b) => b.trainerId === TRAINER_ID));
+    setBookings(updated.filter((b) => b.trainerId === trainerId));
     if (action === "accept") setScheduleRefresh((k) => k + 1);
     toast({
       title: action === "accept" ? "Aula confirmada!" : "Proposta recusada",
@@ -77,7 +75,7 @@ const Agenda = () => {
       startTime: suggestStart,
       endTime: suggestEnd,
     });
-    setBookings(updated.filter((b) => b.trainerId === TRAINER_ID));
+    setBookings(updated.filter((b) => b.trainerId === trainerId));
     toast({ title: "Novo horário sugerido", description: "O cliente vai ver a sugestão e poderá aceitar." });
     setSuggestingId(null);
   };
@@ -175,9 +173,9 @@ const Agenda = () => {
         </Dialog>
 
         <TrainerSchedule
-          trainerId={TRAINER_ID}
+          trainerId={trainerId}
           refreshSignal={scheduleRefresh}
-          onBookingsChange={() => setBookings(getBookingsForTrainer(TRAINER_ID))}
+          onBookingsChange={() => setBookings(getBookingsForTrainer(trainerId))}
         />
       </div>
     </div>

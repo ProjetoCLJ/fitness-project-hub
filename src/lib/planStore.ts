@@ -86,81 +86,13 @@ export interface Plan {
 
 const STORAGE_PREFIX = "fit_plans_";
 
-const defaultWorkouts: Workout[] = [
-  {
-    id: "w1",
-    day: "Segunda",
-    name: "Treino A - Inferiores",
-    exercises: [
-      { id: "e1", name: "Agachamento livre", sets: 4, reps: "10-12", load: "45kg", rest: "90s" },
-      { id: "e2", name: "Leg press", sets: 3, reps: "12-15", load: "120kg", rest: "0s", supersetGroup: "ss1" },
-      { id: "e3", name: "Cadeira extensora", sets: 3, reps: "15", load: "30kg", rest: "45s", supersetGroup: "ss1" },
-    ],
-  },
-  {
-    id: "w2",
-    day: "Quarta",
-    name: "Treino B - Superiores",
-    exercises: [
-      { id: "e4", name: "Supino reto", sets: 4, reps: "8-10", load: "50kg", rest: "90s" },
-      { id: "e5", name: "Puxada frontal", sets: 3, reps: "10-12", load: "45kg", rest: "60s" },
-      { id: "e6", name: "Desenvolvimento", sets: 3, reps: "10", load: "20kg", rest: "60s" },
-    ],
-  },
-  {
-    id: "w3",
-    day: "Sexta",
-    name: "Treino C - Full Body",
-    exercises: [
-      { id: "e7", name: "Levantamento terra", sets: 4, reps: "8", load: "60kg", rest: "120s" },
-      { id: "e8", name: "Remada curvada", sets: 3, reps: "10", load: "40kg", rest: "60s" },
-      { id: "e9", name: "Prancha", sets: 3, reps: "45s", load: "-", rest: "30s" },
-    ],
-  },
-];
-
-const addMonths = (date: Date, months: number) => {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-};
-
-const defaultPlan = (clientId: string): Plan => {
-  const start = new Date(2024, 10, 1);
-  return {
-    id: crypto.randomUUID(),
-    clientId,
-    title: "Plano de Condicionamento — Nov/2024",
-    objective: "Melhorar condicionamento físico",
-    deadline: addMonths(start, 3).toISOString(),
-    trainingStrategy: "4 sessões semanais - hipertrofia",
-    trainingApproach:
-      "Progressão de carga semanal com foco em hipertrofia nas primeiras 8 semanas, seguida por um bloco de definição. " +
-      "Reavaliação de cargas a cada 4 semanas.",
-    nutritionStrategy: "Reeducação alimentar com déficit calórico moderado, priorizando proteína magra e hidratação.",
-    trainerName: "Carlos Silva",
-    nutritionistName: "Maria Santos",
-    workouts: defaultWorkouts,
-    executions: [],
-    versions: [],
-    progress: 45,
-    status: "active",
-    startDate: start.toISOString(),
-    updatedAt: new Date(2024, 10, 28).toISOString(),
-  };
-};
-
 export const getPlans = (clientId: string): Plan[] => {
   const raw = localStorage.getItem(STORAGE_PREFIX + clientId);
-  if (!raw) {
-    const seeded = [defaultPlan(clientId)];
-    localStorage.setItem(STORAGE_PREFIX + clientId, JSON.stringify(seeded));
-    return seeded;
-  }
+  if (!raw) return [];
   try {
     return JSON.parse(raw) as Plan[];
   } catch {
-    return [defaultPlan(clientId)];
+    return [];
   }
 };
 

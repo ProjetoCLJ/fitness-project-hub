@@ -26,7 +26,6 @@ import { WorkoutExecution, getPlans } from "@/lib/planStore";
 import { WeightEntry, addWeightEntry, getWeightEntries, getWeightGoal, setWeightGoal } from "@/lib/bodyWeightStore";
 import { exerciseLibrary } from "@/data/exerciseLibrary";
 
-const CURRENT_CLIENT_ID = "1";
 
 const parseWeight = (weight: string) => {
   const match = weight.match(/(\d+(\.\d+)?)/);
@@ -58,6 +57,7 @@ const MUSCLE_GROUP_BY_NAME = new Map(exerciseLibrary.map((ex) => [ex.name.toLowe
 
 const Stats = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>("");
@@ -69,17 +69,17 @@ const Stats = () => {
   const [goalInput, setGoalInput] = useState("");
 
   useEffect(() => {
-    const all = getPlans(CURRENT_CLIENT_ID).flatMap((p) => p.executions);
+    const all = getPlans(clientId).flatMap((p) => p.executions);
     const sorted = [...all].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     setExecutions(sorted);
-    setWeightEntries(getWeightEntries(CURRENT_CLIENT_ID));
-    setWeightGoalState(getWeightGoal(CURRENT_CLIENT_ID));
-  }, []);
+    setWeightEntries(getWeightEntries(clientId));
+    setWeightGoalState(getWeightGoal(clientId));
+  }, [clientId]);
 
   const logWeight = () => {
     const value = Number(weightInput.replace(",", "."));
     if (!value || value <= 0) return;
-    setWeightEntries(addWeightEntry(CURRENT_CLIENT_ID, value));
+    setWeightEntries(addWeightEntry(clientId, value));
     setWeightInput("");
     setLogOpen(false);
   };
@@ -87,7 +87,7 @@ const Stats = () => {
   const saveGoal = () => {
     const value = Number(goalInput.replace(",", "."));
     if (!value || value <= 0) return;
-    setWeightGoal(CURRENT_CLIENT_ID, value);
+    setWeightGoal(clientId, value);
     setWeightGoalState(value);
     setGoalInput("");
     setGoalOpen(false);

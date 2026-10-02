@@ -26,7 +26,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { mockClients } from "./Clients";
+import { buildClientRows } from "./Clients";
 import { Plan, Workout, getPlans, savePlanEdits, createPlan } from "@/lib/planStore";
 import { WorkoutEditorDialog } from "@/components/plan/WorkoutEditorDialog";
 import { NewPlanDialog, NewPlanData } from "@/components/plan/NewPlanDialog";
@@ -55,11 +55,12 @@ const ClientProfilePro = () => {
   const [nutritionistDraft, setNutritionistDraft] = useState("");
   const [progressDraft, setProgressDraft] = useState(0);
 
-  const client = mockClients.find((c) => c.id === id) ?? mockClients[0];
+  const client = user ? buildClientRows(user.id).find((c) => c.id === id) : undefined;
   const activePlan = plans.find((p) => p.status === "active");
   const pastPlans = plans.filter((p) => p.status === "completed").sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
   useEffect(() => {
+    if (!client) return;
     const loaded = getPlans(client.id);
     setPlans(loaded);
     const active = loaded.find((p) => p.status === "active");
@@ -73,9 +74,70 @@ const ClientProfilePro = () => {
       setNutritionistDraft(active.nutritionistName);
       setProgressDraft(active.progress);
     }
-  }, [client.id]);
+  }, [client]);
 
-  if (!user || user.userType !== "trainer" || !activePlan) return null;
+  const handleCreatePlan = (data: NewPlanData) => {
+    if (!client) return;
+    const updated = createPlan(client.id, data);
+    setPlans(updated);
+    toast({ title: "Novo plano criado", description: "O plano anterior foi movido para o histórico." });
+  };
+
+  if (!user || user.userType !== "trainer") return null;
+
+  if (!client) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onLoginClick={() => {}} />
+        <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
+          <Button variant="ghost" onClick={() => navigate("/dashboard/trainer/clients")} className="mb-4 -ml-2">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Clientes
+          </Button>
+          <Card className="p-8 text-center text-sm text-muted-foreground">Cliente não encontrado.</Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activePlan) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onLoginClick={() => {}} />
+        <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
+          <Button variant="ghost" onClick={() => navigate("/dashboard/trainer/clients")} className="mb-4 -ml-2">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Clientes
+          </Button>
+          <div className="flex items-center gap-4 mb-6">
+            <Avatar className="h-16 w-16">
+              <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xl">
+                {client.name.split(" ").map((n) => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-bold">{client.name}</h1>
+              <p className="text-sm text-muted-foreground">Sem plano ativo</p>
+            </div>
+          </div>
+          <Card className="p-6 sm:p-8 text-center border-dashed space-y-4">
+            <p className="font-medium">Nenhum plano criado ainda</p>
+            <p className="text-sm text-muted-foreground">Crie o primeiro plano de treino para este cliente.</p>
+            <Button variant="hero" onClick={() => setNewPlanOpen(true)}>
+              Criar plano
+            </Button>
+          </Card>
+          <NewPlanDialog
+            open={newPlanOpen}
+            onOpenChange={setNewPlanOpen}
+            defaultTrainerName={user.profile.fullName}
+            defaultNutritionistName=""
+            onCreate={handleCreatePlan}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const saveStrategy = () => {
     const updated = savePlanEdits(client.id, activePlan.id, {
@@ -127,12 +189,6 @@ const ClientProfilePro = () => {
     [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
     const updated = savePlanEdits(client.id, activePlan.id, { workouts: reordered });
     setPlans(updated);
-  };
-
-  const handleCreatePlan = (data: NewPlanData) => {
-    const updated = createPlan(client.id, data);
-    setPlans(updated);
-    toast({ title: "Novo plano criado", description: "O plano anterior foi movido para o histórico." });
   };
 
   const allExecutions = plans.flatMap((p) => p.executions.map((exec) => ({ ...exec, planTitle: p.title })));
@@ -188,7 +244,7 @@ const ClientProfilePro = () => {
                 <ShieldAlert className="h-5 w-5 text-destructive mt-0.5" />
                 <div>
                   <p className="text-sm text-muted-foreground">Restrições relevantes</p>
-                  <p className="font-medium">Leve desconforto no joelho direito — evitar impacto</p>
+                  <p className="font-medium">Nenhuma restrição registrada</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-2 border-t">
@@ -233,15 +289,9 @@ const ClientProfilePro = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="trainer-name">Personal Trainer</Label>
-                  <Input id="trainer-name" value={trainerDraft} onChange={(e) => setTrainerDraft(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nutritionist-name">Nutricionista</Label>
-                  <Input id="nutritionist-name" value={nutritionistDraft} onChange={(e) => setNutritionistDraft(e.target.value)} />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="trainer-name">Personal Trainer</Label>
+                <Input id="trainer-name" value={trainerDraft} onChange={(e) => setTrainerDraft(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="strategy">Estratégia de treinamento</Label>
@@ -250,10 +300,6 @@ const ClientProfilePro = () => {
               <div className="space-y-2">
                 <Label htmlFor="approach">Abordagem, progressões e prazos</Label>
                 <Textarea id="approach" value={approachDraft} onChange={(e) => setApproachDraft(e.target.value)} rows={4} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="nutrition">Estratégia nutricional</Label>
-                <Textarea id="nutrition" value={nutritionDraft} onChange={(e) => setNutritionDraft(e.target.value)} rows={2} />
               </div>
               <Button variant="hero" onClick={saveStrategy}>
                 Salvar plano
@@ -445,10 +491,6 @@ const ClientProfilePro = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm">Dados de treino</span>
                 <Badge>Autorizado</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Dados de nutrição</span>
-                <Badge variant="outline">Não autorizado</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Histórico de saúde</span>

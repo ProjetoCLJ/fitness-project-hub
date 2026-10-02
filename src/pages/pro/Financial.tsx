@@ -7,30 +7,58 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Info, ArrowRight } from "lucide-react";
 import TrainerEarnings from "@/components/dashboard/trainer/TrainerEarnings";
 import TrainerPricing from "@/components/dashboard/trainer/TrainerPricing";
-import { getAvailableSlotsCount } from "@/lib/agendaStore";
-import { getBasePrice } from "@/lib/financeStore";
+import { getScheduleEvents, getSlotsForDate } from "@/lib/agendaStore";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mesmo valor mockado usado em TrainerEarnings — nesta fase ainda não
-// há uma fonte única de faturamento real, apenas a agenda e o preço
-// são cruzados de fato.
-const CURRENT_MONTH_EARNINGS = 4800;
+/** Conta, dentro do mês atual, quantos horários caem em cada status (aula agendada / disponível). */
+const countThisMonth = (trainerId: string) => {
+  // Enquanto o profissional não configurou nada na agenda, o dia inteiro aparece "livre" por padrão —
+  // contar isso como potencial de faturamento seria enganoso, então começa zerado.
+  if (getScheduleEvents(trainerId).length === 0) return { aulaCount: 0, availableCount: 0 };
+
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  let aulaCount = 0;
+  let availableCount = 0;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const slots = getSlotsForDate(dateISO, trainerId);
+    slots.forEach((slot) => {
+      if (slot.status === "aula") aulaCount++;
+      else if (slot.status === "available" && !slot.isPast) availableCount++;
+    });
+  }
+
+  return { aulaCount, availableCount };
+};
 
 const Financial = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [availableSlotsWeek, setAvailableSlotsWeek] = useState(0);
+  const [aulaCount, setAulaCount] = useState(0);
+  const [availableCount, setAvailableCount] = useState(0);
   const [basePrice, setBasePrice] = useState(0);
 
   useEffect(() => {
-    setAvailableSlotsWeek(getAvailableSlotsCount(7));
-    setBasePrice(getBasePrice());
-  }, []);
+    if (!user) return;
+    const { aulaCount, availableCount } = countThisMonth(user.id);
+    setAulaCount(aulaCount);
+    setAvailableCount(availableCount);
+    supabase
+      .from("trainer_profiles")
+      .select("base_price")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBasePrice(Number(data?.base_price ?? 0)));
+  }, [user]);
 
   if (!user || user.userType !== "trainer") return null;
 
-  const potentialWeekly = availableSlotsWeek * basePrice;
-  const potentialMonthly = potentialWeekly * 4;
-  const potentialTotal = CURRENT_MONTH_EARNINGS + potentialMonthly;
+  // Realizado: lançado manualmente pelo profissional — ainda não há tela de lançamento, então começa zerado.
+  const realizado = 0;
+  const previsto = aulaCount * basePrice;
+  const possivel = availableCount * basePrice;
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,31 +73,31 @@ const Financial = () => {
         <Card className="p-4 sm:p-6 mb-4 bg-gradient-hero text-primary-foreground">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="h-5 w-5" />
-            <h2 className="font-semibold">Potencial de faturamento da sua agenda</h2>
+            <h2 className="font-semibold">Faturamento do mês</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <div className="text-xl sm:text-2xl font-bold">R$ {CURRENT_MONTH_EARNINGS.toLocaleString("pt-BR")}</div>
-              <div className="text-xs opacity-90">Faturamento atual/mês</div>
+              <div className="text-lg sm:text-2xl font-bold">R$ {realizado.toLocaleString("pt-BR")}</div>
+              <div className="text-xs opacity-90">Realizado</div>
             </div>
             <div>
-              <div className="text-xl sm:text-2xl font-bold">R$ {potentialMonthly.toLocaleString("pt-BR")}</div>
-              <div className="text-xs opacity-90">Potencial adicional/mês</div>
+              <div className="text-lg sm:text-2xl font-bold">R$ {previsto.toLocaleString("pt-BR")}</div>
+              <div className="text-xs opacity-90">Previsto</div>
             </div>
-          </div>
-          <div className="pt-3 border-t border-white/20">
-            <div className="text-2xl sm:text-3xl font-bold">R$ {potentialTotal.toLocaleString("pt-BR")}</div>
-            <div className="text-xs opacity-90">Potencial total estimado/mês</div>
+            <div>
+              <div className="text-lg sm:text-2xl font-bold">R$ {possivel.toLocaleString("pt-BR")}</div>
+              <div className="text-xs opacity-90">Possível</div>
+            </div>
           </div>
         </Card>
 
-        {availableSlotsWeek > 0 && (
+        {availableCount > 0 && (
           <Card className="p-4 sm:p-6 mb-4">
             <p className="text-sm mb-1">
-              Você possui <strong>{availableSlotsWeek} horário{availableSlotsWeek > 1 ? "s" : ""} disponíve{availableSlotsWeek > 1 ? "is" : "l"}</strong> esta semana.
+              Você possui <strong>{availableCount} horário{availableCount > 1 ? "s" : ""} disponíve{availableCount > 1 ? "is" : "l"}</strong> este mês.
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Se todos forem ocupados, seu faturamento potencial será de R$ {potentialWeekly.toLocaleString("pt-BR")} adicionais nesta semana.
+              Se todos forem ocupados, seu faturamento possível aumenta em R$ {possivel.toLocaleString("pt-BR")}.
             </p>
             <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/trainer/profile")}>
               Encontrar clientes para esses horários
@@ -81,9 +109,10 @@ const Financial = () => {
         <Card className="p-4 mb-6 flex items-start gap-3 bg-muted/30">
           <Info className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
           <p className="text-xs text-muted-foreground">
-            O potencial é uma <strong>estimativa</strong>, não faturamento garantido. O cálculo considera
-            apenas horários que você marcou como disponíveis, não estão ocupados nem bloqueados, e têm
-            duração suficiente para uma aula ({basePrice > 0 ? `R$ ${basePrice.toFixed(2)} por aula` : "preço não definido"}).
+            <strong>Realizado</strong> é o que você lançar manualmente conforme os alunos pagam.{" "}
+            <strong>Previsto</strong> é calculado com base nas aulas já agendadas no mês.{" "}
+            <strong>Possível</strong> é calculado com base nos horários ainda disponíveis
+            ({basePrice > 0 ? `R$ ${basePrice.toFixed(2)} por aula` : "preço não definido no seu perfil"}).
           </p>
         </Card>
 

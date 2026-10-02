@@ -199,14 +199,14 @@ export const getAvailableSlots = (
     .filter((s) => s.status === "available" && !s.isPast)
     .map((s) => ({ start: s.start, end: s.end }));
 
-export const getAvailableSlotsCount = (days: number, durationMinutes = 60): number => {
+export const getAvailableSlotsCount = (days: number, durationMinutes = 60, trainerId: string = DEFAULT_TRAINER_ID): number => {
   let total = 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
-    total += getAvailableSlots(date.toISOString().slice(0, 10), durationMinutes).length;
+    total += getAvailableSlots(date.toISOString().slice(0, 10), durationMinutes, trainerId).length;
   }
   return total;
 };

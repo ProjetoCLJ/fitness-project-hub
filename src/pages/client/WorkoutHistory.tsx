@@ -7,17 +7,17 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, History, Trophy } from "lucide-react";
 import { getPlans } from "@/lib/planStore";
 
-const CURRENT_CLIENT_ID = "1";
 
 const WorkoutHistory = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const [executions, setExecutions] = useState<ReturnType<typeof getPlans>[number]["executions"]>([]);
 
   useEffect(() => {
-    const all = getPlans(CURRENT_CLIENT_ID).flatMap((p) => p.executions);
+    const all = getPlans(clientId).flatMap((p) => p.executions);
     setExecutions([...all].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-  }, []);
+  }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
 

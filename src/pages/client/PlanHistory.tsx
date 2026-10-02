@@ -9,20 +9,20 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Plan, getPlans } from "@/lib/planStore";
 
-const CURRENT_CLIENT_ID = "1";
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 
 const PlanHistory = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
 
   useEffect(() => {
-    const all = getPlans(CURRENT_CLIENT_ID);
+    const all = getPlans(clientId);
     setPlans([...all].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
-  }, []);
+  }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
 
@@ -71,10 +71,6 @@ const PlanHistory = () => {
                 <div>
                   <p className="text-muted-foreground">Personal Trainer</p>
                   <p className="font-medium">{plan.trainerName}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Nutricionista</p>
-                  <p className="font-medium">{plan.nutritionistName}</p>
                 </div>
               </div>
 

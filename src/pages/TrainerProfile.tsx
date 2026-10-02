@@ -1,22 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { LoginDialog } from "@/components/LoginDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Calendar, DollarSign, Instagram, Facebook, Linkedin, ArrowLeft, Trophy } from "lucide-react";
+import { Star, Calendar, Instagram, Facebook, Linkedin, ArrowLeft, Trophy } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { BookingRequestDialog } from "@/components/agenda/BookingRequestDialog";
 import { createProposal } from "@/lib/agendaStore";
+import { supabase } from "@/integrations/supabase/client";
 
-// Demonstração local: este perfil (id "1") representa o mesmo profissional
-// "trainer-1" usado pela agendaStore, e o aluno autenticado (mock)
-// representa sempre o cliente "1" (Maria Fernanda).
-const TRAINER_ID = "trainer-1";
-const CURRENT_CLIENT_ID = "1";
+interface TrainerData {
+  id: string;
+  name: string;
+  photo: string;
+  rating: number;
+  reviews: number;
+  price: number;
+  experience: number;
+  specialties: string[];
+  cref: string;
+  description: string;
+  objectives: string;
+  instagram: string;
+  facebook: string;
+  linkedin: string;
+  available: boolean;
+}
+
+interface Testimonial {
+  id: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
 
 const TrainerProfile = () => {
   const [loginOpen, setLoginOpen] = useState(false);
@@ -26,55 +46,75 @@ const TrainerProfile = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Mock data - In real app, this would come from API
-  const trainer = {
-    id: 1,
-    name: "Carlos Silva",
-    photo: "",
-    rating: 4.8,
-    reviews: 124,
-    price: 150,
-    experience: 8,
-    specialties: ["Musculação", "Hipertrofia", "Emagrecimento"],
-    location: "São Paulo - Zona Sul",
-    cref: "123456-G/SP",
-    description: "Personal trainer com 8 anos de experiência focado em resultados reais. Metodologia personalizada baseada em ciência e acompanhamento próximo.",
-    objectives: "Ajudar pessoas a alcançarem seus objetivos de forma saudável e sustentável, promovendo mudanças reais no estilo de vida.",
-    instagram: "@carlossilvafit",
-    facebook: "carlos.silva.fit",
-    linkedin: "carlos-silva-personal",
-    available: true,
-    weekSchedule: {
-      "Segunda": [{ start: "08:00", end: "09:00", available: true }, { start: "09:00", end: "10:00", available: true }, { start: "14:00", end: "15:00", available: true }, { start: "15:00", end: "16:00", available: true }],
-      "Terça": [{ start: "08:00", end: "09:00", available: true }, { start: "10:00", end: "11:00", available: false }, { start: "14:00", end: "15:00", available: true }],
-      "Quarta": [{ start: "08:00", end: "09:00", available: true }, { start: "09:00", end: "10:00", available: true }, { start: "16:00", end: "17:00", available: true }],
-      "Quinta": [{ start: "08:00", end: "09:00", available: true }, { start: "14:00", end: "15:00", available: true }, { start: "15:00", end: "16:00", available: true }],
-      "Sexta": [{ start: "08:00", end: "09:00", available: true }, { start: "09:00", end: "10:00", available: true }],
-      "Sábado": [{ start: "09:00", end: "10:00", available: true }, { start: "10:00", end: "11:00", available: true }],
-      "Domingo": []
-    }
-  };
+  const [trainer, setTrainer] = useState<TrainerData | null>(null);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const testimonials = [
-    {
-      name: "Maria Oliveira",
-      rating: 5,
-      comment: "Excelente profissional! Perdi 15kg em 6 meses com os treinos personalizados.",
-      date: "Há 2 semanas"
-    },
-    {
-      name: "João Pedro",
-      rating: 5,
-      comment: "Muito atencioso e comprometido. Recomendo!",
-      date: "Há 1 mês"
-    },
-    {
-      name: "Ana Costa",
-      rating: 4,
-      comment: "Ótima metodologia, resultados apareceram rápido.",
-      date: "Há 2 meses"
-    }
-  ];
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data } = await supabase
+        .from("trainer_profiles")
+        .select("id, cref, experience_years, description, objectives, base_price, instagram, facebook, linkedin, rating, total_reviews, is_active, profiles(full_name, profile_image_url), trainer_specialties(specialties(name))")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (data) {
+        const profile = data.profiles as { full_name: string; profile_image_url: string | null } | null;
+        const specs = (data.trainer_specialties as { specialties: { name: string } | null }[] | null) ?? [];
+        setTrainer({
+          id: data.id,
+          name: profile?.full_name ?? "Profissional",
+          photo: profile?.profile_image_url ?? "",
+          rating: Number(data.rating ?? 0),
+          reviews: data.total_reviews ?? 0,
+          price: Number(data.base_price ?? 0),
+          experience: data.experience_years ?? 0,
+          specialties: specs.map((sp) => sp.specialties?.name).filter((n): n is string => !!n),
+          cref: data.cref ?? "",
+          description: data.description ?? "",
+          objectives: data.objectives ?? "",
+          instagram: data.instagram ?? "",
+          facebook: data.facebook ?? "",
+          linkedin: data.linkedin ?? "",
+          available: data.is_active ?? true,
+        });
+
+        const { data: reviewRows } = await supabase
+          .from("reviews")
+          .select("id, rating, comment, created_at")
+          .eq("trainer_id", data.id)
+          .order("created_at", { ascending: false });
+        setTestimonials(
+          (reviewRows ?? []).map((r) => ({
+            id: r.id,
+            rating: r.rating ?? 0,
+            comment: r.comment ?? "",
+            date: new Date(r.created_at ?? "").toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }),
+          }))
+        );
+      }
+      setIsLoading(false);
+    })();
+  }, [id]);
+
+  if (isLoading) return null;
+
+  if (!trainer) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onLoginClick={() => setLoginOpen(true)} />
+        <div className="container mx-auto px-4 pt-24 pb-12">
+          <Button variant="ghost" onClick={() => navigate("/trainers")} className="mb-6">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar para busca
+          </Button>
+          <Card className="p-8 text-center text-sm text-muted-foreground">Profissional não encontrado.</Card>
+        </div>
+        <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,16 +145,12 @@ const TrainerProfile = () => {
                 <div className="flex-1 space-y-4">
                   <div>
                     <h1 className="text-3xl font-bold mb-2">{trainer.name}</h1>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      {trainer.location}
-                    </div>
                   </div>
 
                   <div className="flex items-center gap-6 flex-wrap">
                     <div className="flex items-center gap-1">
                       <Star className="h-5 w-5 fill-accent text-accent" />
-                      <span className="font-bold text-lg">{trainer.rating}</span>
+                      <span className="font-bold text-lg">{trainer.reviews > 0 ? trainer.rating.toFixed(1) : "Novo"}</span>
                       <span className="text-sm text-muted-foreground">({trainer.reviews} avaliações)</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -123,10 +159,12 @@ const TrainerProfile = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-accent" />
-                    <span className="font-semibold">CREF: {trainer.cref}</span>
-                  </div>
+                  {trainer.cref && (
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-accent" />
+                      <span className="font-semibold">CREF: {trainer.cref}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 flex-wrap">
                     {trainer.specialties.map((specialty, index) => (
@@ -166,67 +204,36 @@ const TrainerProfile = () => {
 
             <Card className="p-8">
               <h2 className="text-2xl font-bold mb-4">Sobre</h2>
-              <p className="text-muted-foreground leading-relaxed">{trainer.description}</p>
+              <p className="text-muted-foreground leading-relaxed">{trainer.description || "Este profissional ainda não adicionou uma descrição."}</p>
             </Card>
 
             <Card className="p-8">
               <h2 className="text-2xl font-bold mb-4">Objetivos Profissionais</h2>
-              <p className="text-muted-foreground leading-relaxed">{trainer.objectives}</p>
-            </Card>
-
-            <Card className="p-8">
-              <h2 className="text-2xl font-bold mb-6">Agenda Semanal</h2>
-              <div className="space-y-6">
-                {Object.entries(trainer.weekSchedule).map(([day, slots]) => (
-                  <div key={day} className="space-y-3">
-                    <h3 className="font-semibold text-lg flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-primary" />
-                      {day}
-                    </h3>
-                    {slots.length > 0 ? (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                        {slots.map((slot, index) => (
-                          <div
-                            key={index}
-                            className={`text-sm px-3 py-2 rounded-md text-center ${
-                              slot.available
-                                ? 'bg-primary/10 text-primary border border-primary/20'
-                                : 'bg-muted text-muted-foreground line-through'
-                            }`}
-                          >
-                            {slot.start} - {slot.end}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground pl-7">Sem horários disponíveis</p>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <p className="text-muted-foreground leading-relaxed">{trainer.objectives || "Este profissional ainda não adicionou seus objetivos."}</p>
             </Card>
 
             {/* Testimonials */}
             <Card className="p-8">
               <h2 className="text-2xl font-bold mb-6">Avaliações</h2>
-              <div className="space-y-6">
-                {testimonials.map((testimonial, index) => (
-                  <div key={index} className="border-b last:border-0 pb-6 last:pb-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="font-semibold">{testimonial.name}</div>
+              {testimonials.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma avaliação ainda.</p>
+              ) : (
+                <div className="space-y-6">
+                  {testimonials.map((testimonial) => (
+                    <div key={testimonial.id} className="border-b last:border-0 pb-6 last:pb-0">
+                      <div className="flex items-start justify-between mb-2">
                         <div className="text-sm text-muted-foreground">{testimonial.date}</div>
+                        <div className="flex items-center gap-1">
+                          {[...Array(testimonial.rating)].map((_, i) => (
+                            <Star key={i} className="h-4 w-4 fill-accent text-accent" />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        {[...Array(testimonial.rating)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-accent text-accent" />
-                        ))}
-                      </div>
+                      <p className="text-muted-foreground">{testimonial.comment}</p>
                     </div>
-                    <p className="text-muted-foreground">{testimonial.comment}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
 
@@ -235,7 +242,7 @@ const TrainerProfile = () => {
             <Card className="p-6 sticky top-24 shadow-medium">
               <div className="space-y-6">
                 <div className="text-center pb-6 border-b">
-                  <div className="text-4xl font-bold text-primary mb-1">R$ {trainer.price}</div>
+                  <div className="text-4xl font-bold text-primary mb-1">R$ {trainer.price.toFixed(2)}</div>
                   <div className="text-sm text-muted-foreground">por aula</div>
                 </div>
 
@@ -263,20 +270,6 @@ const TrainerProfile = () => {
                   </Button>
                 </div>
 
-                <div className="pt-6 border-t space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span>Responde em até 24h</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span>Primeira aula experimental disponível</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span>Avaliação física gratuita</span>
-                  </div>
-                </div>
               </div>
             </Card>
           </div>
@@ -288,8 +281,9 @@ const TrainerProfile = () => {
         open={bookingOpen}
         onOpenChange={setBookingOpen}
         trainerName={trainer.name}
+        trainerId={trainer.id}
         onSubmit={(date, startTime, endTime) => {
-          createProposal(TRAINER_ID, CURRENT_CLIENT_ID, user?.profile.fullName ?? "Aluno", date, startTime, endTime);
+          createProposal(trainer.id, user?.id ?? "", user?.profile.fullName ?? "Aluno", date, startTime, endTime);
           toast({ title: "Proposta enviada!", description: `Aguardando resposta de ${trainer.name}.` });
         }}
       />

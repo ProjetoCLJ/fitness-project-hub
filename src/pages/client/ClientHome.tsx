@@ -20,23 +20,22 @@ import {
   Check,
 } from "lucide-react";
 import { Booking, acceptSuggestion, getBookingsForClient } from "@/lib/agendaStore";
+import { getActivePlan } from "@/lib/planStore";
 
-// Demonstração local: o cliente autenticado (mock) representa sempre
-// o cliente "1" (Maria Fernanda) na agendaStore.
-const CURRENT_CLIENT_ID = "1";
 
 const formatBookingDate = (dateISO: string, startTime: string) =>
   `${new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}, ${startTime}`;
 
 const ClientHome = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
-    setBookings(getBookingsForClient(CURRENT_CLIENT_ID));
-  }, []);
+    setBookings(getBookingsForClient(clientId));
+  }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
 
@@ -47,28 +46,37 @@ const ClientHome = () => {
 
   const handleAcceptSuggestion = (bookingId: string) => {
     const updated = acceptSuggestion(bookingId);
-    setBookings(updated.filter((b) => b.clientId === CURRENT_CLIENT_ID));
+    setBookings(updated.filter((b) => b.clientId === clientId));
     toast({ title: "Horário confirmado!", description: "A aula foi reservada na sua agenda." });
   };
 
-  // Mock data - dados virão do backend em fase futura
-  const fitScore = 1850;
-  const level = { name: "Dedicado", min: 1000, max: 1999 };
+  // Gamificação (pontuação/ranking/sequência) ainda não tem backend — fica zerada até existir.
+  const fitScore = 0;
+  const level = { name: "Iniciante", min: 0, max: 999 };
   const levelProgress = ((fitScore - level.min) / (level.max - level.min)) * 100;
-  const rankingPosition = 18;
-  const streak = 6;
+  const streak = 0;
 
-  const nextWorkout = {
-    name: "Treino B - Superiores",
-    time: "Hoje, 18:00",
-    objective: "Hipertrofia",
-    trainerName: "Carlos Silva",
-  };
+  const activePlan = getActivePlan(clientId);
+  const nextWorkout = activePlan?.workouts[0]
+    ? {
+        name: activePlan.workouts[0].name,
+        day: activePlan.workouts[0].day,
+        objective: activePlan.objective,
+        trainerName: activePlan.trainerName,
+      }
+    : null;
 
+  const startOfWeek = new Date();
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const completedThisWeek = activePlan
+    ? activePlan.executions.filter((exec) => new Date(exec.date) >= startOfWeek).length
+    : 0;
+  const plannedThisWeek = activePlan?.workouts.length ?? 0;
   const weekProgress = {
-    completed: 3,
-    planned: 4,
-    completionRate: 75,
+    completed: completedThisWeek,
+    planned: plannedThisWeek,
+    completionRate: plannedThisWeek > 0 ? Math.round((completedThisWeek / plannedThisWeek) * 100) : 0,
   };
 
   return (
@@ -94,7 +102,7 @@ const ClientHome = () => {
             <div>
               <div className="flex items-center justify-center gap-1 mb-1">
                 <TrendingUp className="h-4 w-4" />
-                <span className="text-xl sm:text-2xl font-bold">#{rankingPosition}</span>
+                <span className="text-xl sm:text-2xl font-bold">—</span>
               </div>
               <div className="text-xs opacity-90">No ranking</div>
             </div>
@@ -119,23 +127,29 @@ const ClientHome = () => {
         <Card className="p-4 sm:p-6 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-base sm:text-lg">Próximo treino</h2>
-            <Badge variant="secondary" className="text-xs">{nextWorkout.objective}</Badge>
+            {nextWorkout && <Badge variant="secondary" className="text-xs">{nextWorkout.objective}</Badge>}
           </div>
-          <div className="space-y-2 mb-4">
-            <p className="font-medium">{nextWorkout.name}</p>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {nextWorkout.time}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              {nextWorkout.trainerName}
-            </div>
-          </div>
-          <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/plan")}>
-            <Play className="h-4 w-4 mr-2" />
-            Iniciar treino
-          </Button>
+          {nextWorkout ? (
+            <>
+              <div className="space-y-2 mb-4">
+                <p className="font-medium">{nextWorkout.name}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  {nextWorkout.day}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  {nextWorkout.trainerName}
+                </div>
+              </div>
+              <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/plan")}>
+                <Play className="h-4 w-4 mr-2" />
+                Iniciar treino
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhum treino definido ainda.</p>
+          )}
         </Card>
 
         {/* Próximo atendimento */}
@@ -144,7 +158,7 @@ const ClientHome = () => {
           {nextConfirmed ? (
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">Carlos Silva</p>
+                <p className="font-medium">{activePlan?.trainerName ?? "Profissional"}</p>
                 <p className="text-sm text-muted-foreground">Personal Trainer</p>
               </div>
               <div className="text-right">
@@ -218,7 +232,7 @@ const ClientHome = () => {
             </div>
             <div>
               <p className="font-medium">Ver meu plano completo</p>
-              <p className="text-sm text-muted-foreground">Treinos, nutrição e objetivos</p>
+              <p className="text-sm text-muted-foreground">Treinos e objetivos</p>
             </div>
           </div>
           <ChevronRight className="h-5 w-5 text-muted-foreground" />

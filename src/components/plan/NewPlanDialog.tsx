@@ -91,15 +91,9 @@ export const NewPlanDialog = ({ open, onOpenChange, defaultTrainerName, defaultN
             <Label htmlFor="new-plan-deadline">Prazo (meta)</Label>
             <Input id="new-plan-deadline" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="new-plan-trainer">Personal Trainer</Label>
-              <Input id="new-plan-trainer" value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-plan-nutritionist">Nutricionista</Label>
-              <Input id="new-plan-nutritionist" value={nutritionistName} onChange={(e) => setNutritionistName(e.target.value)} />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="new-plan-trainer">Personal Trainer</Label>
+            <Input id="new-plan-trainer" value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="new-plan-strategy">Estratégia de treinamento</Label>
@@ -108,10 +102,6 @@ export const NewPlanDialog = ({ open, onOpenChange, defaultTrainerName, defaultN
           <div className="space-y-2">
             <Label htmlFor="new-plan-approach">Abordagem, progressões e prazos</Label>
             <Textarea id="new-plan-approach" value={trainingApproach} onChange={(e) => setTrainingApproach(e.target.value)} rows={3} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="new-plan-nutrition">Estratégia nutricional</Label>
-            <Textarea id="new-plan-nutrition" value={nutritionStrategy} onChange={(e) => setNutritionStrategy(e.target.value)} rows={2} />
           </div>
 
           <Button variant="hero" className="w-full" onClick={handleCreate} disabled={!canCreate}>

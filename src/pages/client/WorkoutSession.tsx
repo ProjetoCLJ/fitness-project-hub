@@ -15,7 +15,6 @@ import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link
 import { ExerciseLog, Plan, SetLog, getActivePlan, getPlans, recordExecution } from "@/lib/planStore";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
-const CURRENT_CLIENT_ID = "1";
 
 const parseRestSeconds = (rest: string) => {
   const match = rest.match(/(\d+)/);
@@ -36,6 +35,7 @@ interface ExerciseDraft {
 
 const WorkoutSession = () => {
   const { user } = useAuth();
+  const clientId = user?.id ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
   const { workoutId } = useParams();
@@ -46,9 +46,9 @@ const WorkoutSession = () => {
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
 
   useEffect(() => {
-    const activePlan = getActivePlan(CURRENT_CLIENT_ID);
+    const activePlan = getActivePlan(clientId);
     setPlan(activePlan ?? null);
-  }, []);
+  }, [clientId]);
 
   const workout = useMemo(() => plan?.workouts.find((w) => w.id === workoutId), [plan, workoutId]);
 
@@ -109,7 +109,7 @@ const WorkoutSession = () => {
   };
 
   const finishWorkout = () => {
-    const priorExecutions = getPlans(CURRENT_CLIENT_ID).flatMap((p) => p.executions);
+    const priorExecutions = getPlans(clientId).flatMap((p) => p.executions);
 
     const exerciseLogs: ExerciseLog[] = workout.exercises
       .map((ex): ExerciseLog | null => {
@@ -142,7 +142,7 @@ const WorkoutSession = () => {
       return;
     }
 
-    recordExecution(CURRENT_CLIENT_ID, plan.id, {
+    recordExecution(clientId, plan.id, {
       workoutId: workout.id,
       workoutName: workout.name,
       date: new Date().toISOString(),

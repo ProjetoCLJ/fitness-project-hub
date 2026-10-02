@@ -1,36 +1,111 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface FormState {
+  fullName: string;
+  email: string;
+  phone: string;
+  cref: string;
+  experienceYears: string;
+  description: string;
+  objectives: string;
+  instagram: string;
+  facebook: string;
+  linkedin: string;
+}
+
+const emptyForm: FormState = {
+  fullName: "",
+  email: "",
+  phone: "",
+  cref: "",
+  experienceYears: "",
+  description: "",
+  objectives: "",
+  instagram: "",
+  facebook: "",
+  linkedin: "",
+};
 
 const TrainerProfile = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({
-    fullName: "Carlos Silva",
-    email: "carlos.silva@email.com",
-    phone: "(11) 99999-0001",
-    cref: "123456-G/SP",
-    experienceYears: "8",
-    description: "Personal trainer especializado em musculação e hipertrofia.",
-    objectives: "Ajudar pessoas a alcançarem seus objetivos de forma saudável.",
-    instagram: "@carlossilvafit",
-    facebook: "",
-    linkedin: ""
-  });
+  const { user } = useAuth();
+  const [formData, setFormData] = useState<FormState>(emptyForm);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("trainer_profiles")
+        .select("profile_id, cref, experience_years, description, objectives, instagram, facebook, linkedin, profiles(full_name, email, phone)")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (data) {
+        setProfileId(data.profile_id);
+        const profile = data.profiles as { full_name: string; email: string; phone: string | null } | null;
+        setFormData({
+          fullName: profile?.full_name ?? user.profile.fullName,
+          email: profile?.email ?? user.email,
+          phone: profile?.phone ?? user.profile.phone,
+          cref: data.cref ?? "",
+          experienceYears: data.experience_years != null ? String(data.experience_years) : "",
+          description: data.description ?? "",
+          objectives: data.objectives ?? "",
+          instagram: data.instagram ?? "",
+          facebook: data.facebook ?? "",
+          linkedin: data.linkedin ?? "",
+        });
+      }
+      setIsLoading(false);
+    })();
+  }, [user]);
+
+  const handleChange = (field: keyof FormState, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Perfil atualizado!",
-      description: "Suas informações foram salvas com sucesso.",
-    });
+  const handleSave = async () => {
+    if (!user || !profileId) return;
+    setIsSaving(true);
+    try {
+      await supabase
+        .from("trainer_profiles")
+        .update({
+          cref: formData.cref || null,
+          experience_years: formData.experienceYears ? Number(formData.experienceYears) : null,
+          description: formData.description || null,
+          objectives: formData.objectives || null,
+          instagram: formData.instagram || null,
+          facebook: formData.facebook || null,
+          linkedin: formData.linkedin || null,
+        })
+        .eq("id", user.id);
+
+      await supabase
+        .from("profiles")
+        .update({ full_name: formData.fullName, phone: formData.phone || null })
+        .eq("id", profileId);
+
+      toast({ title: "Perfil atualizado!", description: "Suas informações foram salvas com sucesso." });
+    } catch {
+      toast({ title: "Não foi possível salvar", description: "Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) return null;
 
   return (
     <div className="space-y-6">
@@ -48,12 +123,7 @@ const TrainerProfile = () => {
 
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-            />
+            <Input id="email" type="email" value={formData.email} disabled />
           </div>
 
           <div className="space-y-2">
@@ -147,8 +217,8 @@ const TrainerProfile = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} variant="hero" size="lg">
-          Salvar Alterações
+        <Button onClick={handleSave} variant="hero" size="lg" disabled={isSaving}>
+          {isSaving ? "Salvando..." : "Salvar Alterações"}
         </Button>
       </div>
     </div>

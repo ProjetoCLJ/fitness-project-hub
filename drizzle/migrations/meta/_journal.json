@@ -8,6 +8,13 @@
       "when": 1790619163754,
       "tag": "0000_rebuild_fitness_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791213911860,
+      "tag": "0001_invites_reschedules_confirm_booking",
+      "breakpoints": true
     }
   ]
 }

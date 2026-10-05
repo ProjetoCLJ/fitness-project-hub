@@ -372,6 +372,73 @@ export type Database = {
         }
         Relationships: []
       }
+      reschedule_requests: {
+        Row: {
+          created_at: string | null
+          event_id: string
+          id: string
+          occurrence_date: string
+          proposed_date: string
+          proposed_end_time: string
+          proposed_start_time: string
+          requested_by: string
+          responded_at: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          student_id: string
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_id: string
+          id?: string
+          occurrence_date: string
+          proposed_date: string
+          proposed_end_time: string
+          proposed_start_time: string
+          requested_by: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          student_id: string
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string
+          id?: string
+          occurrence_date?: string
+          proposed_date?: string
+          proposed_end_time?: string
+          proposed_start_time?: string
+          requested_by?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          student_id?: string
+          trainer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reschedule_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           booking_id: string | null
@@ -581,6 +648,54 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      student_invites: {
+        Row: {
+          created_at: string | null
+          email: string
+          email_sent_at: string | null
+          id: string
+          responded_at: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          student_id: string | null
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          email_sent_at?: string | null
+          id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          student_id?: string | null
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          email_sent_at?: string | null
+          id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          student_id?: string | null
+          trainer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_invites_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_invites_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_profiles: {
         Row: {
@@ -903,8 +1018,10 @@ export type Database = {
       can_access_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_access_workout: { Args: { _workout_id: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      confirm_booking: { Args: { p_booking_id: string }; Returns: string }
       current_student_id: { Args: never; Returns: string }
       current_trainer_id: { Args: never; Returns: string }
+      invite_student: { Args: { p_email: string }; Returns: Json }
       is_linked_trainer_of_student: {
         Args: { _student_id: string }
         Returns: boolean
@@ -912,11 +1029,42 @@ export type Database = {
       is_plan_trainer: { Args: { _plan_id: string }; Returns: boolean }
       is_workout_trainer: { Args: { _workout_id: string }; Returns: boolean }
       owns_execution: { Args: { _execution_id: string }; Returns: boolean }
+      request_reschedule: {
+        Args: {
+          p_date: string
+          p_end: string
+          p_event_id: string
+          p_occurrence_date: string
+          p_start: string
+        }
+        Returns: number
+      }
+      respond_reschedule: {
+        Args: { p_accept: boolean; p_request_id: string }
+        Returns: undefined
+      }
+      respond_student_invite: {
+        Args: { p_accept: boolean; p_invite_id: string }
+        Returns: undefined
+      }
+      trainer_has_relation_with_profile: {
+        Args: { p_profile_id: string }
+        Returns: boolean
+      }
+      trainer_has_relation_with_student: {
+        Args: { p_student_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "rejected" | "suggested"
       plan_status: "active" | "completed"
-      schedule_event_type: "aula" | "bloqueado" | "fora_expediente"
+      request_status: "pending" | "accepted" | "declined"
+      schedule_event_type:
+        | "aula"
+        | "bloqueado"
+        | "fora_expediente"
+        | "expediente"
       schedule_recurrence: "once" | "weekly"
       user_role: "trainer" | "student"
     }
@@ -1048,7 +1196,13 @@ export const Constants = {
     Enums: {
       booking_status: ["pending", "confirmed", "rejected", "suggested"],
       plan_status: ["active", "completed"],
-      schedule_event_type: ["aula", "bloqueado", "fora_expediente"],
+      request_status: ["pending", "accepted", "declined"],
+      schedule_event_type: [
+        "aula",
+        "bloqueado",
+        "fora_expediente",
+        "expediente",
+      ],
       schedule_recurrence: ["once", "weekly"],
       user_role: ["trainer", "student"],
     },

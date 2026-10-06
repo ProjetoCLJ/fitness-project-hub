@@ -26,6 +26,7 @@ import ProHome from "./pages/pro/ProHome";
 import Clients from "./pages/pro/Clients";
 import ClientProfilePro from "./pages/pro/ClientProfilePro";
 import Agenda from "./pages/pro/Agenda";
+import Requests from "./pages/Requests";
 import Financial from "./pages/pro/Financial";
 import ProfessionalProfilePage from "./pages/pro/ProfessionalProfilePage";
 
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/dashboard/student/stats" element={<Stats />} />
             <Route path="/dashboard/student/challenges" element={<Challenges />} />
             <Route path="/dashboard/student/profile" element={<ClientProfilePage />} />
+            <Route path="/dashboard/student/requests" element={<Requests />} />
 
             {/* Profissional */}
             <Route path="/dashboard/trainer" element={<ProHome />} />
@@ -66,6 +68,7 @@ const App = () => (
             <Route path="/dashboard/trainer/agenda" element={<Agenda />} />
             <Route path="/dashboard/trainer/financial" element={<Financial />} />
             <Route path="/dashboard/trainer/profile" element={<ProfessionalProfilePage />} />
+            <Route path="/dashboard/trainer/requests" element={<Requests />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

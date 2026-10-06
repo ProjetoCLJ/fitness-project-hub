@@ -13,44 +13,76 @@ import {
   TrendingUp,
   ChevronRight,
 } from "lucide-react";
-import { Booking, getAvailableSlotsCount, getBookingsForTrainer, getScheduleEvents } from "@/lib/agendaStore";
+import { ScheduleEvent, countAvailableSlots, eventTitle, fetchLinkedStudents, fetchTrainerEvents, upcomingOccurrences } from "@/lib/agendaStore";
+import { fetchRequestsForTrainer } from "@/lib/requestsStore";
+import { computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
 
 const formatDate = (dateISO: string) =>
   new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 
+const money = (value: number) => `R$ ${value.toLocaleString("pt-BR")}`;
+
+interface Summary {
+  activeClients: number;
+  pendingRequests: number;
+  availableSlotsWeek: number;
+  previsto: number;
+  possivel: number;
+  upcoming: { event: ScheduleEvent; date: string }[];
+}
+
+const emptySummary: Summary = {
+  activeClients: 0,
+  pendingRequests: 0,
+  availableSlotsWeek: 0,
+  previsto: 0,
+  possivel: 0,
+  upcoming: [],
+};
+
 const ProHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [availableSlotsWeek, setAvailableSlotsWeek] = useState(0);
+  const [summary, setSummary] = useState<Summary>(emptySummary);
 
   useEffect(() => {
     if (!user) return;
-    setBookings(getBookingsForTrainer(user.id));
-    setAvailableSlotsWeek(getScheduleEvents(user.id).length === 0 ? 0 : getAvailableSlotsCount(7, 60, user.id));
+    (async () => {
+      try {
+        const [events, students, requests, basePrice] = await Promise.all([
+          fetchTrainerEvents(user.id),
+          fetchLinkedStudents(user.id),
+          fetchRequestsForTrainer(user.id),
+          fetchBasePrice(user.id),
+        ]);
+        const revenue = computeMonthRevenue(events, students, basePrice);
+        setSummary({
+          activeClients: students.length,
+          pendingRequests: requests.length,
+          availableSlotsWeek: countAvailableSlots(events, 7),
+          previsto: revenue.previsto,
+          possivel: revenue.possivel,
+          upcoming: upcomingOccurrences(events, 30),
+        });
+      } catch {
+        setSummary(emptySummary);
+      }
+    })();
   }, [user]);
 
   if (!user || user.userType !== "trainer") return null;
 
-  const pendingRequests = bookings
-    .filter((b) => b.status === "pending")
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-
-  const today = new Date().toISOString().slice(0, 10);
-  const upcomingAppointments = bookings
-    .filter((b) => b.status === "confirmed" && b.date >= today)
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
-    .slice(0, 5);
-
-  const activeClients = new Set(bookings.filter((b) => b.status === "confirmed").map((b) => b.clientId)).size;
+  const weekLimit = new Date();
+  weekLimit.setDate(weekLimit.getDate() + 7);
+  const appointmentsThisWeek = summary.upcoming.filter((o) => new Date(`${o.date}T00:00:00`) <= weekLimit).length;
 
   const indicators = [
-    { label: "Clientes ativos", value: String(activeClients), icon: Users },
-    { label: "Atendimentos na semana", value: String(upcomingAppointments.length), icon: Calendar },
-    { label: "Solicitações pendentes", value: String(pendingRequests.length), icon: Bell },
-    { label: "Horários disponíveis", value: String(availableSlotsWeek), icon: Clock },
-    { label: "Faturamento atual", value: "R$ 0", icon: DollarSign },
-    { label: "Potencial de faturamento", value: "R$ 0", icon: TrendingUp },
+    { label: "Clientes ativos", value: String(summary.activeClients), icon: Users },
+    { label: "Atendimentos na semana", value: String(appointmentsThisWeek), icon: Calendar },
+    { label: "Solicitações pendentes", value: String(summary.pendingRequests), icon: Bell },
+    { label: "Horários disponíveis", value: String(summary.availableSlotsWeek), icon: Clock },
+    { label: "Faturamento previsto", value: money(summary.previsto), icon: DollarSign },
+    { label: "Faturamento possível", value: money(summary.possivel), icon: TrendingUp },
   ];
 
   return (
@@ -74,40 +106,31 @@ const ProHome = () => {
           ))}
         </div>
 
-        {/* Solicitações pendentes */}
-        {pendingRequests.length > 0 && (
-          <Card className="p-4 sm:p-6 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-base sm:text-lg">Solicitações pendentes</h2>
-              <Badge variant="secondary">{pendingRequests.length}</Badge>
+        {summary.pendingRequests > 0 && (
+          <Card
+            className="p-4 sm:p-6 mb-4 flex items-center justify-between cursor-pointer hover:shadow-medium transition-smooth"
+            onClick={() => navigate("/dashboard/trainer/requests")}
+          >
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 text-primary" />
+              <p className="font-medium">Você tem solicitações aguardando resposta</p>
             </div>
-            <div className="space-y-3">
-              {pendingRequests.map((req) => (
-                <div key={req.id} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
-                  <span className="font-medium">{req.clientName}</span>
-                  <span className="text-muted-foreground">
-                    {formatDate(req.date)} · {req.startTime}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <Badge variant="secondary">{summary.pendingRequests}</Badge>
           </Card>
         )}
 
         {/* Próximos atendimentos */}
         <Card className="p-4 sm:p-6 mb-4">
           <h2 className="font-semibold text-base sm:text-lg mb-3">Próximos atendimentos</h2>
-          {upcomingAppointments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum atendimento confirmado ainda.</p>
+          {summary.upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum atendimento agendado ainda.</p>
           ) : (
             <div className="space-y-3">
-              {upcomingAppointments.map((appt) => (
-                <div key={appt.id} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
-                  <div>
-                    <p className="font-medium">{appt.clientName}</p>
-                  </div>
+              {summary.upcoming.slice(0, 5).map((o) => (
+                <div key={`${o.event.id}-${o.date}`} className="flex items-center justify-between text-sm p-3 rounded-md bg-muted/30">
+                  <p className="font-medium">{eventTitle(o.event)}</p>
                   <span className="text-muted-foreground text-xs">
-                    {formatDate(appt.date)} · {appt.startTime}
+                    {formatDate(o.date)} · {o.event.startTime}
                   </span>
                 </div>
               ))}

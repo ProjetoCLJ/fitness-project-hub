@@ -26,7 +26,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { buildClientRows } from "./Clients";
+import { ClientRow, fetchClientRows } from "./Clients";
 import { Plan, Workout, getPlans, savePlanEdits, createPlan } from "@/lib/planStore";
 import { WorkoutEditorDialog } from "@/components/plan/WorkoutEditorDialog";
 import { NewPlanDialog, NewPlanData } from "@/components/plan/NewPlanDialog";
@@ -55,9 +55,18 @@ const ClientProfilePro = () => {
   const [nutritionistDraft, setNutritionistDraft] = useState("");
   const [progressDraft, setProgressDraft] = useState(0);
 
-  const client = user ? buildClientRows(user.id).find((c) => c.id === id) : undefined;
+  const [client, setClient] = useState<ClientRow | null>(null);
+  const [clientLoaded, setClientLoaded] = useState(false);
   const activePlan = plans.find((p) => p.status === "active");
   const pastPlans = plans.filter((p) => p.status === "completed").sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+  useEffect(() => {
+    if (!user) return;
+    fetchClientRows(user.id)
+      .then((rows) => setClient(rows.find((c) => c.id === id) ?? null))
+      .catch(() => setClient(null))
+      .finally(() => setClientLoaded(true));
+  }, [user, id]);
 
   useEffect(() => {
     if (!client) return;
@@ -84,6 +93,8 @@ const ClientProfilePro = () => {
   };
 
   if (!user || user.userType !== "trainer") return null;
+
+  if (!clientLoaded) return null;
 
   if (!client) {
     return (

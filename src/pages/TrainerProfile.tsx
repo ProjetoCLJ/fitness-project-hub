@@ -261,7 +261,14 @@ const TrainerProfile = () => {
                     variant="hero"
                     size="lg"
                     className="w-full"
-                    onClick={() => (isAuthenticated ? setBookingOpen(true) : setLoginOpen(true))}
+                    onClick={() => {
+                      if (!isAuthenticated) return setLoginOpen(true);
+                      if (user?.userType !== "student") {
+                        toast({ title: "Apenas alunos podem agendar aulas", variant: "destructive" });
+                        return;
+                      }
+                      setBookingOpen(true);
+                    }}
                   >
                     Agendar Aula
                   </Button>
@@ -282,9 +289,14 @@ const TrainerProfile = () => {
         onOpenChange={setBookingOpen}
         trainerName={trainer.name}
         trainerId={trainer.id}
-        onSubmit={(date, startTime, endTime) => {
-          createProposal(trainer.id, user?.id ?? "", user?.profile.fullName ?? "Aluno", date, startTime, endTime);
-          toast({ title: "Proposta enviada!", description: `Aguardando resposta de ${trainer.name}.` });
+        onSubmit={async (date, startTime, endTime) => {
+          try {
+            await createProposal(trainer.id, user?.id ?? "", date, startTime, endTime);
+            toast({ title: "Proposta enviada!", description: `Aguardando resposta de ${trainer.name}.` });
+          } catch (error) {
+            toast({ title: "Não foi possível enviar a proposta", description: "Tente novamente.", variant: "destructive" });
+            throw error;
+          }
         }}
       />
     </div>

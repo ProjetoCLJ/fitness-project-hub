@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,32 +22,34 @@ import { ptBR } from "date-fns/locale";
 import {
   EditScope,
   EventType,
+  LinkedStudent,
   ScheduleEvent,
   ScheduleEventInput,
   ScheduleSlot,
   createScheduleEvent,
   deleteScheduleEvent,
   eventTitle,
-  getKnownStudentNames,
+  fetchLinkedStudents,
+  fetchTrainerEvents,
   getScheduleConflicts,
   getSlotsForDate,
+  toLocalISO,
   updateScheduleEvent,
 } from "@/lib/agendaStore";
+import { requestReschedule } from "@/lib/requestsStore";
 
 interface TrainerScheduleProps {
-  trainerId?: string;
-  /** Chamado após qualquer alteração que afete reservas (cancelamento de aula vinda de solicitação de aluno). */
+  trainerId: string;
+  /** Chamado após qualquer alteração que possa afetar agendamentos. */
   onBookingsChange?: () => void;
-  /** Incremente esse número (fora do componente) para forçar a releitura dos eventos — ex.: após aceitar uma solicitação de aluno. */
+  /** Incremente esse número (fora do componente) para forçar a releitura dos eventos. */
   refreshSignal?: number;
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
 const statusStyles: Record<ScheduleSlot["status"], string> = {
   available: "border-border bg-background hover:shadow-soft",
-  aula: "border-primary/40 bg-primary/10 text-primary",
-  bloqueado: "border-destructive/60 bg-destructive/25 text-destructive font-medium",
+  aula: "border-primary/40 bg-primary/15 text-primary",
+  bloqueado: "border-destructive/60 bg-destructive/30 text-destructive font-medium",
   fora_expediente: "border-destructive/25 bg-destructive/5 text-destructive/70",
 };
 
@@ -55,26 +57,53 @@ interface SlotContext {
   date: string;
   start: string;
   end: string;
+  /** Aula ou bloqueio existente (modo edição) ou expediente aberto para edição. */
   event?: ScheduleEvent;
+  /** Expediente que cobre o horário clicado (permite abrir a edição dele). */
+  expedienteEvent?: ScheduleEvent;
+  defaultType?: EventType;
 }
 
-const TrainerSchedule = ({ trainerId = "trainer-1", onBookingsChange, refreshSignal = 0 }: TrainerScheduleProps) => {
+const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: TrainerScheduleProps) => {
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
+  const [students, setStudents] = useState<LinkedStudent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [context, setContext] = useState<SlotContext | null>(null);
 
   const dateISO = format(selectedDate, "yyyy-MM-dd");
-  const slots = useMemo(() => getSlotsForDate(dateISO, trainerId), [dateISO, trainerId, refreshKey, refreshSignal]);
-  const conflicts = useMemo(() => getScheduleConflicts(trainerId), [trainerId, refreshKey, refreshSignal]);
-
+  const slots = useMemo(() => getSlotsForDate(events, dateISO), [events, dateISO]);
+  const conflicts = useMemo(() => getScheduleConflicts(events), [events]);
   const currentYear = new Date().getFullYear();
 
-  const refresh = () => setRefreshKey((k) => k + 1);
+  const reload = useCallback(async () => {
+    try {
+      const [loadedEvents, loadedStudents] = await Promise.all([fetchTrainerEvents(trainerId), fetchLinkedStudents(trainerId)]);
+      setEvents(loadedEvents);
+      setStudents(loadedStudents);
+    } catch {
+      toast({ title: "Não foi possível carregar a agenda", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [trainerId, toast]);
+
+  useEffect(() => {
+    reload();
+  }, [reload, refreshSignal]);
 
   const goToConflict = (date: string) => {
     setSelectedDate(new Date(`${date}T00:00:00`));
     toast({ title: "Inconsistência selecionada", description: "Resolva desbloqueando o horário ou reagendando a aula." });
+  };
+
+  const openSlot = (slot: ScheduleSlot) => {
+    if (slot.event?.type === "expediente") {
+      setContext({ date: dateISO, start: slot.start, end: slot.end, expedienteEvent: slot.event, defaultType: "aula" });
+    } else {
+      setContext({ date: dateISO, start: slot.start, end: slot.end, event: slot.event, defaultType: "expediente" });
+    }
   };
 
   return (
@@ -135,41 +164,51 @@ const TrainerSchedule = ({ trainerId = "trainer-1", onBookingsChange, refreshSig
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setContext({ date: dateISO, start: "08:00", end: "09:00" })}
+            onClick={() => setContext({ date: dateISO, start: "08:00", end: "18:00", defaultType: "expediente" })}
           >
             <Settings2 className="h-4 w-4 mr-2" />
             Definir horários
           </Button>
         </div>
 
-        <div className="space-y-2">
-          {slots.map((slot) => (
-            <div
-              key={slot.start}
-              onClick={() => setContext({ date: dateISO, start: slot.start, end: slot.end, event: slot.event })}
-              className={`flex items-center justify-between p-3 sm:p-4 border rounded-lg transition-smooth cursor-pointer ${statusStyles[slot.status]} ${slot.isPast ? "opacity-60" : ""}`}
-            >
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 shrink-0" />
-                <span className="font-medium text-sm sm:text-base">
-                  {slot.start} - {slot.end}
-                </span>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando agenda...</p>
+        ) : (
+          <div className="space-y-2">
+            {slots.map((slot) => (
+              <div
+                key={slot.start}
+                onClick={() => openSlot(slot)}
+                className={`flex items-center justify-between p-3 sm:p-4 border rounded-lg transition-smooth cursor-pointer ${statusStyles[slot.status]} ${slot.isPast ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-center gap-3">
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <span className="font-medium text-sm sm:text-base">
+                    {slot.start} - {slot.end}
+                  </span>
+                </div>
+                {slot.event && slot.event.type !== "expediente" && (
+                  <span className="text-sm truncate max-w-[55%] text-right">{eventTitle(slot.event)}</span>
+                )}
+                {slot.status === "fora_expediente" && <span className="text-xs">Fora de expediente</span>}
               </div>
-              {slot.event && <span className="text-sm truncate max-w-[55%] text-right">{eventTitle(slot.event)}</span>}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {context && (
         <EventDialog
+          key={`${context.date}-${context.start}-${context.event?.id ?? "new"}`}
           context={context}
           trainerId={trainerId}
+          students={students}
+          onEditExpediente={(expediente) => setContext({ ...context, event: expediente, expedienteEvent: undefined })}
           onClose={() => setContext(null)}
-          onSaved={() => {
-            refresh();
-            onBookingsChange?.();
+          onSaved={async () => {
             setContext(null);
+            await reload();
+            onBookingsChange?.();
           }}
         />
       )}
@@ -191,45 +230,45 @@ const WEEKDAYS = [
 
 const TYPE_LABEL: Record<EventType, string> = {
   aula: "Aula",
-  fora_expediente: "Fora de expediente",
+  expediente: "Expediente",
   bloqueado: "Bloqueado",
 };
 
 interface EventDialogProps {
   context: SlotContext;
   trainerId: string;
+  students: LinkedStudent[];
+  onEditExpediente: (event: ScheduleEvent) => void;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 }
 
-const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps) => {
+const EventDialog = ({ context, trainerId, students, onEditExpediente, onClose, onSaved }: EventDialogProps) => {
   const { toast } = useToast();
   const event = context.event;
   const isEditing = !!event;
   const isSeries = event?.recurrence === "weekly";
-  const knownStudents = useMemo(() => getKnownStudentNames(trainerId), [trainerId]);
+  const today = toLocalISO(new Date());
 
-  const [type, setType] = useState<EventType>(event?.type ?? "aula");
+  const [type, setType] = useState<EventType>(event?.type ?? context.defaultType ?? "expediente");
   const [title, setTitle] = useState(event?.title ?? "");
-  const [studentNames, setStudentNames] = useState<string[]>(event?.studentNames?.length ? event.studentNames : [""]);
+  const [studentIds, setStudentIds] = useState<string[]>(event?.studentIds.length ? event.studentIds : [""]);
   const [recurrence, setRecurrence] = useState<"once" | "weekly">(event?.recurrence ?? "once");
   const [onceDate, setOnceDate] = useState(event?.date ?? context.date);
   const [weekdays, setWeekdays] = useState<string[]>(event?.weekdays?.map(String) ?? []);
-  const [startMode, setStartMode] = useState<"today" | "date">(
-    event?.startDate && event.startDate !== todayISO() ? "date" : "today"
-  );
-  const [startDateInput, setStartDateInput] = useState(event?.startDate ?? todayISO());
+  const [startMode, setStartMode] = useState<"today" | "date">(event?.startDate && event.startDate !== today ? "date" : "today");
+  const [startDateInput, setStartDateInput] = useState(event?.startDate ?? today);
   const [endMode, setEndMode] = useState<"never" | "date">(event?.endDate ? "date" : "never");
   const [endDateInput, setEndDateInput] = useState(event?.endDate ?? "");
   const [startTime, setStartTime] = useState(event?.startTime ?? context.start);
   const [endTime, setEndTime] = useState(event?.endTime ?? context.end);
   const [pendingScopeAction, setPendingScopeAction] = useState<"save" | "delete" | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
 
-  const updateStudentName = (index: number, value: string) => {
-    setStudentNames((prev) => prev.map((n, i) => (i === index ? value : n)));
-  };
-  const removeStudentRow = (index: number) => setStudentNames((prev) => prev.filter((_, i) => i !== index));
-  const addStudentRow = () => setStudentNames((prev) => [...prev, ""]);
+  const setStudentAt = (index: number, value: string) => setStudentIds((prev) => prev.map((s, i) => (i === index ? value : s)));
+  const removeStudentRow = (index: number) => setStudentIds((prev) => prev.filter((_, i) => i !== index));
+  const addStudentRow = () => setStudentIds((prev) => [...prev, ""]);
 
   const buildPatch = (): ScheduleEventInput | null => {
     if (startTime >= endTime) {
@@ -237,19 +276,19 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
       return null;
     }
 
+    const chosenStudents = Array.from(new Set(studentIds.filter(Boolean)));
+    if (type === "aula" && chosenStudents.length === 0) {
+      toast({ title: "Selecione ao menos um aluno", variant: "destructive" });
+      return null;
+    }
+
     const base = {
       type,
       title: type === "bloqueado" ? title.trim() || undefined : undefined,
-      studentNames: type === "aula" ? studentNames.map((n) => n.trim()).filter(Boolean) : undefined,
+      studentIds: type === "aula" ? chosenStudents : [],
       startTime,
       endTime,
-      bookingId: event?.bookingId,
     };
-
-    if (type === "aula" && (base.studentNames?.length ?? 0) === 0) {
-      toast({ title: "Adicione ao menos um aluno", variant: "destructive" });
-      return null;
-    }
 
     if (recurrence === "once") {
       return { ...base, recurrence: "once", date: onceDate, startDate: onceDate, endDate: onceDate };
@@ -268,27 +307,39 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
       ...base,
       recurrence: "weekly",
       weekdays: weekdays.map(Number),
-      startDate: startMode === "today" ? todayISO() : startDateInput,
+      startDate: startMode === "today" ? today : startDateInput,
       endDate: endMode === "never" ? null : endDateInput,
     };
+  };
+
+  const run = async (action: () => Promise<void>, successTitle: string, successDescription?: string) => {
+    setIsBusy(true);
+    try {
+      await action();
+      toast({ title: successTitle, description: successDescription });
+      await onSaved();
+    } catch (error) {
+      toast({
+        title: "Não foi possível concluir",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   const applySave = (scope: EditScope) => {
     const patch = buildPatch();
     if (!patch) return;
-
-    if (isEditing) {
-      updateScheduleEvent(event.id, context.date, scope, patch);
-    } else {
-      createScheduleEvent(patch, trainerId);
-    }
-
-    const conflictNotice =
-      type === "bloqueado"
-        ? " Verifique o alerta no topo da agenda caso alguma aula já agendada tenha ficado coberta."
-        : "";
-    toast({ title: isEditing ? "Evento atualizado" : "Evento criado", description: `${TYPE_LABEL[type]} salvo com sucesso.${conflictNotice}` });
-    onSaved();
+    run(
+      async () => {
+        if (event) await updateScheduleEvent(event, context.date, scope, patch);
+        else await createScheduleEvent(trainerId, patch);
+      },
+      isEditing ? "Evento atualizado" : "Evento criado",
+      `${TYPE_LABEL[type]} salvo com sucesso.`
+    );
   };
 
   const handleSaveClick = () => {
@@ -302,9 +353,7 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
 
   const applyDelete = (scope: EditScope) => {
     if (!event) return;
-    deleteScheduleEvent(event.id, context.date, scope);
-    toast({ title: "Evento cancelado", description: "O horário voltou a ficar disponível." });
-    onSaved();
+    run(() => deleteScheduleEvent(event, context.date, scope), "Evento cancelado", "O horário foi liberado.");
   };
 
   const handleDeleteClick = () => {
@@ -316,12 +365,14 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
     applyDelete("all");
   };
 
+  const typeLocked = isEditing;
+
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{isEditing ? "Editar horário" : "Definir horário"}</DialogTitle>
+            <DialogTitle>{isEditing ? `Editar ${TYPE_LABEL[type].toLowerCase()}` : "Definir horário"}</DialogTitle>
             <DialogDescription>
               {isEditing && isSeries
                 ? "Este horário faz parte de um evento recorrente."
@@ -330,6 +381,18 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
           </DialogHeader>
 
           <div className="space-y-5">
+            {!isEditing && context.expedienteEvent && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={() => onEditExpediente(context.expedienteEvent as ScheduleEvent)}
+              >
+                Este horário está dentro de um expediente — editar o expediente
+              </Button>
+            )}
+
             <div className="space-y-2">
               <Label>Tipo</Label>
               <div className="grid grid-cols-3 gap-2">
@@ -339,6 +402,7 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
                     type="button"
                     variant={type === t ? "hero" : "outline"}
                     size="sm"
+                    disabled={typeLocked && type !== t}
                     onClick={() => setType(t)}
                   >
                     {TYPE_LABEL[t]}
@@ -350,32 +414,41 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
             {type === "aula" && (
               <div className="space-y-2">
                 <Label>Alunos</Label>
-                <datalist id="known-students">
-                  {knownStudents.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-                <div className="space-y-2">
-                  {studentNames.map((name, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        list="known-students"
-                        value={name}
-                        placeholder="Nome do aluno"
-                        onChange={(e) => updateStudentName(index, e.target.value)}
-                      />
-                      {studentNames.length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeStudentRow(index)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
+                {students.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Você ainda não tem alunos vinculados. Convide um aluno na aba Clientes para poder agendar aulas.
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {studentIds.map((studentId, index) => (
+                        <div key={index} className="flex gap-2">
+                          <select
+                            value={studentId}
+                            onChange={(e) => setStudentAt(index, e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          >
+                            <option value="">Selecione um aluno</option>
+                            {students.map((s) => (
+                              <option key={s.studentId} value={s.studentId}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                          {studentIds.length > 1 && (
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeStudentRow(index)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={addStudentRow}>
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Adicionar aluno
-                </Button>
+                    <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={addStudentRow}>
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Adicionar aluno
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
@@ -473,21 +546,26 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="event-start-time">Início</Label>
+                <Label htmlFor="event-start-time">{type === "expediente" ? "Início do expediente" : "Início"}</Label>
                 <Input id="event-start-time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="event-end-time">Fim</Label>
+                <Label htmlFor="event-end-time">{type === "expediente" ? "Fim do expediente" : "Fim"}</Label>
                 <Input id="event-end-time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
               </div>
             </div>
 
             <div className="flex flex-col gap-2">
-              <Button variant="hero" className="w-full" onClick={handleSaveClick}>
+              <Button variant="hero" className="w-full" onClick={handleSaveClick} disabled={isBusy}>
                 Salvar
               </Button>
+              {isEditing && event?.type === "aula" && (
+                <Button variant="outline" className="w-full" onClick={() => setRescheduleOpen(true)} disabled={isBusy}>
+                  Solicitar troca de horário
+                </Button>
+              )}
               {isEditing && (
-                <Button variant="destructive" className="w-full" onClick={handleDeleteClick}>
+                <Button variant="destructive" className="w-full" onClick={handleDeleteClick} disabled={isBusy}>
                   Cancelar evento
                 </Button>
               )}
@@ -496,6 +574,21 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
         </DialogContent>
       </Dialog>
 
+      {event && (
+        <RescheduleDialog
+          open={rescheduleOpen}
+          onOpenChange={setRescheduleOpen}
+          eventId={event.id}
+          occurrenceDate={context.date}
+          defaultStart={event.startTime}
+          defaultEnd={event.endTime}
+          onSent={() => {
+            setRescheduleOpen(false);
+            toast({ title: "Pedido enviado", description: "O aluno vai ver o pedido na aba Solicitações." });
+          }}
+        />
+      )}
+
       <Dialog open={!!pendingScopeAction} onOpenChange={(open) => !open && setPendingScopeAction(null)}>
         <DialogContent>
           <DialogHeader>
@@ -503,43 +596,96 @@ const EventDialog = ({ context, trainerId, onClose, onSaved }: EventDialogProps)
             <DialogDescription>O que você deseja {pendingScopeAction === "delete" ? "cancelar" : "alterar"}?</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                if (pendingScopeAction === "delete") applyDelete("this");
-                else applySave("this");
-                setPendingScopeAction(null);
-              }}
-            >
-              Somente este evento
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                if (pendingScopeAction === "delete") applyDelete("following");
-                else applySave("following");
-                setPendingScopeAction(null);
-              }}
-            >
-              Este e os próximos eventos
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => {
-                if (pendingScopeAction === "delete") applyDelete("all");
-                else applySave("all");
-                setPendingScopeAction(null);
-              }}
-            >
-              Todos os eventos
-            </Button>
+            {(
+              [
+                ["this", "Somente este evento"],
+                ["following", "Este e os próximos eventos"],
+                ["all", "Todos os eventos"],
+              ] as [EditScope, string][]
+            ).map(([scope, label]) => (
+              <Button
+                key={scope}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  if (pendingScopeAction === "delete") applyDelete(scope);
+                  else applySave(scope);
+                  setPendingScopeAction(null);
+                }}
+              >
+                {label}
+              </Button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
     </>
+  );
+};
+
+// ---------- Pedido de troca de horário (aula já marcada) ----------
+
+interface RescheduleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eventId: string;
+  occurrenceDate: string;
+  defaultStart: string;
+  defaultEnd: string;
+  onSent: () => void;
+}
+
+export const RescheduleDialog = ({ open, onOpenChange, eventId, occurrenceDate, defaultStart, defaultEnd, onSent }: RescheduleDialogProps) => {
+  const { toast } = useToast();
+  const [date, setDate] = useState(occurrenceDate);
+  const [start, setStart] = useState(defaultStart);
+  const [end, setEnd] = useState(defaultEnd);
+  const [isBusy, setIsBusy] = useState(false);
+
+  const send = async () => {
+    if (!date || start >= end) {
+      toast({ title: "Horário inválido", description: "Confira a data e o início/fim.", variant: "destructive" });
+      return;
+    }
+    setIsBusy(true);
+    try {
+      await requestReschedule(eventId, occurrenceDate, date, start, end);
+      onSent();
+    } catch (error) {
+      toast({ title: "Não foi possível enviar", description: error instanceof Error ? error.message : "Tente novamente.", variant: "destructive" });
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Solicitar troca de horário</DialogTitle>
+          <DialogDescription>Sugira um novo dia e horário. A outra pessoa precisa aceitar para a aula mudar.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="resched-date">Novo dia</Label>
+            <Input id="resched-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="resched-start">Início</Label>
+              <Input id="resched-start" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resched-end">Fim</Label>
+              <Input id="resched-end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+            </div>
+          </div>
+          <Button variant="hero" className="w-full" onClick={send} disabled={isBusy}>
+            Enviar pedido
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

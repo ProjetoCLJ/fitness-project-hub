@@ -1,11 +1,12 @@
-// Store local (localStorage) de agenda do profissional.
-// Modelo unificado, inspirado no Google Agenda: tudo é um "evento"
-// (aula, bloqueio ou fora de expediente), pontual ou recorrente, com
-// suporte a editar/cancelar só uma ocorrência, "esta e as próximas"
-// ou a série inteira. Simula o cruzamento cliente <-> profissional
-// até termos um backend real.
+// Agenda do profissional no Supabase. Tudo é um "evento" (aula, expediente ou
+// bloqueio), pontual ou recorrente, com edição "só esta ocorrência / esta e as
+// próximas / todas". A lógica de montar a timeline do dia é pura (recebe a
+// lista de eventos já carregada); só as funções fetch*/create*/update*/delete*
+// falam com o banco.
 
-export type EventType = "aula" | "bloqueado" | "fora_expediente";
+import { supabase } from "@/integrations/supabase/client";
+
+export type EventType = "aula" | "expediente" | "bloqueado";
 export type RecurrenceType = "once" | "weekly";
 export type EditScope = "this" | "following" | "all";
 
@@ -13,44 +14,54 @@ export interface ScheduleEvent {
   id: string;
   trainerId: string;
   type: EventType;
-  /** Só usado (e editável) no tipo "bloqueado" — complemento opcional do título. */
+  /** Só usado no tipo "bloqueado" — complemento opcional do título. */
   title?: string;
-  /** Só usado no tipo "aula". */
-  studentNames?: string[];
+  studentIds: string[];
+  studentNames: string[];
   recurrence: RecurrenceType;
-  /** yyyy-mm-dd — usado quando recurrence === "once". */
   date?: string;
-  /** 0 = domingo .. 6 = sábado — usado quando recurrence === "weekly". */
   weekdays?: number[];
-  /** yyyy-mm-dd — a partir de quando a série vale (recurrence === "weekly"). */
   startDate: string;
-  /** yyyy-mm-dd ou null (nunca termina) — usado quando recurrence === "weekly". */
   endDate: string | null;
-  /** Datas em que essa série não vale (cancelamento de uma ocorrência específica). */
-  excludedDates?: string[];
+  excludedDates: string[];
   startTime: string;
   endTime: string;
-  /** Referencia a Booking de origem (fluxo de solicitação do aluno), para manter os dois em sincronia. */
   bookingId?: string;
-  createdAt: string;
 }
 
-export type ScheduleEventInput = Omit<ScheduleEvent, "id" | "trainerId" | "createdAt">;
+export interface ScheduleEventInput {
+  type: EventType;
+  title?: string;
+  studentIds: string[];
+  recurrence: RecurrenceType;
+  date?: string;
+  weekdays?: number[];
+  startDate: string;
+  endDate: string | null;
+  startTime: string;
+  endTime: string;
+}
 
 export type BookingStatus = "pending" | "confirmed" | "rejected" | "suggested";
 
 export interface Booking {
   id: string;
   trainerId: string;
-  clientId: string;
+  studentId: string;
   clientName: string;
-  date: string; // yyyy-mm-dd
+  trainerName: string;
+  date: string;
   startTime: string;
   endTime: string;
   status: BookingStatus;
-  location?: string;
   suggestion?: { date: string; startTime: string; endTime: string };
-  createdAt: string;
+}
+
+export interface LinkedStudent {
+  studentId: string;
+  name: string;
+  email: string;
+  customPrice: number | null;
 }
 
 export interface AvailabilityConflict {
@@ -61,38 +72,10 @@ export interface AvailabilityConflict {
   title: string;
 }
 
-interface AgendaData {
-  events: ScheduleEvent[];
-  bookings: Booking[];
-}
-
-const STORAGE_KEY = "fit_agenda";
-const DEFAULT_TRAINER_ID = "trainer-1";
-
-/** Janela do dia considerada na timeline. */
 export const DAY_TIMELINE_START = "06:00";
 export const DAY_TIMELINE_END = "22:00";
 
-const defaultData = (): AgendaData => ({
-  events: [],
-  bookings: [],
-});
-
-const getData = (): AgendaData => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return defaultData();
-  try {
-    const parsed = JSON.parse(raw) as Partial<AgendaData>;
-    return {
-      events: parsed.events ?? [],
-      bookings: parsed.bookings ?? [],
-    };
-  } catch {
-    return defaultData();
-  }
-};
-
-const persist = (data: AgendaData) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+const hhmm = (time: string) => time.slice(0, 5);
 
 const toMinutes = (time: string) => {
   const [h, m] = time.split(":").map(Number);
@@ -107,40 +90,121 @@ const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
 const addDaysISO = (dateISO: string, days: number) => {
   const d = new Date(`${dateISO}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toLocalISO(d);
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+export const toLocalISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 export const eventTitle = (event: Pick<ScheduleEvent, "type" | "title" | "studentNames">): string => {
   if (event.type === "aula") {
-    const names = event.studentNames ?? [];
+    const names = event.studentNames.filter(Boolean);
     if (names.length === 0) return "Aula";
     if (names.length === 1) return `Aula - ${names[0]}`;
     if (names.length === 2) return `Aula - ${names[0]}, ${names[1]}`;
     return `Aula - ${names[0]} +${names.length - 1}`;
   }
-  if (event.type === "fora_expediente") return "Fora de expediente";
+  if (event.type === "expediente") return "Expediente";
   return event.title ? `Bloqueado - ${event.title}` : "Bloqueado";
 };
 
-/** Eventos (já resolvida a recorrência) que valem para uma data específica. */
-export const getEventsForDate = (dateISO: string, trainerId: string = DEFAULT_TRAINER_ID): ScheduleEvent[] => {
-  const data = getData();
-  const dayOfWeek = new Date(`${dateISO}T00:00:00`).getDay();
+// ---------- Leitura ----------
 
-  return data.events
-    .filter((event) => event.trainerId === trainerId)
-    .filter((event) => {
-      if (event.excludedDates?.includes(dateISO)) return false;
-      if (event.recurrence === "once") return event.date === dateISO;
-      const afterStart = dateISO >= event.startDate;
-      const beforeEnd = event.endDate === null || dateISO <= event.endDate;
-      return afterStart && beforeEnd && (event.weekdays ?? []).includes(dayOfWeek);
-    });
+type EventRow = {
+  id: string;
+  trainer_id: string;
+  type: string;
+  title: string | null;
+  recurrence: RecurrenceType;
+  date: string | null;
+  weekdays: number[] | null;
+  start_date: string;
+  end_date: string | null;
+  excluded_dates: string[] | null;
+  start_time: string;
+  end_time: string;
+  booking_id: string | null;
+  schedule_event_students?: { student_id: string; student_profiles: { profiles: { full_name: string } | null } | null }[] | null;
 };
 
-const PRIORITY: Record<EventType, number> = { aula: 3, bloqueado: 2, fora_expediente: 1 };
+const mapEvent = (row: EventRow): ScheduleEvent => {
+  const students = row.schedule_event_students ?? [];
+  return {
+    id: row.id,
+    trainerId: row.trainer_id,
+    type: row.type as EventType,
+    title: row.title ?? undefined,
+    studentIds: students.map((s) => s.student_id),
+    studentNames: students.map((s) => s.student_profiles?.profiles?.full_name ?? "Aluno"),
+    recurrence: row.recurrence,
+    date: row.date ?? undefined,
+    weekdays: row.weekdays ?? undefined,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    excludedDates: row.excluded_dates ?? [],
+    startTime: hhmm(row.start_time),
+    endTime: hhmm(row.end_time),
+    bookingId: row.booking_id ?? undefined,
+  };
+};
+
+const EVENT_SELECT = "*, schedule_event_students(student_id, student_profiles(profiles(full_name)))";
+const KNOWN_TYPES: string[] = ["aula", "expediente", "bloqueado"];
+
+export const fetchTrainerEvents = async (trainerId: string): Promise<ScheduleEvent[]> => {
+  const { data, error } = await supabase.from("schedule_events").select(EVENT_SELECT).eq("trainer_id", trainerId);
+  if (error) throw error;
+  return ((data ?? []) as unknown as EventRow[]).filter((r) => KNOWN_TYPES.includes(r.type)).map(mapEvent);
+};
+
+/** Aulas em que o aluno está inscrito (para a home do aluno). */
+export const fetchStudentEvents = async (studentId: string): Promise<(ScheduleEvent & { trainerName: string })[]> => {
+  const { data, error } = await supabase
+    .from("schedule_events")
+    .select("*, schedule_event_students!inner(student_id), trainer_profiles(profiles(full_name))")
+    .eq("type", "aula")
+    .eq("schedule_event_students.student_id", studentId);
+  if (error) throw error;
+  return ((data ?? []) as unknown as (EventRow & { trainer_profiles: { profiles: { full_name: string } | null } | null })[]).map((row) => ({
+    ...mapEvent(row),
+    studentIds: [studentId],
+    trainerName: row.trainer_profiles?.profiles?.full_name ?? "Profissional",
+  }));
+};
+
+export const fetchLinkedStudents = async (trainerId: string): Promise<LinkedStudent[]> => {
+  const { data, error } = await supabase
+    .from("trainer_clients")
+    .select("student_id, custom_price, student_profiles(profiles(full_name, email))")
+    .eq("trainer_id", trainerId)
+    .eq("status", "active");
+  if (error) throw error;
+  return ((data ?? []) as unknown as {
+    student_id: string;
+    custom_price: number | null;
+    student_profiles: { profiles: { full_name: string; email: string } | null } | null;
+  }[]).map((row) => ({
+    studentId: row.student_id,
+    name: row.student_profiles?.profiles?.full_name ?? "Aluno",
+    email: row.student_profiles?.profiles?.email ?? "",
+    customPrice: row.custom_price != null ? Number(row.custom_price) : null,
+  }));
+};
+
+// ---------- Lógica pura de agenda ----------
+
+export const getEventsForDate = (events: ScheduleEvent[], dateISO: string): ScheduleEvent[] => {
+  const dayOfWeek = new Date(`${dateISO}T00:00:00`).getDay();
+  return events.filter((event) => {
+    if (event.excludedDates.includes(dateISO)) return false;
+    if (event.recurrence === "once") return event.date === dateISO;
+    const afterStart = dateISO >= event.startDate;
+    const beforeEnd = event.endDate === null || dateISO <= event.endDate;
+    return afterStart && beforeEnd && (event.weekdays ?? []).includes(dayOfWeek);
+  });
+};
+
+const PRIORITY: Record<EventType, number> = { aula: 3, bloqueado: 2, expediente: 1 };
 
 const pickEvent = (events: ScheduleEvent[], start: string, end: string): ScheduleEvent | undefined => {
   const matches = events.filter((e) => overlaps(start, end, e.startTime, e.endTime));
@@ -148,26 +212,22 @@ const pickEvent = (events: ScheduleEvent[], start: string, end: string): Schedul
   return matches.sort((a, b) => PRIORITY[b.type] - PRIORITY[a.type])[0];
 };
 
-export type ScheduleSlotStatus = "available" | EventType;
+/** "available" = dentro do expediente e livre; "fora_expediente" = sem nenhum expediente cobrindo o horário. */
+export type SlotStatus = "available" | "aula" | "bloqueado" | "fora_expediente";
 
 export interface ScheduleSlot {
   start: string;
   end: string;
-  status: ScheduleSlotStatus;
+  status: SlotStatus;
   event?: ScheduleEvent;
   isPast: boolean;
 }
 
-/** Timeline completa do dia (06:00–22:00) com o evento (se houver) cobrindo cada horário. */
-export const getSlotsForDate = (
-  dateISO: string,
-  trainerId: string = DEFAULT_TRAINER_ID,
-  durationMinutes = 60
-): ScheduleSlot[] => {
-  const events = getEventsForDate(dateISO, trainerId);
+export const getSlotsForDate = (events: ScheduleEvent[], dateISO: string, durationMinutes = 60): ScheduleSlot[] => {
+  const dayEvents = getEventsForDate(events, dateISO);
 
   const now = new Date();
-  const today = todayISO();
+  const today = toLocalISO(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   const slots: ScheduleSlot[] = [];
@@ -179,276 +239,263 @@ export const getSlotsForDate = (
     const slotEndMinutes = cursor + durationMinutes;
     const slotEnd = minutesToTime(slotEndMinutes);
 
-    const event = pickEvent(events, start, slotEnd);
+    const event = pickEvent(dayEvents, start, slotEnd);
     const isPast = dateISO < today || (dateISO === today && slotEndMinutes <= nowMinutes);
 
-    slots.push({ start, end: slotEnd, status: event?.type ?? "available", event, isPast });
+    let status: SlotStatus;
+    if (!event) status = "fora_expediente";
+    else if (event.type === "expediente") status = "available";
+    else status = event.type;
+
+    slots.push({ start, end: slotEnd, status, event, isPast });
     cursor += durationMinutes;
   }
 
   return slots;
 };
 
-/** Slots livres (sem nenhum evento) — usado no fluxo do aluno para solicitar horário. */
-export const getAvailableSlots = (
-  dateISO: string,
-  durationMinutes = 60,
-  trainerId: string = DEFAULT_TRAINER_ID
-): { start: string; end: string }[] =>
-  getSlotsForDate(dateISO, trainerId, durationMinutes)
+/** Horários livres (dentro do expediente, sem aula nem bloqueio) — usado pelo aluno para solicitar aula. */
+export const getAvailableSlots = (events: ScheduleEvent[], dateISO: string, durationMinutes = 60): { start: string; end: string }[] =>
+  getSlotsForDate(events, dateISO, durationMinutes)
     .filter((s) => s.status === "available" && !s.isPast)
     .map((s) => ({ start: s.start, end: s.end }));
 
-export const getAvailableSlotsCount = (days: number, durationMinutes = 60, trainerId: string = DEFAULT_TRAINER_ID): number => {
+export const countAvailableSlots = (events: ScheduleEvent[], days: number): number => {
   let total = 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(date.getDate() + i);
-    total += getAvailableSlots(date.toISOString().slice(0, 10), durationMinutes, trainerId).length;
+    total += getAvailableSlots(events, toLocalISO(date)).length;
   }
   return total;
 };
 
-// ---------- CRUD de eventos ----------
-
-export const getScheduleEvents = (trainerId: string = DEFAULT_TRAINER_ID): ScheduleEvent[] =>
-  getData().events.filter((e) => e.trainerId === trainerId);
-
-export const createScheduleEvent = (
-  input: ScheduleEventInput,
-  trainerId: string = DEFAULT_TRAINER_ID
-): ScheduleEvent => {
-  const data = getData();
-  const event: ScheduleEvent = { ...input, id: crypto.randomUUID(), trainerId, createdAt: new Date().toISOString() };
-  data.events = [...data.events, event];
-  persist(data);
-  return event;
-};
-
-/** Atualiza um evento respeitando o escopo (esta ocorrência / esta e as próximas / série inteira). */
-export const updateScheduleEvent = (
-  eventId: string,
-  occurrenceDate: string,
-  scope: EditScope,
-  patch: ScheduleEventInput
-): void => {
-  const data = getData();
-  const original = data.events.find((e) => e.id === eventId);
-  if (!original) return;
-
-  if (original.recurrence === "once" || scope === "all") {
-    data.events = data.events.map((e) => (e.id === eventId ? { ...e, ...patch, id: e.id, trainerId: e.trainerId, createdAt: e.createdAt } : e));
-    persist(data);
-    return;
-  }
-
-  if (scope === "this") {
-    data.events = data.events.map((e) =>
-      e.id === eventId ? { ...e, excludedDates: [...(e.excludedDates ?? []), occurrenceDate] } : e
-    );
-    data.events.push({
-      ...patch,
-      recurrence: "once",
-      date: occurrenceDate,
-      startDate: occurrenceDate,
-      endDate: occurrenceDate,
-      id: crypto.randomUUID(),
-      trainerId: original.trainerId,
-      createdAt: new Date().toISOString(),
-    });
-    persist(data);
-    return;
-  }
-
-  // scope === "following"
-  if (occurrenceDate <= original.startDate) {
-    // Não há "antes" — a série inteira vira a nova configuração.
-    data.events = data.events.map((e) =>
-      e.id === eventId ? { ...e, ...patch, id: e.id, trainerId: e.trainerId, createdAt: e.createdAt } : e
-    );
-    persist(data);
-    return;
-  }
-
-  data.events = data.events.map((e) => (e.id === eventId ? { ...e, endDate: addDaysISO(occurrenceDate, -1) } : e));
-  data.events.push({
-    ...patch,
-    recurrence: "weekly",
-    startDate: occurrenceDate,
-    id: crypto.randomUUID(),
-    trainerId: original.trainerId,
-    createdAt: new Date().toISOString(),
-  });
-  persist(data);
-};
-
-/** Cancela/exclui um evento respeitando o escopo. */
-export const deleteScheduleEvent = (eventId: string, occurrenceDate: string, scope: EditScope): void => {
-  const data = getData();
-  const original = data.events.find((e) => e.id === eventId);
-  if (!original) return;
-
-  // Se o evento tinha uma reserva de aluno vinculada, cancela também para manter em sincronia.
-  if (original.bookingId) {
-    data.bookings = data.bookings.filter((b) => b.id !== original.bookingId);
-  }
-
-  if (original.recurrence === "once" || scope === "all") {
-    data.events = data.events.filter((e) => e.id !== eventId);
-    persist(data);
-    return;
-  }
-
-  if (scope === "this") {
-    data.events = data.events.map((e) =>
-      e.id === eventId ? { ...e, excludedDates: [...(e.excludedDates ?? []), occurrenceDate] } : e
-    );
-    persist(data);
-    return;
-  }
-
-  // scope === "following"
-  if (occurrenceDate <= original.startDate) {
-    data.events = data.events.filter((e) => e.id !== eventId);
-  } else {
-    data.events = data.events.map((e) => (e.id === eventId ? { ...e, endDate: addDaysISO(occurrenceDate, -1) } : e));
-  }
-  persist(data);
-};
-
-/**
- * Aulas pontuais (concretas) que ficaram "cobertas" por um bloqueio no mesmo
- * horário — inconsistência a resolver manualmente pelo profissional.
- */
-export const getScheduleConflicts = (trainerId: string = DEFAULT_TRAINER_ID): AvailabilityConflict[] => {
-  const data = getData();
-  const aulaOnceEvents = data.events.filter((e) => e.trainerId === trainerId && e.type === "aula" && e.recurrence === "once" && e.date);
-
-  const conflicts: AvailabilityConflict[] = [];
-  for (const aula of aulaOnceEvents) {
-    const dayEvents = getEventsForDate(aula.date as string, trainerId).filter((e) => e.id !== aula.id);
-    const blocking = dayEvents.find((e) => e.type === "bloqueado" && overlaps(aula.startTime, aula.endTime, e.startTime, e.endTime));
-    if (blocking) {
-      conflicts.push({
-        eventId: aula.id,
-        date: aula.date as string,
-        startTime: aula.startTime,
-        endTime: aula.endTime,
-        title: eventTitle(aula),
+/** Próximas ocorrências de aulas (expande recorrência) a partir de hoje. */
+export const upcomingOccurrences = (events: ScheduleEvent[], days = 60) => {
+  const result: { event: ScheduleEvent; date: string }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    const iso = toLocalISO(date);
+    getEventsForDate(events, iso)
+      .filter((e) => e.type === "aula")
+      .forEach((e) => {
+        if (i === 0 && toMinutes(e.endTime) <= nowMinutes) return;
+        result.push({ event: e, date: iso });
       });
+  }
+  return result.sort((a, b) => (a.date + a.event.startTime).localeCompare(b.date + b.event.startTime));
+};
+
+/** Aulas pontuais que ficaram cobertas por um bloqueio no mesmo horário. */
+export const getScheduleConflicts = (events: ScheduleEvent[]): AvailabilityConflict[] => {
+  const conflicts: AvailabilityConflict[] = [];
+  for (const aula of events.filter((e) => e.type === "aula" && e.recurrence === "once" && e.date)) {
+    const date = aula.date as string;
+    const blocking = getEventsForDate(events, date).find(
+      (e) => e.id !== aula.id && e.type === "bloqueado" && overlaps(aula.startTime, aula.endTime, e.startTime, e.endTime)
+    );
+    if (blocking) {
+      conflicts.push({ eventId: aula.id, date, startTime: aula.startTime, endTime: aula.endTime, title: eventTitle(aula) });
     }
   }
   return conflicts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
 };
 
-// ---------- Propostas / agendamentos do fluxo do aluno ----------
+// ---------- Escrita de eventos ----------
 
-export const createProposal = (
-  trainerId: string,
-  clientId: string,
-  clientName: string,
-  date: string,
-  startTime: string,
-  endTime: string
-): Booking => {
-  const data = getData();
-  const booking: Booking = {
-    id: crypto.randomUUID(),
-    trainerId,
-    clientId,
-    clientName,
-    date,
-    startTime,
-    endTime,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-  };
-  data.bookings = [booking, ...data.bookings];
-  persist(data);
-  return booking;
+const toRow = (trainerId: string, input: ScheduleEventInput, bookingId?: string) => ({
+  trainer_id: trainerId,
+  type: input.type,
+  title: input.type === "bloqueado" ? input.title ?? null : null,
+  recurrence: input.recurrence,
+  date: input.recurrence === "once" ? input.date ?? input.startDate : null,
+  weekdays: input.recurrence === "weekly" ? input.weekdays ?? [] : null,
+  start_date: input.startDate,
+  end_date: input.endDate,
+  start_time: input.startTime,
+  end_time: input.endTime,
+  booking_id: bookingId ?? null,
+});
+
+const setStudents = async (eventId: string, type: EventType, studentIds: string[]) => {
+  const del = await supabase.from("schedule_event_students").delete().eq("event_id", eventId);
+  if (del.error) throw del.error;
+  if (type !== "aula" || studentIds.length === 0) return;
+  const ins = await supabase.from("schedule_event_students").insert(studentIds.map((student_id) => ({ event_id: eventId, student_id })));
+  if (ins.error) throw ins.error;
 };
 
-export const respondProposal = (
+export const createScheduleEvent = async (trainerId: string, input: ScheduleEventInput, bookingId?: string): Promise<string> => {
+  const { data, error } = await supabase.from("schedule_events").insert(toRow(trainerId, input, bookingId)).select("id").single();
+  if (error) throw error;
+  await setStudents(data.id, input.type, input.studentIds);
+  return data.id;
+};
+
+/** Atualiza um evento respeitando o escopo (esta ocorrência / esta e as próximas / série inteira). */
+export const updateScheduleEvent = async (
+  original: ScheduleEvent,
+  occurrenceDate: string,
+  scope: EditScope,
+  patch: ScheduleEventInput
+): Promise<void> => {
+  const updateWhole = async () => {
+    const { error } = await supabase.from("schedule_events").update(toRow(original.trainerId, patch, original.bookingId)).eq("id", original.id);
+    if (error) throw error;
+    await setStudents(original.id, patch.type, patch.studentIds);
+  };
+
+  if (original.recurrence === "once" || scope === "all") return updateWhole();
+
+  if (scope === "this") {
+    const { error } = await supabase
+      .from("schedule_events")
+      .update({ excluded_dates: [...original.excludedDates, occurrenceDate] })
+      .eq("id", original.id);
+    if (error) throw error;
+    await createScheduleEvent(original.trainerId, {
+      ...patch,
+      recurrence: "once",
+      date: occurrenceDate,
+      startDate: occurrenceDate,
+      endDate: occurrenceDate,
+    });
+    return;
+  }
+
+  // scope === "following"
+  if (occurrenceDate <= original.startDate) return updateWhole();
+
+  const { error } = await supabase.from("schedule_events").update({ end_date: addDaysISO(occurrenceDate, -1) }).eq("id", original.id);
+  if (error) throw error;
+  await createScheduleEvent(original.trainerId, { ...patch, recurrence: "weekly", startDate: occurrenceDate });
+};
+
+/** Cancela/exclui um evento respeitando o escopo. */
+export const deleteScheduleEvent = async (original: ScheduleEvent, occurrenceDate: string, scope: EditScope): Promise<void> => {
+  if (original.recurrence === "once" || scope === "all") {
+    if (original.bookingId) {
+      await supabase.from("bookings").update({ status: "rejected" }).eq("id", original.bookingId);
+    }
+    const { error } = await supabase.from("schedule_events").delete().eq("id", original.id);
+    if (error) throw error;
+    return;
+  }
+
+  if (scope === "this") {
+    const { error } = await supabase
+      .from("schedule_events")
+      .update({ excluded_dates: [...original.excludedDates, occurrenceDate] })
+      .eq("id", original.id);
+    if (error) throw error;
+    return;
+  }
+
+  if (occurrenceDate <= original.startDate) {
+    const { error } = await supabase.from("schedule_events").delete().eq("id", original.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("schedule_events").update({ end_date: addDaysISO(occurrenceDate, -1) }).eq("id", original.id);
+    if (error) throw error;
+  }
+};
+
+// ---------- Agendamentos (solicitação do aluno) ----------
+
+type BookingRow = {
+  id: string;
+  trainer_id: string;
+  student_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus | null;
+  suggested_date: string | null;
+  suggested_start_time: string | null;
+  suggested_end_time: string | null;
+  student_profiles?: { profiles: { full_name: string } | null } | null;
+  trainer_profiles?: { profiles: { full_name: string } | null } | null;
+};
+
+const mapBooking = (row: BookingRow): Booking => ({
+  id: row.id,
+  trainerId: row.trainer_id,
+  studentId: row.student_id,
+  clientName: row.student_profiles?.profiles?.full_name ?? "Aluno",
+  trainerName: row.trainer_profiles?.profiles?.full_name ?? "Profissional",
+  date: row.date,
+  startTime: hhmm(row.start_time),
+  endTime: hhmm(row.end_time),
+  status: row.status ?? "pending",
+  suggestion:
+    row.suggested_date && row.suggested_start_time && row.suggested_end_time
+      ? { date: row.suggested_date, startTime: hhmm(row.suggested_start_time), endTime: hhmm(row.suggested_end_time) }
+      : undefined,
+});
+
+export const fetchBookingsForTrainer = async (trainerId: string): Promise<Booking[]> => {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*, student_profiles(profiles(full_name))")
+    .eq("trainer_id", trainerId)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as BookingRow[]).map(mapBooking);
+};
+
+export const fetchBookingsForStudent = async (studentId: string): Promise<Booking[]> => {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*, trainer_profiles(profiles(full_name))")
+    .eq("student_id", studentId)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as BookingRow[]).map(mapBooking);
+};
+
+export const createProposal = async (trainerId: string, studentId: string, date: string, startTime: string, endTime: string) => {
+  const { error } = await supabase
+    .from("bookings")
+    .insert({ trainer_id: trainerId, student_id: studentId, date, start_time: startTime, end_time: endTime, status: "pending" });
+  if (error) throw error;
+};
+
+export const respondProposal = async (
   bookingId: string,
   action: "accept" | "reject" | "suggest",
   suggestion?: { date: string; startTime: string; endTime: string }
-): Booking[] => {
-  const data = getData();
-  data.bookings = data.bookings.map((b) => {
-    if (b.id !== bookingId) return b;
-    if (action === "accept") return { ...b, status: "confirmed" as const };
-    if (action === "reject") return { ...b, status: "rejected" as const };
-    return { ...b, status: "suggested" as const, suggestion };
-  });
-  persist(data);
-
+): Promise<void> => {
   if (action === "accept") {
-    const booking = data.bookings.find((b) => b.id === bookingId);
-    if (booking) {
-      data.events = [
-        ...data.events,
-        {
-          id: crypto.randomUUID(),
-          trainerId: booking.trainerId,
-          type: "aula",
-          studentNames: [booking.clientName],
-          recurrence: "once",
-          date: booking.date,
-          startDate: booking.date,
-          endDate: booking.date,
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          bookingId: booking.id,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      persist(data);
-    }
+    const { error } = await supabase.rpc("confirm_booking", { p_booking_id: bookingId });
+    if (error) throw error;
+    return;
   }
-
-  return data.bookings;
+  const patch =
+    action === "reject"
+      ? { status: "rejected" as const }
+      : {
+          status: "suggested" as const,
+          suggested_date: suggestion?.date,
+          suggested_start_time: suggestion?.startTime,
+          suggested_end_time: suggestion?.endTime,
+        };
+  const { error } = await supabase.from("bookings").update(patch).eq("id", bookingId);
+  if (error) throw error;
 };
 
-export const acceptSuggestion = (bookingId: string): Booking[] => {
-  const data = getData();
-  data.bookings = data.bookings.map((b) => {
-    if (b.id !== bookingId || !b.suggestion) return b;
-    return {
-      ...b,
-      date: b.suggestion.date,
-      startTime: b.suggestion.startTime,
-      endTime: b.suggestion.endTime,
-      status: "confirmed" as const,
-      suggestion: undefined,
-    };
-  });
-  persist(data);
-  return data.bookings;
+export const acceptSuggestion = async (bookingId: string): Promise<void> => {
+  const { error } = await supabase.rpc("confirm_booking", { p_booking_id: bookingId });
+  if (error) throw error;
 };
 
-/** Cancela uma aula confirmada (fora do fluxo de eventos) — o horário volta a ficar disponível. */
-export const cancelBooking = (bookingId: string): void => {
-  const data = getData();
-  data.bookings = data.bookings.filter((b) => b.id !== bookingId);
-  data.events = data.events.filter((e) => e.bookingId !== bookingId);
-  persist(data);
-};
-
-export const getBookingsForTrainer = (trainerId: string): Booking[] =>
-  getData().bookings.filter((b) => b.trainerId === trainerId);
-
-export const getBookingsForClient = (clientId: string): Booking[] =>
-  getData().bookings.filter((b) => b.clientId === clientId);
-
-/** Nomes de alunos já conhecidos (com base no histórico de solicitações) — placeholder até termos vínculo real aluno/profissional. */
-export const getKnownStudentNames = (trainerId: string = DEFAULT_TRAINER_ID): string[] => {
-  const data = getData();
-  const names = new Set<string>();
-  data.bookings.filter((b) => b.trainerId === trainerId).forEach((b) => names.add(b.clientName));
-  data.events
-    .filter((e) => e.trainerId === trainerId && e.type === "aula")
-    .forEach((e) => e.studentNames?.forEach((n) => names.add(n)));
-  return Array.from(names).sort();
+export const declineSuggestion = async (bookingId: string): Promise<void> => {
+  const { error } = await supabase.from("bookings").update({ status: "rejected" }).eq("id", bookingId);
+  if (error) throw error;
 };

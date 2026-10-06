@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,33 +12,48 @@ import { Badge } from "@/components/ui/badge";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import { CheckCircle2, Clock } from "lucide-react";
-import { getAvailableSlots } from "@/lib/agendaStore";
+import { ScheduleEvent, fetchTrainerEvents, getAvailableSlots } from "@/lib/agendaStore";
 
 interface BookingRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trainerName: string;
   trainerId: string;
-  onSubmit: (date: string, startTime: string, endTime: string) => void;
+  onSubmit: (date: string, startTime: string, endTime: string) => void | Promise<void>;
 }
 
 export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerId, onSubmit }: BookingRequestDialogProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
   const [sent, setSent] = useState(false);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const dateISO = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const slots = useMemo(() => (dateISO ? getAvailableSlots(dateISO, 60, trainerId) : []), [dateISO, trainerId]);
+  const slots = useMemo(() => (dateISO ? getAvailableSlots(events, dateISO) : []), [dateISO, events]);
+
+  useEffect(() => {
+    if (!open) return;
+    setIsLoading(true);
+    fetchTrainerEvents(trainerId)
+      .then(setEvents)
+      .catch(() => setEvents([]))
+      .finally(() => setIsLoading(false));
+  }, [open, trainerId]);
 
   const handleSelectDate = (date: Date | undefined) => {
     setSelectedDate(date);
     setSelectedSlot(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedSlot || !dateISO) return;
-    onSubmit(dateISO, selectedSlot.start, selectedSlot.end);
-    setSent(true);
+    try {
+      await onSubmit(dateISO, selectedSlot.start, selectedSlot.end);
+      setSent(true);
+    } catch {
+      // o chamador já mostra o erro
+    }
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -85,7 +100,9 @@ export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerI
                   <Clock className="h-4 w-4 text-primary" />
                   Horários disponíveis
                 </p>
-                {slots.length === 0 ? (
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground">Carregando horários...</p>
+                ) : slots.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Sem horários disponíveis nesta data.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">

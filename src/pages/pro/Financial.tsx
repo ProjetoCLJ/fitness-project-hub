@@ -7,58 +7,36 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Info, ArrowRight } from "lucide-react";
 import TrainerEarnings from "@/components/dashboard/trainer/TrainerEarnings";
 import TrainerPricing from "@/components/dashboard/trainer/TrainerPricing";
-import { getScheduleEvents, getSlotsForDate } from "@/lib/agendaStore";
-import { supabase } from "@/integrations/supabase/client";
-
-/** Conta, dentro do mês atual, quantos horários caem em cada status (aula agendada / disponível). */
-const countThisMonth = (trainerId: string) => {
-  // Enquanto o profissional não configurou nada na agenda, o dia inteiro aparece "livre" por padrão —
-  // contar isso como potencial de faturamento seria enganoso, então começa zerado.
-  if (getScheduleEvents(trainerId).length === 0) return { aulaCount: 0, availableCount: 0 };
-
-  const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  let aulaCount = 0;
-  let availableCount = 0;
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const slots = getSlotsForDate(dateISO, trainerId);
-    slots.forEach((slot) => {
-      if (slot.status === "aula") aulaCount++;
-      else if (slot.status === "available" && !slot.isPast) availableCount++;
-    });
-  }
-
-  return { aulaCount, availableCount };
-};
+import { fetchLinkedStudents, fetchTrainerEvents } from "@/lib/agendaStore";
+import { MonthRevenue, computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
 
 const Financial = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [aulaCount, setAulaCount] = useState(0);
-  const [availableCount, setAvailableCount] = useState(0);
+  const [revenue, setRevenue] = useState<MonthRevenue>({ aulaSlots: 0, availableSlots: 0, previsto: 0, possivel: 0 });
   const [basePrice, setBasePrice] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const { aulaCount, availableCount } = countThisMonth(user.id);
-    setAulaCount(aulaCount);
-    setAvailableCount(availableCount);
-    supabase
-      .from("trainer_profiles")
-      .select("base_price")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setBasePrice(Number(data?.base_price ?? 0)));
+    (async () => {
+      try {
+        const [events, students, price] = await Promise.all([
+          fetchTrainerEvents(user.id),
+          fetchLinkedStudents(user.id),
+          fetchBasePrice(user.id),
+        ]);
+        setBasePrice(price);
+        setRevenue(computeMonthRevenue(events, students, price));
+      } catch {
+        // mantém os valores zerados
+      }
+    })();
   }, [user]);
 
   if (!user || user.userType !== "trainer") return null;
 
   // Realizado: lançado manualmente pelo profissional — ainda não há tela de lançamento, então começa zerado.
   const realizado = 0;
-  const previsto = aulaCount * basePrice;
-  const possivel = availableCount * basePrice;
 
   return (
     <div className="min-h-screen bg-background">
@@ -81,23 +59,23 @@ const Financial = () => {
               <div className="text-xs opacity-90">Realizado</div>
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-bold">R$ {previsto.toLocaleString("pt-BR")}</div>
+              <div className="text-lg sm:text-2xl font-bold">R$ {revenue.previsto.toLocaleString("pt-BR")}</div>
               <div className="text-xs opacity-90">Previsto</div>
             </div>
             <div>
-              <div className="text-lg sm:text-2xl font-bold">R$ {possivel.toLocaleString("pt-BR")}</div>
+              <div className="text-lg sm:text-2xl font-bold">R$ {revenue.possivel.toLocaleString("pt-BR")}</div>
               <div className="text-xs opacity-90">Possível</div>
             </div>
           </div>
         </Card>
 
-        {availableCount > 0 && (
+        {revenue.availableSlots > 0 && (
           <Card className="p-4 sm:p-6 mb-4">
             <p className="text-sm mb-1">
-              Você possui <strong>{availableCount} horário{availableCount > 1 ? "s" : ""} disponíve{availableCount > 1 ? "is" : "l"}</strong> este mês.
+              Você possui <strong>{revenue.availableSlots} horário{revenue.availableSlots > 1 ? "s" : ""} disponíve{revenue.availableSlots > 1 ? "is" : "l"}</strong> este mês.
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Se todos forem ocupados, seu faturamento possível aumenta em R$ {possivel.toLocaleString("pt-BR")}.
+              Se todos forem ocupados, seu faturamento possível aumenta em R$ {revenue.possivel.toLocaleString("pt-BR")}.
             </p>
             <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/trainer/profile")}>
               Encontrar clientes para esses horários
@@ -111,7 +89,7 @@ const Financial = () => {
           <p className="text-xs text-muted-foreground">
             <strong>Realizado</strong> é o que você lançar manualmente conforme os alunos pagam.{" "}
             <strong>Previsto</strong> é calculado com base nas aulas já agendadas no mês.{" "}
-            <strong>Possível</strong> é calculado com base nos horários ainda disponíveis
+            <strong>Possível</strong> é calculado com base nos horários do seu expediente que ainda estão livres
             ({basePrice > 0 ? `R$ ${basePrice.toFixed(2)} por aula` : "preço não definido no seu perfil"}).
           </p>
         </Card>

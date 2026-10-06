@@ -16,7 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, Clock3, CalendarClock } from "lucide-react";
 import TrainerSchedule from "@/components/dashboard/trainer/TrainerSchedule";
-import { Booking, getBookingsForTrainer, respondProposal } from "@/lib/agendaStore";
+import { Booking, fetchBookingsForTrainer, respondProposal } from "@/lib/agendaStore";
 
 
 const formatDate = (dateISO: string) =>
@@ -40,8 +40,18 @@ const Agenda = () => {
   const [suggestStart, setSuggestStart] = useState("");
   const [suggestEnd, setSuggestEnd] = useState("");
 
+  const loadBookings = async () => {
+    if (!trainerId) return;
+    try {
+      setBookings(await fetchBookingsForTrainer(trainerId));
+    } catch {
+      toast({ title: "Não foi possível carregar os agendamentos", variant: "destructive" });
+    }
+  };
+
   useEffect(() => {
-    setBookings(getBookingsForTrainer(trainerId));
+    loadBookings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trainerId]);
 
   if (!user || user.userType !== "trainer") return null;
@@ -51,14 +61,18 @@ const Agenda = () => {
     .filter((b) => b.status === "confirmed")
     .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
 
-  const handleRespond = (id: string, action: "accept" | "reject") => {
-    const updated = respondProposal(id, action);
-    setBookings(updated.filter((b) => b.trainerId === trainerId));
-    if (action === "accept") setScheduleRefresh((k) => k + 1);
-    toast({
-      title: action === "accept" ? "Aula confirmada!" : "Proposta recusada",
-      description: action === "accept" ? "O horário foi reservado na sua agenda." : "O cliente será avisado.",
-    });
+  const handleRespond = async (id: string, action: "accept" | "reject") => {
+    try {
+      await respondProposal(id, action);
+      await loadBookings();
+      if (action === "accept") setScheduleRefresh((k) => k + 1);
+      toast({
+        title: action === "accept" ? "Aula confirmada!" : "Proposta recusada",
+        description: action === "accept" ? "O horário foi reservado na sua agenda." : "O cliente será avisado.",
+      });
+    } catch {
+      toast({ title: "Não foi possível responder", description: "Tente novamente.", variant: "destructive" });
+    }
   };
 
   const openSuggest = (id: string, currentDate: string, currentStart: string, currentEnd: string) => {
@@ -68,16 +82,20 @@ const Agenda = () => {
     setSuggestEnd(currentEnd);
   };
 
-  const confirmSuggestion = () => {
+  const confirmSuggestion = async () => {
     if (!suggestingId || !suggestDate || !suggestStart || !suggestEnd) return;
-    const updated = respondProposal(suggestingId, "suggest", {
-      date: suggestDate,
-      startTime: suggestStart,
-      endTime: suggestEnd,
-    });
-    setBookings(updated.filter((b) => b.trainerId === trainerId));
-    toast({ title: "Novo horário sugerido", description: "O cliente vai ver a sugestão e poderá aceitar." });
-    setSuggestingId(null);
+    try {
+      await respondProposal(suggestingId, "suggest", {
+        date: suggestDate,
+        startTime: suggestStart,
+        endTime: suggestEnd,
+      });
+      await loadBookings();
+      toast({ title: "Novo horário sugerido", description: "O cliente vai ver a sugestão e poderá aceitar." });
+      setSuggestingId(null);
+    } catch {
+      toast({ title: "Não foi possível enviar a sugestão", variant: "destructive" });
+    }
   };
 
   return (
@@ -175,7 +193,7 @@ const Agenda = () => {
         <TrainerSchedule
           trainerId={trainerId}
           refreshSignal={scheduleRefresh}
-          onBookingsChange={() => setBookings(getBookingsForTrainer(trainerId))}
+          onBookingsChange={loadBookings}
         />
       </div>
     </div>

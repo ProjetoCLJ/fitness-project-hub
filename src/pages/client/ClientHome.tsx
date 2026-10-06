@@ -17,9 +17,9 @@ import {
   Play,
   ChevronRight,
   CalendarClock,
-  Check,
 } from "lucide-react";
-import { Booking, acceptSuggestion, getBookingsForClient } from "@/lib/agendaStore";
+import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, upcomingOccurrences } from "@/lib/agendaStore";
+import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule";
 import { getActivePlan } from "@/lib/planStore";
 
 
@@ -32,23 +32,28 @@ const ClientHome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [aulas, setAulas] = useState<{ event: ScheduleEvent & { trainerName: string }; date: string }[]>([]);
+  const [rescheduling, setRescheduling] = useState<{ event: ScheduleEvent; date: string } | null>(null);
 
   useEffect(() => {
-    setBookings(getBookingsForClient(clientId));
+    if (!clientId) return;
+    (async () => {
+      try {
+        const [loadedBookings, events] = await Promise.all([fetchBookingsForStudent(clientId), fetchStudentEvents(clientId)]);
+        setBookings(loadedBookings);
+        setAulas(upcomingOccurrences(events, 60) as { event: ScheduleEvent & { trainerName: string }; date: string }[]);
+      } catch {
+        toast({ title: "Não foi possível carregar seus atendimentos", variant: "destructive" });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
 
-  const nextConfirmed = bookings
-    .filter((b) => b.status === "confirmed")
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))[0];
-  const pendingOrSuggested = bookings.filter((b) => b.status === "pending" || b.status === "suggested");
-
-  const handleAcceptSuggestion = (bookingId: string) => {
-    const updated = acceptSuggestion(bookingId);
-    setBookings(updated.filter((b) => b.clientId === clientId));
-    toast({ title: "Horário confirmado!", description: "A aula foi reservada na sua agenda." });
-  };
+  const nextAulas = aulas.slice(0, 3);
+  const pendingBookings = bookings.filter((b) => b.status === "pending");
+  const suggestions = bookings.filter((b) => b.status === "suggested");
 
   // Gamificação (pontuação/ranking/sequência) ainda não tem backend — fica zerada até existir.
   const fitScore = 0;
@@ -152,55 +157,52 @@ const ClientHome = () => {
           )}
         </Card>
 
-        {/* Próximo atendimento */}
+        {/* Próximos atendimentos */}
         <Card className="p-4 sm:p-6 mb-4">
-          <h2 className="font-semibold text-base sm:text-lg mb-3">Próximo atendimento</h2>
-          {nextConfirmed ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">{activePlan?.trainerName ?? "Profissional"}</p>
-                <p className="text-sm text-muted-foreground">Personal Trainer</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium">{formatBookingDate(nextConfirmed.date, nextConfirmed.startTime)}</p>
-              </div>
-            </div>
-          ) : (
+          <h2 className="font-semibold text-base sm:text-lg mb-3">Próximos atendimentos</h2>
+          {nextAulas.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum atendimento confirmado ainda.</p>
+          ) : (
+            <div className="space-y-2">
+              {nextAulas.map((o) => (
+                <button
+                  key={`${o.event.id}-${o.date}`}
+                  className="w-full flex items-center justify-between p-3 rounded-md bg-muted/30 text-left hover:bg-muted/50 transition-smooth"
+                  onClick={() => setRescheduling(o)}
+                >
+                  <div>
+                    <p className="font-medium">{o.event.trainerName}</p>
+                    <p className="text-sm text-muted-foreground">Personal Trainer</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{formatBookingDate(o.date, o.event.startTime)}</p>
+                    <p className="text-xs text-primary">Solicitar troca</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
         </Card>
 
         {/* Solicitações de agendamento */}
-        {pendingOrSuggested.length > 0 && (
+        {(pendingBookings.length > 0 || suggestions.length > 0) && (
           <Card className="p-4 sm:p-6 mb-4">
             <h2 className="font-semibold text-base sm:text-lg mb-3 flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-primary" />
               Solicitações de agendamento
             </h2>
             <div className="space-y-3">
-              {pendingOrSuggested.map((b) => (
-                <div key={b.id} className="p-3 rounded-md bg-muted/30 space-y-2">
-                  {b.status === "pending" ? (
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Aguardando resposta do profissional</span>
-                      <Badge variant="outline">{formatBookingDate(b.date, b.startTime)}</Badge>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Novo horário sugerido</span>
-                        <Badge variant="secondary">
-                          {b.suggestion ? formatBookingDate(b.suggestion.date, b.suggestion.startTime) : ""}
-                        </Badge>
-                      </div>
-                      <Button size="sm" className="w-full" onClick={() => handleAcceptSuggestion(b.id)}>
-                        <Check className="h-4 w-4 mr-1" />
-                        Aceitar novo horário
-                      </Button>
-                    </>
-                  )}
+              {pendingBookings.map((b) => (
+                <div key={b.id} className="p-3 rounded-md bg-muted/30 flex items-center justify-between text-sm">
+                  <span>Aguardando resposta de {b.trainerName}</span>
+                  <Badge variant="outline">{formatBookingDate(b.date, b.startTime)}</Badge>
                 </div>
               ))}
+              {suggestions.length > 0 && (
+                <Button size="sm" className="w-full" variant="outline" onClick={() => navigate("/dashboard/student/requests")}>
+                  {suggestions.length} novo{suggestions.length > 1 ? "s" : ""} horário{suggestions.length > 1 ? "s" : ""} sugerido{suggestions.length > 1 ? "s" : ""} — ver em Solicitações
+                </Button>
+              )}
             </div>
           </Card>
         )}
@@ -238,6 +240,21 @@ const ClientHome = () => {
           <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </Card>
       </div>
+
+      {rescheduling && (
+        <RescheduleDialog
+          open
+          onOpenChange={(open) => !open && setRescheduling(null)}
+          eventId={rescheduling.event.id}
+          occurrenceDate={rescheduling.date}
+          defaultStart={rescheduling.event.startTime}
+          defaultEnd={rescheduling.event.endTime}
+          onSent={() => {
+            setRescheduling(null);
+            toast({ title: "Pedido enviado", description: "O profissional vai ver o pedido na aba Solicitações." });
+          }}
+        />
+      )}
     </div>
   );
 };

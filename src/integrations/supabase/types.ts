@@ -267,7 +267,9 @@ export type Database = {
       plans: {
         Row: {
           created_at: string | null
+          cycle_weeks: number | null
           deadline: string | null
+          description: string | null
           end_date: string | null
           id: string
           objective: string | null
@@ -283,7 +285,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          cycle_weeks?: number | null
           deadline?: string | null
+          description?: string | null
           end_date?: string | null
           id?: string
           objective?: string | null
@@ -299,7 +303,9 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          cycle_weeks?: number | null
           deadline?: string | null
+          description?: string | null
           end_date?: string | null
           id?: string
           objective?: string | null
@@ -732,6 +738,45 @@ export type Database = {
           },
         ]
       }
+      student_restrictions: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          student_id: string
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          student_id: string
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          student_id?: string
+          trainer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_restrictions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_restrictions_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trainer_clients: {
         Row: {
           created_at: string | null
@@ -884,26 +929,39 @@ export type Database = {
           date: string
           id: string
           observations: string | null
+          plan_id: string | null
           student_id: string
-          workout_id: string
+          workout_id: string | null
+          workout_name: string | null
         }
         Insert: {
           created_at?: string | null
           date?: string
           id?: string
           observations?: string | null
+          plan_id?: string | null
           student_id: string
-          workout_id: string
+          workout_id?: string | null
+          workout_name?: string | null
         }
         Update: {
           created_at?: string | null
           date?: string
           id?: string
           observations?: string | null
+          plan_id?: string | null
           student_id?: string
-          workout_id?: string
+          workout_id?: string | null
+          workout_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "workout_executions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "workout_executions_student_id_fkey"
             columns: ["student_id"]
@@ -974,6 +1032,9 @@ export type Database = {
           order_index: number | null
           plan_id: string
           updated_at: string | null
+          week_index: number | null
+          weekday: number | null
+          workout_date: string | null
         }
         Insert: {
           created_at?: string | null
@@ -984,6 +1045,9 @@ export type Database = {
           order_index?: number | null
           plan_id: string
           updated_at?: string | null
+          week_index?: number | null
+          weekday?: number | null
+          workout_date?: string | null
         }
         Update: {
           created_at?: string | null
@@ -994,6 +1058,9 @@ export type Database = {
           order_index?: number | null
           plan_id?: string
           updated_at?: string | null
+          week_index?: number | null
+          weekday?: number | null
+          workout_date?: string | null
         }
         Relationships: [
           {
@@ -1058,7 +1125,7 @@ export type Database = {
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "rejected" | "suggested"
-      plan_status: "active" | "completed"
+      plan_status: "active" | "completed" | "cancelled"
       request_status: "pending" | "accepted" | "declined"
       schedule_event_type:
         | "aula"
@@ -1195,7 +1262,7 @@ export const Constants = {
   public: {
     Enums: {
       booking_status: ["pending", "confirmed", "rejected", "suggested"],
-      plan_status: ["active", "completed"],
+      plan_status: ["active", "completed", "cancelled"],
       request_status: ["pending", "accepted", "declined"],
       schedule_event_type: [
         "aula",

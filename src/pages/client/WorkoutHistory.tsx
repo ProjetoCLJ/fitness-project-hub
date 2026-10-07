@@ -5,18 +5,18 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, History, Trophy } from "lucide-react";
-import { getPlans } from "@/lib/planStore";
+import { WorkoutExecution, fetchExecutions } from "@/lib/planStore";
 
 
 const WorkoutHistory = () => {
   const { user } = useAuth();
   const clientId = user?.id ?? "";
   const navigate = useNavigate();
-  const [executions, setExecutions] = useState<ReturnType<typeof getPlans>[number]["executions"]>([]);
+  const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
 
   useEffect(() => {
-    const all = getPlans(clientId).flatMap((p) => p.executions);
-    setExecutions([...all].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    if (!clientId) return;
+    fetchExecutions(clientId).then(setExecutions).catch(() => setExecutions([]));
   }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
@@ -52,8 +52,8 @@ const WorkoutHistory = () => {
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {exec.exerciseLogs.map((log) => (
-                    <div key={log.exerciseId} className="text-xs">
+                  {exec.exerciseLogs.map((log, logIndex) => (
+                    <div key={`${log.exerciseId ?? log.plannedName}-${logIndex}`} className="text-xs">
                       <p className="font-medium text-foreground flex items-center gap-1">
                         {log.performedName}
                         {log.performedName !== log.plannedName && (

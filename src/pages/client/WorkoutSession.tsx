@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Dumbbell, Check } from "lucide-react";
-import { ExerciseLog, Plan, SetLog, getActivePlan, getPlans, recordExecution } from "@/lib/planStore";
+import { ExerciseLog, Plan, SetLog, WorkoutExecution, fetchExecutions, fetchPlansForStudent, recordExecution } from "@/lib/planStore";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
 
@@ -44,11 +44,18 @@ const WorkoutSession = () => {
   const [drafts, setDrafts] = useState<Record<string, ExerciseDraft>>({});
   const [observations, setObservations] = useState("");
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const [priorExecutions, setPriorExecutions] = useState<WorkoutExecution[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const activePlan = getActivePlan(clientId);
-    setPlan(activePlan ?? null);
-  }, [clientId]);
+    if (!clientId) return;
+    fetchPlansForStudent(clientId)
+      .then((all) => setPlan(all.find((p) => p.status === "active" && p.workouts.some((w) => w.id === workoutId)) ?? null))
+      .catch(() => setPlan(null));
+    fetchExecutions(clientId)
+      .then(setPriorExecutions)
+      .catch(() => setPriorExecutions([]));
+  }, [clientId, workoutId]);
 
   const workout = useMemo(() => plan?.workouts.find((w) => w.id === workoutId), [plan, workoutId]);
 
@@ -108,9 +115,7 @@ const WorkoutSession = () => {
     updateDraft((d) => ({ ...d, swapping: !d.swapping, performedName: d.swapping ? exercise.name : d.performedName }));
   };
 
-  const finishWorkout = () => {
-    const priorExecutions = getPlans(clientId).flatMap((p) => p.executions);
-
+  const finishWorkout = async () => {
     const exerciseLogs: ExerciseLog[] = workout.exercises
       .map((ex): ExerciseLog | null => {
         const d = drafts[ex.id];
@@ -142,13 +147,20 @@ const WorkoutSession = () => {
       return;
     }
 
-    recordExecution(clientId, plan.id, {
-      workoutId: workout.id,
-      workoutName: workout.name,
-      date: new Date().toISOString(),
-      exerciseLogs,
-      observations: observations.trim() || undefined,
-    });
+    setIsSaving(true);
+    try {
+      await recordExecution(clientId, {
+        planId: plan.id,
+        workoutId: workout.id,
+        workoutName: workout.name,
+        exerciseLogs,
+        observations: observations.trim() || undefined,
+      });
+    } catch {
+      toast({ title: "Não foi possível salvar o treino", description: "Tente novamente.", variant: "destructive" });
+      setIsSaving(false);
+      return;
+    }
 
     const prCount = exerciseLogs.filter((l) => l.isPR).length;
     toast({
@@ -316,7 +328,7 @@ const WorkoutSession = () => {
             Anterior
           </Button>
           {isLastExercise ? (
-            <Button variant="hero" className="flex-1" onClick={finishWorkout}>
+            <Button variant="hero" className="flex-1" onClick={finishWorkout} disabled={isSaving}>
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Concluir treino
             </Button>

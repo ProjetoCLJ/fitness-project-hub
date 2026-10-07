@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronRight, Mail, UserPlus, Users } from "lucide-react";
 import { fetchLinkedStudents, fetchTrainerEvents, upcomingOccurrences } from "@/lib/agendaStore";
 import { SentInvite, fetchPendingInvitesSent, inviteStudent } from "@/lib/requestsStore";
-import { getActivePlan } from "@/lib/planStore";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ClientRow {
   id: string;
@@ -26,8 +26,16 @@ export interface ClientRow {
 
 /** Carteira de clientes: alunos vinculados ao profissional (convite aceito ou agendamento confirmado). */
 export const fetchClientRows = async (trainerId: string): Promise<ClientRow[]> => {
-  const [students, events] = await Promise.all([fetchLinkedStudents(trainerId), fetchTrainerEvents(trainerId)]);
+  const [students, events, plansRes] = await Promise.all([
+    fetchLinkedStudents(trainerId),
+    fetchTrainerEvents(trainerId),
+    supabase.from("plans").select("student_id, objective, title").eq("trainer_id", trainerId).eq("status", "active").order("created_at", { ascending: false }),
+  ]);
   const upcoming = upcomingOccurrences(events, 90);
+  const activePlanByStudent = new Map<string, { objective: string | null; title: string }>();
+  (plansRes.data ?? []).forEach((p) => {
+    if (!activePlanByStudent.has(p.student_id)) activePlanByStudent.set(p.student_id, { objective: p.objective, title: p.title });
+  });
 
   return students.map((student) => {
     const next = upcoming.find((o) => o.event.studentIds.includes(student.studentId));
@@ -39,7 +47,7 @@ export const fetchClientRows = async (trainerId: string): Promise<ClientRow[]> =
       id: student.studentId,
       name: student.name,
       email: student.email,
-      objective: getActivePlan(student.studentId)?.objective || "Sem objetivo definido",
+      objective: activePlanByStudent.get(student.studentId)?.objective || activePlanByStudent.get(student.studentId)?.title || "Sem plano ativo",
       status: "active" as const,
       nextAppointment: nextLabel,
     };

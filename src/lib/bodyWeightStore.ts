@@ -1,6 +1,4 @@
-// Store local (localStorage) de peso corporal do cliente: histórico de
-// pesagens + meta opcional. Mesma lógica de simulação de backend que
-// planStore/agendaStore.
+import { supabase } from "@/integrations/supabase/client";
 
 export interface WeightEntry {
   id: string;
@@ -8,42 +6,31 @@ export interface WeightEntry {
   weight: number;
 }
 
-interface BodyWeightData {
-  entries: WeightEntry[];
-  goal?: number;
-}
-
-const STORAGE_PREFIX = "fit_bodyweight_";
-
-const emptyData = (): BodyWeightData => ({ entries: [] });
-
-const load = (clientId: string): BodyWeightData => {
-  const raw = localStorage.getItem(STORAGE_PREFIX + clientId);
-  if (!raw) return emptyData();
-  try {
-    return JSON.parse(raw) as BodyWeightData;
-  } catch {
-    return emptyData();
-  }
+export const fetchWeightEntries = async (studentId: string): Promise<WeightEntry[]> => {
+  const { data, error } = await supabase
+    .from("body_weight_entries")
+    .select("id, date, weight")
+    .eq("student_id", studentId)
+    .order("date", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ id: row.id, date: `${row.date}T12:00:00`, weight: Number(row.weight) }));
 };
 
-const persist = (clientId: string, data: BodyWeightData) => {
-  localStorage.setItem(STORAGE_PREFIX + clientId, JSON.stringify(data));
+export const fetchWeightGoal = async (studentId: string): Promise<number | undefined> => {
+  const { data, error } = await supabase.from("body_weight_goals").select("goal").eq("student_id", studentId).maybeSingle();
+  if (error) throw error;
+  return data ? Number(data.goal) : undefined;
 };
 
-export const getWeightEntries = (clientId: string): WeightEntry[] =>
-  [...load(clientId).entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-export const getWeightGoal = (clientId: string): number | undefined => load(clientId).goal;
-
-export const addWeightEntry = (clientId: string, weight: number, date = new Date().toISOString()): WeightEntry[] => {
-  const data = load(clientId);
-  const updated = { ...data, entries: [...data.entries, { id: crypto.randomUUID(), date, weight }] };
-  persist(clientId, updated);
-  return getWeightEntries(clientId);
+/** Uma pesagem por dia: registrar de novo no mesmo dia atualiza o valor. */
+export const addWeightEntry = async (studentId: string, weight: number): Promise<void> => {
+  const { error } = await supabase
+    .from("body_weight_entries")
+    .upsert({ student_id: studentId, weight, date: new Date().toISOString().slice(0, 10) }, { onConflict: "student_id,date" });
+  if (error) throw error;
 };
 
-export const setWeightGoal = (clientId: string, goal: number) => {
-  const data = load(clientId);
-  persist(clientId, { ...data, goal });
+export const setWeightGoal = async (studentId: string, goal: number): Promise<void> => {
+  const { error } = await supabase.from("body_weight_goals").upsert({ student_id: studentId, goal }, { onConflict: "student_id" });
+  if (error) throw error;
 };

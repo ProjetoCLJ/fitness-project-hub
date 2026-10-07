@@ -18,9 +18,9 @@ import {
   ChevronRight,
   CalendarClock,
 } from "lucide-react";
-import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, upcomingOccurrences } from "@/lib/agendaStore";
+import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, toLocalISO, upcomingOccurrences } from "@/lib/agendaStore";
 import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule";
-import { getActivePlan } from "@/lib/planStore";
+import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
 
 
 const formatBookingDate = (dateISO: string, startTime: string) =>
@@ -33,14 +33,23 @@ const ClientHome = () => {
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [aulas, setAulas] = useState<{ event: ScheduleEvent & { trainerName: string }; date: string }[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const [rescheduling, setRescheduling] = useState<{ event: ScheduleEvent; date: string } | null>(null);
 
   useEffect(() => {
     if (!clientId) return;
     (async () => {
       try {
-        const [loadedBookings, events] = await Promise.all([fetchBookingsForStudent(clientId), fetchStudentEvents(clientId)]);
+        const [loadedBookings, events, loadedPlans, loadedExecutions] = await Promise.all([
+          fetchBookingsForStudent(clientId),
+          fetchStudentEvents(clientId),
+          fetchPlansForStudent(clientId),
+          fetchExecutions(clientId),
+        ]);
         setBookings(loadedBookings);
+        setPlans(loadedPlans.filter((p) => p.status === "active"));
+        setExecutions(loadedExecutions);
         setAulas(upcomingOccurrences(events, 60) as { event: ScheduleEvent & { trainerName: string }; date: string }[]);
       } catch {
         toast({ title: "Não foi possível carregar seus atendimentos", variant: "destructive" });
@@ -61,27 +70,34 @@ const ClientHome = () => {
   const levelProgress = ((fitScore - level.min) / (level.max - level.min)) * 100;
   const streak = 0;
 
-  const activePlan = getActivePlan(clientId);
-  const nextWorkout = activePlan?.workouts[0]
+  const todayISO = toLocalISO(new Date());
+  const todaysWorkouts = plans.flatMap((p) => workoutsOnDate(p, todayISO).map((w) => ({ workout: w, plan: p })));
+  const firstWorkout = plans.flatMap((p) => p.workouts.map((w) => ({ workout: w, plan: p })))[0];
+  const nextEntry = todaysWorkouts[0] ?? firstWorkout;
+  const nextWorkout = nextEntry
     ? {
-        name: activePlan.workouts[0].name,
-        day: activePlan.workouts[0].day,
-        objective: activePlan.objective,
-        trainerName: activePlan.trainerName,
+        name: nextEntry.workout.name,
+        day: todaysWorkouts[0] ? "Hoje" : "Quando quiser",
+        objective: nextEntry.plan.objective || nextEntry.plan.title,
+        trainerName: nextEntry.plan.trainerName,
       }
     : null;
 
   const startOfWeek = new Date();
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
-  const completedThisWeek = activePlan
-    ? activePlan.executions.filter((exec) => new Date(exec.date) >= startOfWeek).length
-    : 0;
-  const plannedThisWeek = activePlan?.workouts.length ?? 0;
+  const completedThisWeek = executions.filter((exec) => new Date(exec.date) >= startOfWeek).length;
+  let plannedThisWeek = 0;
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(startOfWeek);
+    day.setDate(day.getDate() + i);
+    const iso = toLocalISO(day);
+    plannedThisWeek += plans.reduce((sum, p) => sum + workoutsOnDate(p, iso).length, 0);
+  }
   const weekProgress = {
     completed: completedThisWeek,
     planned: plannedThisWeek,
-    completionRate: plannedThisWeek > 0 ? Math.round((completedThisWeek / plannedThisWeek) * 100) : 0,
+    completionRate: plannedThisWeek > 0 ? Math.min(100, Math.round((completedThisWeek / plannedThisWeek) * 100)) : 0,
   };
 
   return (

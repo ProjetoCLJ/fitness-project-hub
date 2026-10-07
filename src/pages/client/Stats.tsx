@@ -22,8 +22,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Dumbbell, CalendarCheck, Flame, ChevronRight, Trophy, Scale, Target } from "lucide-react";
 import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { WorkoutExecution, getPlans } from "@/lib/planStore";
-import { WeightEntry, addWeightEntry, getWeightEntries, getWeightGoal, setWeightGoal } from "@/lib/bodyWeightStore";
+import { WorkoutExecution, fetchExecutions } from "@/lib/planStore";
+import { WeightEntry, addWeightEntry, fetchWeightEntries, fetchWeightGoal, setWeightGoal } from "@/lib/bodyWeightStore";
 import { exerciseLibrary } from "@/data/exerciseLibrary";
 
 
@@ -69,25 +69,27 @@ const Stats = () => {
   const [goalInput, setGoalInput] = useState("");
 
   useEffect(() => {
-    const all = getPlans(clientId).flatMap((p) => p.executions);
-    const sorted = [...all].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    setExecutions(sorted);
-    setWeightEntries(getWeightEntries(clientId));
-    setWeightGoalState(getWeightGoal(clientId));
+    if (!clientId) return;
+    fetchExecutions(clientId)
+      .then((all) => setExecutions([...all].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())))
+      .catch(() => setExecutions([]));
+    fetchWeightEntries(clientId).then(setWeightEntries).catch(() => setWeightEntries([]));
+    fetchWeightGoal(clientId).then(setWeightGoalState).catch(() => setWeightGoalState(undefined));
   }, [clientId]);
 
-  const logWeight = () => {
+  const logWeight = async () => {
     const value = Number(weightInput.replace(",", "."));
     if (!value || value <= 0) return;
-    setWeightEntries(addWeightEntry(clientId, value));
+    await addWeightEntry(clientId, value);
+    setWeightEntries(await fetchWeightEntries(clientId));
     setWeightInput("");
     setLogOpen(false);
   };
 
-  const saveGoal = () => {
+  const saveGoal = async () => {
     const value = Number(goalInput.replace(",", "."));
     if (!value || value <= 0) return;
-    setWeightGoal(clientId, value);
+    await setWeightGoal(clientId, value);
     setWeightGoalState(value);
     setGoalInput("");
     setGoalOpen(false);

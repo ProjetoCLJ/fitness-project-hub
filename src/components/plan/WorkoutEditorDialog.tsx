@@ -12,13 +12,21 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Link2, Link2Off } from "lucide-react";
 import { Exercise, Workout } from "@/lib/planStore";
-import { exerciseLibrary } from "@/data/exerciseLibrary";
+
+export interface WorkoutDraft {
+  name: string;
+  description: string;
+  exercises: Exercise[];
+}
 
 interface WorkoutEditorDialogProps {
   workout: Workout | null;
+  /** Onde o treino fica no plano (ex.: "Semana 2 · Segunda" ou "08 out."). */
+  positionLabel: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (workout: Workout) => void;
+  onSave: (draft: WorkoutDraft) => void | Promise<void>;
+  onDelete?: () => void | Promise<void>;
 }
 
 const emptyExercise = (): Exercise => ({
@@ -30,20 +38,17 @@ const emptyExercise = (): Exercise => ({
   rest: "60s",
 });
 
-const emptyWorkout = (): Workout => ({
-  id: crypto.randomUUID(),
-  day: "Segunda",
-  name: "",
-  exercises: [emptyExercise()],
-  observations: "",
-});
-
-export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: WorkoutEditorDialogProps) => {
-  const [draft, setDraft] = useState<Workout>(emptyWorkout());
+export const WorkoutEditorDialog = ({ workout, positionLabel, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
+  const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()] });
+  const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setDraft(workout ? { ...workout, exercises: workout.exercises.map((e) => ({ ...e })) } : emptyWorkout());
+      setDraft(
+        workout
+          ? { name: workout.name, description: workout.description, exercises: workout.exercises.map((e) => ({ ...e })) }
+          : { name: "", description: "", exercises: [emptyExercise()] }
+      );
     }
   }, [open, workout]);
 
@@ -54,13 +59,10 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
     }));
   };
 
-  const addExercise = () => {
-    setDraft((prev) => ({ ...prev, exercises: [...prev.exercises, emptyExercise()] }));
-  };
+  const addExercise = () => setDraft((prev) => ({ ...prev, exercises: [...prev.exercises, emptyExercise()] }));
 
-  const removeExercise = (id: string) => {
+  const removeExercise = (id: string) =>
     setDraft((prev) => ({ ...prev, exercises: prev.exercises.filter((ex) => ex.id !== id) }));
-  };
 
   const toggleSuperset = (index: number) => {
     if (index === 0) return;
@@ -82,9 +84,23 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
 
   const canSave = draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0);
 
-  const handleSave = () => {
-    onSave(draft);
-    onOpenChange(false);
+  const handleSave = async () => {
+    setIsBusy(true);
+    try {
+      await onSave({ ...draft, name: draft.name.trim() });
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    setIsBusy(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsBusy(false);
+    }
   };
 
   return (
@@ -92,29 +108,29 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{workout ? "Editar treino" : "Novo treino"}</DialogTitle>
-          <DialogDescription>Defina os exercícios, séries, repetições, carga e descanso.</DialogDescription>
+          <DialogDescription>{positionLabel}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="workout-name">Nome do treino</Label>
-              <Input
-                id="workout-name"
-                value={draft.name}
-                onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Ex: Treino A - Inferiores"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="workout-day">Dia da semana</Label>
-              <Input
-                id="workout-day"
-                value={draft.day}
-                onChange={(e) => setDraft((prev) => ({ ...prev, day: e.target.value }))}
-                placeholder="Ex: Segunda"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="workout-name">Nome do treino</Label>
+            <Input
+              id="workout-name"
+              value={draft.name}
+              onChange={(e) => setDraft((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="Ex: Treino A - Inferiores"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="workout-description">Descrição</Label>
+            <Textarea
+              id="workout-description"
+              value={draft.description}
+              onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+              rows={2}
+              placeholder="Foco do treino, cuidados, progressões..."
+            />
           </div>
 
           <div className="space-y-3">
@@ -127,9 +143,7 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
               const isLinked = !!ex.supersetGroup && !!previous && ex.supersetGroup === previous.supersetGroup;
               return (
                 <div key={ex.id}>
-                  {isLinked && (
-                    <div className="text-xs font-medium text-primary mb-1 ml-1">↳ Superset</div>
-                  )}
+                  {isLinked && <div className="text-xs font-medium text-primary mb-1 ml-1">↳ Superset</div>}
                   <div className={`p-3 border rounded-md space-y-2 ${isLinked ? "border-primary/40 bg-primary/5" : ""}`}>
                     <div className="flex items-center gap-2">
                       <Input
@@ -137,7 +151,6 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
                         onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
                         placeholder="Nome do exercício"
                         className="flex-1"
-                        list="exercise-library-options"
                       />
                       {index > 0 && (
                         <Button
@@ -158,42 +171,30 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <div>
-                    <Label className="text-xs">Séries</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={ex.sets}
-                      onChange={(e) => updateExercise(ex.id, "sets", Number(e.target.value))}
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Reps</Label>
-                    <Input
-                      value={ex.reps}
-                      onChange={(e) => updateExercise(ex.id, "reps", e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Carga</Label>
-                    <Input
-                      value={ex.load}
-                      onChange={(e) => updateExercise(ex.id, "load", e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Descanso</Label>
-                    <Input
-                      value={ex.rest}
-                      onChange={(e) => updateExercise(ex.id, "rest", e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <Label className="text-xs">Séries</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={ex.sets}
+                          onChange={(e) => updateExercise(ex.id, "sets", Number(e.target.value))}
+                          className="h-9"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Reps</Label>
+                        <Input value={ex.reps} onChange={(e) => updateExercise(ex.id, "reps", e.target.value)} className="h-9" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Carga</Label>
+                        <Input value={ex.load} onChange={(e) => updateExercise(ex.id, "load", e.target.value)} className="h-9" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Descanso</Label>
+                        <Input value={ex.rest} onChange={(e) => updateExercise(ex.id, "rest", e.target.value)} className="h-9" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -204,27 +205,17 @@ export const WorkoutEditorDialog = ({ workout, open, onOpenChange, onSave }: Wor
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="workout-observations">Observações</Label>
-            <Textarea
-              id="workout-observations"
-              value={draft.observations}
-              onChange={(e) => setDraft((prev) => ({ ...prev, observations: e.target.value }))}
-              rows={3}
-              placeholder="Progressões, cuidados, adaptações..."
-            />
+          <div className="flex flex-col gap-2">
+            <Button variant="hero" className="w-full" onClick={handleSave} disabled={!canSave || isBusy}>
+              Salvar treino
+            </Button>
+            {workout && onDelete && (
+              <Button variant="destructive" className="w-full" onClick={handleDelete} disabled={isBusy}>
+                Excluir treino
+              </Button>
+            )}
           </div>
-
-          <Button variant="hero" className="w-full" onClick={handleSave} disabled={!canSave}>
-            Salvar treino
-          </Button>
         </div>
-
-        <datalist id="exercise-library-options">
-          {exerciseLibrary.map((ex) => (
-            <option key={ex.id} value={ex.name} />
-          ))}
-        </datalist>
       </DialogContent>
     </Dialog>
   );

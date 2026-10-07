@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Target, ShieldAlert, Sparkles, Plus, Trash2, History as HistoryIcon, CalendarClock, ChevronRight } from "lucide-react";
+import { ArrowLeft, Target, ShieldAlert, Sparkles, Plus, Trash2, CalendarClock, ChevronRight, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientRow, fetchClientRows } from "./Clients";
 import {
@@ -58,7 +58,7 @@ const ClientProfilePro = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("data");
   const [client, setClient] = useState<ClientRow | null>(null);
   const [clientLoaded, setClientLoaded] = useState(false);
   const [info, setInfo] = useState<StudentInfo | null>(null);
@@ -202,17 +202,16 @@ const ClientProfilePro = () => {
         >
           <div className="overflow-x-auto -mx-4 px-4 mb-6">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto">
-              <TabsTrigger value="overview">Visão geral</TabsTrigger>
-              <TabsTrigger value="profile">Perfil</TabsTrigger>
+              <TabsTrigger value="data">Dados</TabsTrigger>
               <TabsTrigger value="plans">Planos</TabsTrigger>
               <TabsTrigger value="evolution">Evolução</TabsTrigger>
               <TabsTrigger value="restrictions">Restrições</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
+              <TabsTrigger value="financial">Financeiro</TabsTrigger>
               <TabsTrigger value="permissions">Permissões</TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="data" className="space-y-4">
             <Card className="p-4 sm:p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <Target className="h-5 w-5 text-primary mt-0.5" />
@@ -250,10 +249,7 @@ const ClientProfilePro = () => {
                 <p className="font-medium">{client.nextAppointment}</p>
               </div>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="profile">
-            <Card className="p-4 sm:p-6 space-y-4">
+                      <Card className="p-4 sm:p-6 space-y-4">
               {[
                 ["Nome", info?.fullName],
                 ["E-mail", info?.email],
@@ -268,6 +264,7 @@ const ClientProfilePro = () => {
                 </div>
               ))}
             </Card>
+
           </TabsContent>
 
           <TabsContent value="plans" className="space-y-3">
@@ -289,6 +286,20 @@ const ClientProfilePro = () => {
                   </Card>
                 ) : (
                   activePlans.map((p) => <PlanCard key={p.id} plan={p} onOpen={() => setSelectedPlanId(p.id)} />)
+                )}
+
+                <h2 className="font-semibold text-base sm:text-lg pt-4">Planos encerrados</h2>
+                {pastPlans.length === 0 ? (
+                  <Card className="p-6 text-center text-sm text-muted-foreground">Nenhum plano encerrado ainda.</Card>
+                ) : (
+                  pastPlans.map((p) => (
+                    <div key={p.id} className="relative">
+                      <PlanCard plan={p} onOpen={() => setSelectedPlanId(p.id)} />
+                      <Badge variant="secondary" className="absolute top-3 right-10">
+                        {p.status === "completed" ? "Concluído" : "Excluído"}
+                      </Badge>
+                    </div>
+                  ))
                 )}
               </>
             )}
@@ -378,29 +389,12 @@ const ClientProfilePro = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="history" className="space-y-3">
-            {pastPlans.length === 0 ? (
-              <Card className="p-6 sm:p-8 text-center border-dashed">
-                <HistoryIcon className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium mb-1">Nenhum plano encerrado ainda</p>
-              </Card>
-            ) : (
-              pastPlans.map((p) => (
-                <Card key={p.id} className="p-4 sm:p-6 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold">{p.title}</p>
-                      <p className="text-sm text-muted-foreground">{p.objective || "Sem objetivo definido"}</p>
-                    </div>
-                    <Badge variant="secondary">{p.status === "completed" ? "Concluído" : "Excluído"}</Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <CalendarClock className="h-3.5 w-3.5" />
-                    {formatDate(p.startDate)} — {p.endDate ? formatDate(p.endDate) : "sem prazo"}
-                  </div>
-                </Card>
-              ))
-            )}
+          <TabsContent value="financial">
+            <Card className="p-6 sm:p-8 text-center border-dashed">
+              <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium mb-1">Financeiro do aluno</p>
+              <p className="text-sm text-muted-foreground">Em breve você poderá registrar aqui os pagamentos de {client.name}.</p>
+            </Card>
           </TabsContent>
 
           <TabsContent value="permissions">

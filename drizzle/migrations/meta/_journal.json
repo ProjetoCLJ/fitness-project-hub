@@ -15,6 +15,13 @@
       "when": 1791213911860,
       "tag": "0001_invites_reschedules_confirm_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791382411820,
+      "tag": "0002_plan_cycles_restrictions_execution_history",
+      "breakpoints": true
     }
   ]
 }

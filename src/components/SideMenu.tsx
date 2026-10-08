@@ -15,7 +15,6 @@ import {
   Search,
   User,
   LogOut,
-  ClipboardList,
   Trophy,
   Users,
   CalendarDays,
@@ -53,7 +52,6 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
 
   const clientLinks = [
     { label: "Início", icon: Home, path: "/dashboard/student" },
-    { label: "Meu Plano", icon: ClipboardList, path: "/dashboard/student/plan" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
     // Biblioteca temporariamente oculta do menu (página segue disponível em /dashboard/student/library).
     { label: "Estatísticas", icon: LineChart, path: "/dashboard/student/stats" },

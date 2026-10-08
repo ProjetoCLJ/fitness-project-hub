@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { ShieldAlert, Trash2 } from "lucide-react";
+import { ChevronRight, ShieldAlert, Trash2 } from "lucide-react";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, Restriction, deleteRestriction, fetchPlansForStudent, fetchRestrictions } from "@/lib/planStore";
+
+const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
 
 const ClientProfilePage = () => {
   const { user } = useAuth();
@@ -57,25 +58,30 @@ const ClientProfilePage = () => {
 
         <ThemeToggle />
 
-        {/* Objetivos */}
+        {/* Planos */}
         <div>
-          <h2 className="font-semibold text-base sm:text-lg mb-3">Objetivos</h2>
+          <h2 className="font-semibold text-base sm:text-lg mb-3">Planos</h2>
           {plans.length === 0 ? (
             <Card className="p-4 sm:p-6">
-              <p className="text-sm text-muted-foreground">Nenhum objetivo definido ainda.</p>
+              <p className="text-sm text-muted-foreground">Você ainda não tem um plano ativo.</p>
             </Card>
           ) : (
             <div className="space-y-3">
               {plans.map((plan) => (
-                <Card key={plan.id} className="p-4 sm:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold">{plan.objective || plan.title}</p>
+                <Card
+                  key={plan.id}
+                  className="p-4 sm:p-6 cursor-pointer hover:shadow-medium transition-smooth"
+                  onClick={() => navigate(`/dashboard/student/plan?id=${plan.id}`)}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{plan.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        Prazo: {plan.endDate ? new Date(`${plan.endDate}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" }) : "sem prazo"}
+                        {fmt(plan.startDate)} — {plan.endDate ? fmt(plan.endDate) : "sem prazo"}
                       </p>
+                      <p className="text-sm text-muted-foreground">Profissional: {plan.trainerName}</p>
                     </div>
-                    <Badge>Em andamento</Badge>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                   </div>
                 </Card>
               ))}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Target, Dumbbell, ChevronRight, CalendarClock, History } from "lucide-react";
 import { Plan, fetchPlansForStudent } from "@/lib/planStore";
 
@@ -17,6 +17,8 @@ const MyPlan = () => {
   const clientId = user?.id ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const selectedId = params.get("id");
   const [plans, setPlans] = useState<Plan[] | null>(null);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ const MyPlan = () => {
   }, [clientId]);
 
   if (!user || user.userType !== "student" || plans === null) return null;
+  const visible = selectedId ? plans.filter((p) => p.id === selectedId) : plans;
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,12 +48,12 @@ const MyPlan = () => {
           </Button>
         </div>
 
-        {plans.length === 0 ? (
+        {visible.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
             Você ainda não tem um plano ativo. Assim que seu profissional criar um, ele aparece aqui.
           </Card>
         ) : (
-          plans.map((plan) => (
+          visible.map((plan) => (
             <Card key={plan.id} className="p-4 sm:p-6 space-y-4">
               <div className="flex items-start justify-between gap-2">
                 <div>

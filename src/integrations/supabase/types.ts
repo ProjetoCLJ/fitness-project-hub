@@ -135,6 +135,204 @@ export type Database = {
           },
         ]
       }
+      challenge_comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_participants: {
+        Row: {
+          author_name: string
+          challenge_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          challenge_id: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          challenge_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_participants_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_posts: {
+        Row: {
+          activity_at: string
+          author_name: string
+          challenge_id: string
+          created_at: string
+          description: string | null
+          id: string
+          photo_url: string | null
+          source: string
+          title: string
+          updated_at: string
+          user_id: string
+          workout_execution_id: string | null
+        }
+        Insert: {
+          activity_at?: string
+          author_name?: string
+          challenge_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          photo_url?: string | null
+          source?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          workout_execution_id?: string | null
+        }
+        Update: {
+          activity_at?: string
+          author_name?: string
+          challenge_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          photo_url?: string | null
+          source?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workout_execution_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_posts_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_posts_workout_execution_id_fkey"
+            columns: ["workout_execution_id"]
+            isOneToOne: false
+            referencedRelation: "workout_executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenges: {
+        Row: {
+          created_at: string
+          creator_id: string
+          description: string | null
+          end_date: string | null
+          id: string
+          invite_active: boolean
+          invite_code: string
+          rules: string | null
+          start_date: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          invite_active?: boolean
+          invite_code?: string
+          rules?: string | null
+          start_date?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          invite_active?: boolean
+          invite_code?: string
+          rules?: string | null
+          start_date?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exercise_logs: {
         Row: {
           execution_id: string
@@ -1085,17 +1283,35 @@ export type Database = {
       can_access_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_access_workout: { Args: { _workout_id: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
+      challenge_is_open: { Args: { _challenge_id: string }; Returns: boolean }
       confirm_booking: { Args: { p_booking_id: string }; Returns: string }
       current_student_id: { Args: never; Returns: string }
       current_trainer_id: { Args: never; Returns: string }
+      get_challenge_preview: { Args: { p_code: string }; Returns: Json }
+      get_challenge_ranking: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          author_name: string
+          last_activity: string
+          points: number
+          user_id: string
+        }[]
+      }
       invite_student: { Args: { p_email: string }; Returns: Json }
+      is_challenge_creator: {
+        Args: { _challenge_id: string }
+        Returns: boolean
+      }
+      is_challenge_member: { Args: { _challenge_id: string }; Returns: boolean }
       is_linked_trainer_of_student: {
         Args: { _student_id: string }
         Returns: boolean
       }
       is_plan_trainer: { Args: { _plan_id: string }; Returns: boolean }
       is_workout_trainer: { Args: { _workout_id: string }; Returns: boolean }
+      join_challenge: { Args: { p_code: string }; Returns: string }
       owns_execution: { Args: { _execution_id: string }; Returns: boolean }
+      post_challenge_id: { Args: { _post_id: string }; Returns: string }
       request_reschedule: {
         Args: {
           p_date: string

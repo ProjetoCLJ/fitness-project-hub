@@ -3,11 +3,13 @@ import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PlanWeeks } from "@/components/plan/PlanWeeks";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, ChevronRight, History, Flame, Dumbbell } from "lucide-react";
-import { Plan, Workout, WEEKDAY_NAMES, fetchPlansForStudent, workoutPositionLabel, workoutsOnDate } from "@/lib/planStore";
+import { CheckCircle2, History, Flame, Shuffle, X } from "lucide-react";
+import { Plan, Workout, WorkoutExecution, WEEKDAY_NAMES, fetchExecutions, fetchPlansForStudent } from "@/lib/planStore";
+import { buildPlanWeeks, executionDay } from "@/lib/planSchedule";
 import { toLocalISO } from "@/lib/agendaStore";
 
 const Workouts = () => {
@@ -16,11 +18,16 @@ const Workouts = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[] | null>(null);
+  const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
+  const [pickMode, setPickMode] = useState(false);
 
   useEffect(() => {
     if (!clientId) return;
-    fetchPlansForStudent(clientId)
-      .then((all) => setPlans(all.filter((p) => p.status === "active")))
+    Promise.all([fetchPlansForStudent(clientId), fetchExecutions(clientId)])
+      .then(([all, execs]) => {
+        setPlans(all.filter((p) => p.status === "active"));
+        setExecutions(execs);
+      })
       .catch(() => {
         setPlans([]);
         toast({ title: "Não foi possível carregar seus treinos", variant: "destructive" });
@@ -32,9 +39,14 @@ const Workouts = () => {
 
   const todayISO = toLocalISO(new Date());
   const todayName = WEEKDAY_NAMES[new Date().getDay()];
-  const todayWorkouts = plans.flatMap((p) => workoutsOnDate(p, todayISO));
-  const todayIds = new Set(todayWorkouts.map((w) => w.id));
-  const otherWorkouts = plans.flatMap((p) => p.workouts.filter((w) => !todayIds.has(w.id)).map((w) => ({ workout: w, planTitle: p.title })));
+
+  const todaySlots = plans.flatMap((plan) =>
+    buildPlanWeeks(plan, executions, todayISO)
+      .flat()
+      .filter((d) => d.dateISO === todayISO)
+      .flatMap((d) => d.slots.map((slot) => ({ ...slot, plan })))
+  );
+  const doneToday = executions.filter((e) => executionDay(e) === todayISO);
 
   const startWorkout = (workout: Workout) => navigate(`/dashboard/student/workouts/session/${workout.id}`);
 
@@ -58,57 +70,63 @@ const Workouts = () => {
           <Card className="p-8 text-center text-sm text-muted-foreground">
             Você ainda não tem treinos. Assim que seu profissional criar seu plano, eles aparecem aqui.
           </Card>
+        ) : pickMode ? (
+          <>
+            <Card className="p-4 mb-4 flex items-center justify-between gap-3 border-primary/40">
+              <p className="text-sm">Escolha o treino que você quer fazer hoje.</p>
+              <Button variant="ghost" size="sm" onClick={() => setPickMode(false)}>
+                <X className="h-4 w-4 mr-1" />
+                Cancelar
+              </Button>
+            </Card>
+            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} pickMode onPick={startWorkout} />
+          </>
         ) : (
           <>
-            {todayWorkouts.length > 0 ? (
-              todayWorkouts.map((workout) => (
-                <Card key={workout.id} className="overflow-hidden mb-6 border-0 shadow-strong">
+            <h2 className="font-semibold text-base sm:text-lg mb-3">Treino de hoje</h2>
+            {todaySlots.length > 0 ? (
+              todaySlots.map(({ workout, state, plan }) => (
+                <Card key={workout.id} className="overflow-hidden mb-3 border-0 shadow-strong">
                   <div className="bg-gradient-hero p-5 sm:p-8 text-primary-foreground relative">
                     <div className="absolute top-4 right-4 opacity-20">
                       <Flame className="h-20 w-20" />
                     </div>
-                    <Badge variant="secondary" className="mb-3">Treino de hoje</Badge>
-                    <h2 className="text-2xl font-bold mb-1">{workout.name}</h2>
+                    <Badge variant="secondary" className="mb-3">{plans.length > 1 ? plan.title : "Treino de hoje"}</Badge>
+                    <h3 className="text-2xl font-bold mb-1">{workout.name}</h3>
                     <p className="text-sm opacity-90 mb-5">{workout.exercises.length} exercícios</p>
-                    <Button variant="secondary" size="lg" className="w-full font-semibold" onClick={() => startWorkout(workout)}>
-                      <CheckCircle2 className="h-5 w-5 mr-2" />
-                      Iniciar {workout.name}
-                    </Button>
+                    {state === "done" ? (
+                      <div className="flex items-center gap-2 font-semibold">
+                        <CheckCircle2 className="h-5 w-5" />
+                        Concluído hoje
+                      </div>
+                    ) : (
+                      <Button variant="secondary" size="lg" className="w-full font-semibold" onClick={() => startWorkout(workout)}>
+                        <CheckCircle2 className="h-5 w-5 mr-2" />
+                        Iniciar {workout.name}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               ))
             ) : (
-              <Card className="p-6 mb-6 text-center text-sm text-muted-foreground border-dashed">
-                Sem treino programado para hoje. Aproveite para descansar ou escolha outra rotina abaixo.
+              <Card className="p-6 mb-3 text-center text-sm text-muted-foreground border-dashed">
+                Sem treino programado para hoje.
               </Card>
             )}
 
-            {otherWorkouts.length > 0 && (
-              <>
-                <h2 className="font-semibold text-base sm:text-lg mb-3">Outras rotinas</h2>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {otherWorkouts.map(({ workout, planTitle }) => (
-                    <Card
-                      key={workout.id}
-                      className="p-4 flex items-center gap-3 cursor-pointer hover:shadow-medium hover:border-primary/40 transition-smooth"
-                      onClick={() => startWorkout(workout)}
-                    >
-                      <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Dumbbell className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <Badge variant="secondary" className="mb-1 text-xs">{workoutPositionLabel(workout)}</Badge>
-                        <p className="font-medium truncate">{workout.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {planTitle} · {workout.exercises.length} exercícios
-                        </p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                    </Card>
-                  ))}
-                </div>
-              </>
+            {doneToday.length > 0 && (
+              <p className="text-sm text-muted-foreground mb-3">
+                Feito hoje: {doneToday.map((e) => e.workoutName).join(", ")}
+              </p>
             )}
+
+            <Button variant="outline" className="w-full mb-8" onClick={() => setPickMode(true)}>
+              <Shuffle className="h-4 w-4 mr-2" />
+              Adiantar ou trocar treino
+            </Button>
+
+            <h2 className="font-semibold text-base sm:text-lg mb-3">Seus planos</h2>
+            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} />
           </>
         )}
       </div>

@@ -368,7 +368,7 @@ export const recordExecution = async (
       plan_id: execution.planId,
       workout_id: execution.workoutId,
       workout_name: execution.workoutName,
-      date: new Date().toISOString().slice(0, 10),
+      date: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
       observations: execution.observations ?? null,
     })
     .select("id")

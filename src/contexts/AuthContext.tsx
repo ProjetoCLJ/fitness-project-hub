@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { takePendingInvitePath } from "@/lib/challengeStore";
 import { supabase } from "@/integrations/supabase/client";
 
 interface User {
@@ -131,7 +132,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (!loggedUser) throw new Error("Não foi possível carregar seu perfil.");
 
       setUser(loggedUser);
-      navigate(loggedUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student");
+      navigate(takePendingInvitePath() ?? (loggedUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"));
     } finally {
       setIsLoading(false);
     }
@@ -194,7 +195,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (!registeredUser) throw new Error("Conta criada, mas não foi possível carregar seu perfil.");
 
       setUser(registeredUser);
-      navigate(registeredUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student");
+      navigate(takePendingInvitePath() ?? (registeredUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"));
     } finally {
       setIsLoading(false);
     }

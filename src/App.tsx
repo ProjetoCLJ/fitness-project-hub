@@ -21,6 +21,8 @@ import WorkoutHistory from "./pages/client/WorkoutHistory";
 import Library from "./pages/client/Library";
 import Stats from "./pages/client/Stats";
 import Challenges from "./pages/client/Challenges";
+import ChallengePage from "./pages/client/ChallengePage";
+import ChallengeInvite from "./pages/ChallengeInvite";
 import ClientProfilePage from "./pages/client/ClientProfilePage";
 import ProHome from "./pages/pro/ProHome";
 import Clients from "./pages/pro/Clients";
@@ -47,6 +49,8 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/trainers" element={<Trainers />} />
             <Route path="/trainer/:id" element={<TrainerProfile />} />
+            <Route path="/desafio/:code" element={<ChallengeInvite />} />
+            <Route path="/desafios/:id" element={<ChallengePage />} />
 
             {/* Cliente */}
             <Route path="/dashboard/student" element={<ClientHome />} />

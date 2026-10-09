@@ -42,7 +42,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   /** Autentica contra o Supabase Auth — o papel (aluno/profissional) vem do perfil, nunca é escolhido no login. */
   login: (email: string, password: string) => Promise<void>;
-  register: (input: RegisterInput) => Promise<void>;
+  /** Devolve "confirm" quando o projeto exige confirmar o e-mail (a pessoa ainda não está logada). */
+  register: (input: RegisterInput) => Promise<"done" | "confirm">;
   logout: () => void;
   isLoading: boolean;
 }
@@ -61,8 +62,52 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+type ExtraProfile = Omit<RegisterInput, "email" | "password" | "fullName" | "phone">;
+
+/**
+ * Dados extras do cadastro (data de nascimento, CREF, preços etc.) viajam nos metadados do signUp,
+ * porque com confirmação de e-mail a pessoa só tem sessão depois de clicar no link. Aplicamos no primeiro login.
+ */
+const applyExtraProfile = async (authUserId: string) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const extra = sessionData.session?.user.user_metadata?.extra as ExtraProfile | undefined;
+  if (!extra || sessionData.session?.user.id !== authUserId) return;
+
+  const { data: profileRow } = await supabase.from("profiles").select("id").eq("user_id", authUserId).maybeSingle();
+  if (!profileRow) return;
+
+  await supabase
+    .from("profiles")
+    .update({ birth_date: extra.birthDate || null, gender: extra.gender || null })
+    .eq("id", profileRow.id);
+
+  if (extra.userType === "trainer") {
+    await supabase
+      .from("trainer_profiles")
+      .update({
+        cref: extra.cref || null,
+        start_date: extra.startDate || null,
+        base_price: extra.basePrice ?? null,
+        description: extra.description || null,
+        objectives: extra.objectives || null,
+        instagram: extra.instagram || null,
+        facebook: extra.facebook || null,
+        linkedin: extra.linkedin || null,
+      })
+      .eq("profile_id", profileRow.id);
+  } else {
+    await supabase
+      .from("student_profiles")
+      .update({ description: extra.description || null, fitness_goals: extra.fitnessGoals || null })
+      .eq("profile_id", profileRow.id);
+  }
+
+  await supabase.auth.updateUser({ data: { extra: null } });
+};
+
 /** Monta o User da app a partir da sessão: busca profiles e, em seguida, o registro específico do papel. */
 const loadUser = async (authUserId: string): Promise<User | null> => {
+  await applyExtraProfile(authUserId);
   const { data: profileRow } = await supabase.from("profiles").select("*").eq("user_id", authUserId).maybeSingle();
   if (!profileRow) return null;
 
@@ -126,6 +171,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error?.message?.toLowerCase().includes("not confirmed")) throw new Error("EMAIL_NOT_CONFIRMED");
       if (error || !data.session) throw new Error("E-mail ou senha inválidos");
 
       const loggedUser = await loadUser(data.session.user.id);
@@ -141,61 +187,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const register = async (input: RegisterInput) => {
     setIsLoading(true);
     try {
+      const { email, password, fullName, phone, ...extra } = input;
       const { data, error } = await supabase.auth.signUp({
-        email: input.email,
-        password: input.password,
+        email,
+        password,
         options: {
-          data: { full_name: input.fullName, role: input.userType, phone: input.phone },
+          emailRedirectTo: `${window.location.origin}/auth/confirmado`,
+          data: { full_name: fullName, role: input.userType, phone, extra },
         },
       });
       if (error) throw new Error(error.message);
       if (!data.user) throw new Error("Não foi possível criar sua conta.");
 
-      let session = data.session;
-      if (!session) {
-        const signInResult = await supabase.auth.signInWithPassword({ email: input.email, password: input.password });
-        if (signInResult.error || !signInResult.data.session) {
-          throw new Error(
-            "Conta criada, mas a confirmação de e-mail está ativa neste projeto Supabase. Desative-a em Authentication > Providers > Email para testar sem confirmar o e-mail."
-          );
-        }
-        session = signInResult.data.session;
-      }
+      // Com confirmação de e-mail ativa não há sessão até a pessoa clicar no link enviado.
+      if (!data.session) return "confirm";
 
-      const { data: profileRow } = await supabase.from("profiles").select("id").eq("user_id", session.user.id).maybeSingle();
-      if (profileRow) {
-        await supabase
-          .from("profiles")
-          .update({ birth_date: input.birthDate || null, gender: input.gender || null })
-          .eq("id", profileRow.id);
-
-        if (input.userType === "trainer") {
-          await supabase
-            .from("trainer_profiles")
-            .update({
-              cref: input.cref || null,
-              start_date: input.startDate || null,
-              base_price: input.basePrice ?? null,
-              description: input.description || null,
-              objectives: input.objectives || null,
-              instagram: input.instagram || null,
-              facebook: input.facebook || null,
-              linkedin: input.linkedin || null,
-            })
-            .eq("profile_id", profileRow.id);
-        } else {
-          await supabase
-            .from("student_profiles")
-            .update({ description: input.description || null, fitness_goals: input.fitnessGoals || null })
-            .eq("profile_id", profileRow.id);
-        }
-      }
-
-      const registeredUser = await loadUser(session.user.id);
+      const registeredUser = await loadUser(data.session.user.id);
       if (!registeredUser) throw new Error("Conta criada, mas não foi possível carregar seu perfil.");
 
       setUser(registeredUser);
       navigate(takePendingInvitePath() ?? (registeredUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"));
+      return "done";
     } finally {
       setIsLoading(false);
     }

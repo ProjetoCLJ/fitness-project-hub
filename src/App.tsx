@@ -23,6 +23,9 @@ import Stats from "./pages/client/Stats";
 import Challenges from "./pages/client/Challenges";
 import ChallengePage from "./pages/client/ChallengePage";
 import ChallengeInvite from "./pages/ChallengeInvite";
+import ConfirmEmail from "./pages/ConfirmEmail";
+import AuthConfirmed from "./pages/AuthConfirmed";
+import ResetPassword from "./pages/ResetPassword";
 import ClientProfilePage from "./pages/client/ClientProfilePage";
 import ProHome from "./pages/pro/ProHome";
 import Clients from "./pages/pro/Clients";
@@ -49,6 +52,9 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/trainers" element={<Trainers />} />
             <Route path="/trainer/:id" element={<TrainerProfile />} />
+            <Route path="/confirme-email" element={<ConfirmEmail />} />
+            <Route path="/auth/confirmado" element={<AuthConfirmed />} />
+            <Route path="/redefinir-senha" element={<ResetPassword />} />
             <Route path="/desafio/:code" element={<ChallengeInvite />} />
             <Route path="/desafios/:id" element={<ChallengePage />} />
 

@@ -47,7 +47,7 @@ const RegisterTrainer = () => {
     }
 
     try {
-      await register({
+      const result = await register({
         email: formData.email,
         password: formData.password,
         userType: "trainer",
@@ -64,6 +64,11 @@ const RegisterTrainer = () => {
         facebook: formData.facebook,
         linkedin: formData.linkedin,
       });
+
+      if (result === "confirm") {
+        navigate(`/confirme-email?email=${encodeURIComponent(formData.email)}`);
+        return;
+      }
 
       toast({
         title: "Cadastro realizado!",

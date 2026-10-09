@@ -39,7 +39,7 @@ const RegisterStudent = () => {
     }
 
     try {
-      await register({
+      const result = await register({
         email: formData.email,
         password: formData.password,
         userType: "student",
@@ -49,6 +49,11 @@ const RegisterStudent = () => {
         gender: formData.gender,
         description: formData.description,
       });
+
+      if (result === "confirm") {
+        navigate(`/confirme-email?email=${encodeURIComponent(formData.email)}`);
+        return;
+      }
 
       toast({
         title: "Cadastro realizado!",

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { takePendingInvitePath } from "@/lib/challengeStore";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -8,6 +8,8 @@ interface User {
   id: string;
   email: string;
   userType: "trainer" | "student";
+  /** Cadastro iniciado mas senha ainda não criada: só pode usar /completar-cadastro. */
+  needsSetup: boolean;
   profile: {
     id: string;
     fullName: string;
@@ -127,10 +129,14 @@ const loadUser = async (authUserId: string): Promise<User | null> => {
     if (studentRow) roleProfileId = studentRow.id;
   }
 
+  const { data: sessionData } = await supabase.auth.getSession();
+  const needsSetup = sessionData.session?.user.user_metadata?.needs_setup === true;
+
   return {
     id: roleProfileId,
     email: profileRow.email,
     userType: profileRow.role,
+    needsSetup,
     profile: {
       id: roleProfileId,
       fullName: profileRow.full_name,
@@ -144,6 +150,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Quem ainda não criou a senha não navega pela plataforma: fica na tela de conclusão do cadastro.
+  useEffect(() => {
+    if (user?.needsSetup && location.pathname !== "/completar-cadastro") {
+      navigate("/completar-cadastro", { replace: true });
+    }
+  }, [user, location.pathname, navigate]);
 
   useEffect(() => {
     let active = true;

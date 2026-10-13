@@ -9,9 +9,11 @@ interface HeaderProps {
   onLoginClick: () => void;
   /** Quando true, o header nasce transparente (para ficar sobre um hero escuro) e vira sólido ao rolar. */
   transparentOnTop?: boolean;
+  /** Sem menu lateral, botão Entrar e link do logo (telas de cadastro em andamento). */
+  minimal?: boolean;
 }
 
-export const Header = ({ onLoginClick, transparentOnTop = false }: HeaderProps) => {
+export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false }: HeaderProps) => {
   const { isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(!transparentOnTop);
 
@@ -36,19 +38,25 @@ export const Header = ({ onLoginClick, transparentOnTop = false }: HeaderProps) 
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">
-            <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />
+            {!minimal && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
           </div>
 
-          <Link to="/" className="flex items-center group justify-self-center">
-            <img
-              src={logo}
-              alt="MyJourn"
-              className="h-7 sm:h-8 w-auto object-contain"
-            />
-          </Link>
+          {minimal ? (
+            <div className="flex items-center justify-self-center">
+              <img src={logo} alt="MyJourn" className="h-7 sm:h-8 w-auto object-contain" />
+            </div>
+          ) : (
+            <Link to="/" className="flex items-center group justify-self-center">
+              <img
+                src={logo}
+                alt="MyJourn"
+                className="h-7 sm:h-8 w-auto object-contain"
+              />
+            </Link>
+          )}
 
           <div className="justify-self-end">
-            {!isAuthenticated && (
+            {!isAuthenticated && !minimal && (
               <Button
                 onClick={onLoginClick}
                 variant={isTransparent ? "secondary" : "hero"}

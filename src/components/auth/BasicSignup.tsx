@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -21,12 +22,16 @@ export const BasicSignup = ({ userType, roleLabel, subtitle }: BasicSignupProps)
   const { toast } = useToast();
   const { register } = useAuth();
   const [sending, setSending] = useState(false);
-  const [formData, setFormData] = useState({ fullName: "", email: "", phone: "", birthDate: "" });
+  const [formData, setFormData] = useState({ fullName: "", email: "", phone: "", birthDate: "", gender: "" });
 
   const handleChange = (field: string, value: string) => setFormData((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.gender) {
+      toast({ title: "Informe o sexo", variant: "destructive" });
+      return;
+    }
     setSending(true);
     try {
       await register({ ...formData, userType });
@@ -88,6 +93,22 @@ export const BasicSignup = ({ userType, roleLabel, subtitle }: BasicSignupProps)
                   <Label htmlFor="birthDate">Data de Nascimento *</Label>
                   <Input id="birthDate" type="date" value={formData.birthDate} onChange={(e) => handleChange("birthDate", e.target.value)} required />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Sexo *</Label>
+                <RadioGroup value={formData.gender} onValueChange={(value) => handleChange("gender", value)}>
+                  {[
+                    ["male", "Masculino"],
+                    ["female", "Feminino"],
+                    ["other", "Outro"],
+                  ].map(([value, label]) => (
+                    <div key={value} className="flex items-center space-x-2">
+                      <RadioGroupItem value={value} id={`gender-${value}`} />
+                      <Label htmlFor={`gender-${value}`} className="cursor-pointer font-normal">{label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               </div>
 
               <Button type="submit" variant="hero" size="lg" className="w-full" disabled={sending}>

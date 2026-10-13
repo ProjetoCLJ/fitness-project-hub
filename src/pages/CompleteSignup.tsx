@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +16,6 @@ const CompleteSignup = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
-  const [gender, setGender] = useState("");
   const [cref, setCref] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -45,10 +43,6 @@ const CompleteSignup = () => {
       toast({ title: "As senhas não coincidem", variant: "destructive" });
       return;
     }
-    if (!gender) {
-      toast({ title: "Informe o sexo", variant: "destructive" });
-      return;
-    }
 
     setSaving(true);
     try {
@@ -61,14 +55,13 @@ const CompleteSignup = () => {
 
       const { data: profileRow } = await supabase.from("profiles").select("id").eq("user_id", authId).maybeSingle();
       if (profileRow) {
-        await supabase.from("profiles").update({ gender }).eq("id", profileRow.id);
         if (user.userType === "trainer") {
           await supabase.from("trainer_profiles").update({ cref: cref.trim() || null }).eq("profile_id", profileRow.id);
         }
       }
 
-      toast({ title: "Cadastro concluído!", description: "Bem-vindo ao FIT" });
-      navigate(takePendingInvitePath() ?? home, { replace: true });
+      // Recarrega para o app reconhecer a conta como ativa (libera o menu e as demais telas).
+      window.location.assign(takePendingInvitePath() ?? home);
     } catch (error) {
       toast({
         title: "Não foi possível concluir",
@@ -82,7 +75,7 @@ const CompleteSignup = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => navigate("/")} />
+      <Header onLoginClick={() => navigate("/")} minimal />
       <div className="container mx-auto px-4 pt-24 pb-12 max-w-xl">
         <Card className="p-6 sm:p-8">
           {isLoading || (user && needsSetup === null) ? (
@@ -99,23 +92,7 @@ const CompleteSignup = () => {
             <form onSubmit={submit} className="space-y-6">
               <div>
                 <h1 className="text-2xl font-bold">Conclua seu cadastro</h1>
-                <p className="text-sm text-muted-foreground">E-mail confirmado! Crie sua senha e complete seus dados.</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Sexo *</Label>
-                <RadioGroup value={gender} onValueChange={setGender}>
-                  {[
-                    ["male", "Masculino"],
-                    ["female", "Feminino"],
-                    ["other", "Outro"],
-                  ].map(([value, label]) => (
-                    <div key={value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={value} id={`g-${value}`} />
-                      <Label htmlFor={`g-${value}`} className="cursor-pointer font-normal">{label}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+                <p className="text-sm text-muted-foreground">E-mail confirmado! Crie sua senha para entrar na plataforma.</p>
               </div>
 
               {user.userType === "trainer" && (
@@ -125,7 +102,7 @@ const CompleteSignup = () => {
                 </div>
               )}
 
-              <div className="border-t pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha *</Label>
                   <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />

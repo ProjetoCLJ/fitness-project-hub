@@ -333,6 +333,127 @@ export type Database = {
         }
         Relationships: []
       }
+      event_invites: {
+        Row: {
+          created_at: string
+          event_id: string
+          invited_by: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          invited_by: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          invited_by?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_participants: {
+        Row: {
+          author_name: string
+          event_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          event_id: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          event_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          city: string
+          cover_path: string | null
+          created_at: string
+          creator_id: string
+          creator_name: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          invite_active: boolean
+          invite_code: string
+          location: string
+          max_participants: number | null
+          starts_at: string
+          state: string
+          status: string
+          title: string
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          city?: string
+          cover_path?: string | null
+          created_at?: string
+          creator_id: string
+          creator_name?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          invite_active?: boolean
+          invite_code?: string
+          location?: string
+          max_participants?: number | null
+          starts_at: string
+          state?: string
+          status?: string
+          title: string
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          city?: string
+          cover_path?: string | null
+          created_at?: string
+          creator_id?: string
+          creator_name?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          invite_active?: boolean
+          invite_code?: string
+          location?: string
+          max_participants?: number | null
+          starts_at?: string
+          state?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       exercise_logs: {
         Row: {
           execution_id: string
@@ -377,6 +498,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -1297,19 +1451,43 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_event_counts: {
+        Args: { p_event_ids: string[] }
+        Returns: {
+          event_id: string
+          participant_count: number
+        }[]
+      }
+      get_event_preview: { Args: { p_code: string }; Returns: Json }
       invite_student: { Args: { p_email: string }; Returns: Json }
+      invite_students_to_challenge: {
+        Args: { p_challenge_id: string; p_student_ids: string[] }
+        Returns: number
+      }
+      invite_students_to_event: {
+        Args: { p_event_id: string; p_student_ids: string[] }
+        Returns: number
+      }
       is_challenge_creator: {
         Args: { _challenge_id: string }
         Returns: boolean
       }
       is_challenge_member: { Args: { _challenge_id: string }; Returns: boolean }
+      is_event_creator: { Args: { _event_id: string }; Returns: boolean }
+      is_event_invited: { Args: { _event_id: string }; Returns: boolean }
+      is_event_participant: { Args: { _event_id: string }; Returns: boolean }
       is_linked_trainer_of_student: {
         Args: { _student_id: string }
         Returns: boolean
       }
       is_plan_trainer: { Args: { _plan_id: string }; Returns: boolean }
+      is_trainer_user: { Args: never; Returns: boolean }
       is_workout_trainer: { Args: { _workout_id: string }; Returns: boolean }
       join_challenge: { Args: { p_code: string }; Returns: string }
+      join_event: {
+        Args: { p_code?: string; p_event_id: string }
+        Returns: string
+      }
       owns_execution: { Args: { _execution_id: string }; Returns: boolean }
       post_challenge_id: { Args: { _post_id: string }; Returns: string }
       request_reschedule: {

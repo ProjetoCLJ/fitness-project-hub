@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -20,11 +20,9 @@ import {
   CalendarDays,
   Wallet,
   LineChart,
-  Bell,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { countPendingRequests } from "@/lib/requestsStore";
 
 interface SideMenuProps {
   onLoginClick: () => void;
@@ -35,15 +33,6 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-
-  // Atualiza o contador de solicitações ao abrir o menu (sem tempo real, por enquanto).
-  useEffect(() => {
-    if (!open || !user) return;
-    countPendingRequests(user.userType, user.id)
-      .then(setPendingCount)
-      .catch(() => setPendingCount(0));
-  }, [open, user]);
 
   const goTo = (path: string) => {
     navigate(path);
@@ -57,7 +46,6 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Estatísticas", icon: LineChart, path: "/dashboard/student/stats" },
     { label: "Profissionais", icon: Search, path: "/trainers" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
-    { label: "Solicitações", icon: Bell, path: "/dashboard/student/requests" },
   ];
 
   const trainerLinks = [
@@ -65,7 +53,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Clientes", icon: Users, path: "/dashboard/trainer/clients" },
     { label: "Agenda", icon: CalendarDays, path: "/dashboard/trainer/agenda" },
     { label: "Financeiro", icon: Wallet, path: "/dashboard/trainer/financial" },
-    { label: "Solicitações", icon: Bell, path: "/dashboard/trainer/requests" },
+    { label: "Desafios", icon: Trophy, path: "/dashboard/trainer/challenges" },
   ];
 
   const profilePath = user?.userType === "trainer" ? "/dashboard/trainer/profile" : "/dashboard/student/profile";
@@ -99,11 +87,6 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
-                  {link.label === "Solicitações" && pendingCount > 0 && (
-                    <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                      {pendingCount}
-                    </span>
-                  )}
                 </Button>
               ))}
             </nav>

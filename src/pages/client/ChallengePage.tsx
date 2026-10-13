@@ -49,7 +49,7 @@ const ChallengePage = () => {
   const [logOpen, setLogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ChallengePost | undefined>();
 
-  const backPath = user?.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student/challenges";
+  const backPath = user?.userType === "trainer" ? "/dashboard/trainer/challenges" : "/dashboard/student/challenges";
 
   const load = useCallback(async () => {
     if (!uid) return;

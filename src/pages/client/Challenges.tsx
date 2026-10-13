@@ -32,7 +32,7 @@ const Challenges = () => {
     load();
   }, [load]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   // Pontuação geral ainda não tem backend — fica zerada até existir.
   const fitScore = 0;

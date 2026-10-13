@@ -101,15 +101,14 @@ const Index = () => {
             <p className="text-lg text-white/80 max-w-lg mb-8">
               Plano, treinos, nutrição e evolução em um só lugar — conectado aos profissionais da sua jornada.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 mb-8">
-              <Button variant="hero" size="lg" onClick={() => navigate("/register/student")}>
+            <div className="flex flex-col items-start sm:flex-row gap-3 mb-8">
+              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
                 Fazer cadastro
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
               <Button
                 variant="outline"
-                size="lg"
-                className="bg-transparent border-white/40 text-white hover:bg-white/10"
+                className="h-10 px-5 text-sm bg-transparent border-white/40 text-white hover:bg-white/10"
                 onClick={() => navigate("/register/trainer")}
               >
                 Sou profissional
@@ -274,11 +273,11 @@ const Index = () => {
         <div className="container mx-auto px-4 relative">
           <h2 className="text-3xl sm:text-5xl font-bold mb-4">É mais que treino.<br />É o FIT.</h2>
           <p className="text-muted-foreground mb-8">Comece a organizar sua jornada hoje.</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button variant="hero" size="lg" onClick={() => navigate("/register/student")}>
+          <div className="flex flex-col items-center sm:flex-row gap-3 justify-center">
+            <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
               Fazer cadastro
             </Button>
-            <Button variant="outline" size="lg" onClick={() => navigate("/register/trainer")}>
+            <Button variant="outline" className="h-10 px-5 text-sm" onClick={() => navigate("/register/trainer")}>
               Sou profissional
             </Button>
           </div>

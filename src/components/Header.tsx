@@ -57,7 +57,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
           )}
 
           <div className="justify-self-end">
-            {isAuthenticated && !minimal && <NotificationBell className="text-white hover:bg-white/10 hover:text-white" />}
+            {isAuthenticated && !minimal && !transparentOnTop && <NotificationBell className="text-white hover:bg-white/10 hover:text-white" />}
             {!isAuthenticated && !minimal && (
               <Button
                 onClick={onLoginClick}

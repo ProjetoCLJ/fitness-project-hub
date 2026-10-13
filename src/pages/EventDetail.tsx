@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EventFormDialog } from "@/components/events/EventFormDialog";
-import { StudentPicker } from "@/components/events/StudentPicker";
+import { StudentSelectField } from "@/components/events/StudentSelectField";
 import { formatEventWhen } from "@/components/events/EventCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
@@ -303,8 +303,7 @@ const EventDetail = () => {
 
             {user.userType === "trainer" && (
               <div className="space-y-2 pt-3 border-t">
-                <p className="text-sm font-medium">Convidar alunos</p>
-                <StudentPicker trainerId={user.id} selected={selectedStudents} onChange={setSelectedStudents} />
+                <StudentSelectField trainerId={user.id} selected={selectedStudents} onChange={setSelectedStudents} label="Convidar alunos" />
                 <Button variant="hero" className="w-full" disabled={busy || selectedStudents.length === 0} onClick={sendInvites}>
                   Enviar convites
                 </Button>

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Challenge, ChallengeInput } from "@/lib/challengeStore";
-import { StudentPicker } from "@/components/events/StudentPicker";
+import { StudentSelectField } from "@/components/events/StudentSelectField";
 import { toLocalISO } from "@/lib/agendaStore";
 
 interface Props {
@@ -89,10 +89,7 @@ export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit, t
           </div>
           {invalidRange && <p className="text-xs text-destructive">A data de fim não pode ser antes do início.</p>}
           {trainerId && !challenge && (
-            <div className="space-y-2">
-              <Label>Convidar alunos (opcional)</Label>
-              <StudentPicker trainerId={trainerId} selected={students} onChange={setStudents} />
-            </div>
+            <StudentSelectField trainerId={trainerId} selected={students} onChange={setStudents} />
           )}
           <Button type="submit" variant="hero" className="w-full" disabled={saving || !title.trim() || invalidRange}>
             {saving ? "Salvando..." : challenge ? "Salvar alterações" : "Criar desafio"}

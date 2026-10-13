@@ -11,7 +11,7 @@ import { ChallengeFormDialog } from "@/components/challenge/ChallengeFormDialog"
 import { LogActivityDialog } from "@/components/challenge/LogActivityDialog";
 import { ActivityFeed } from "@/components/challenge/ActivityFeed";
 import { ChallengeProgressBar } from "@/components/challenge/ChallengeProgressBar";
-import { StudentPicker } from "@/components/events/StudentPicker";
+import { StudentSelectField } from "@/components/events/StudentSelectField";
 import { inviteStudentsToChallenge } from "@/lib/eventStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
@@ -335,8 +335,7 @@ const ChallengePage = () => {
             </Button>
             {user.userType === "trainer" && (
               <div className="space-y-2 pt-3 border-t">
-                <p className="text-sm font-medium">Convidar alunos</p>
-                <StudentPicker trainerId={user.id} selected={selectedStudents} onChange={setSelectedStudents} />
+                <StudentSelectField trainerId={user.id} selected={selectedStudents} onChange={setSelectedStudents} label="Convidar alunos" />
                 <Button
                   variant="hero"
                   className="w-full"

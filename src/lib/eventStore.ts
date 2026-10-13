@@ -170,11 +170,11 @@ const toItems = async (rows: EventRow[]): Promise<EventItem[]> => {
   }));
 };
 
-/** Eventos públicos ainda não encerrados e não cancelados. */
+/** Todos os eventos públicos (ativos, encerrados e cancelados); a tela filtra. */
 export const fetchPublicEvents = async (): Promise<EventItem[]> => {
-  const { data, error } = await db.from("events").select("*").eq("visibility", "public").eq("status", "active");
+  const { data, error } = await db.from("events").select("*").eq("visibility", "public");
   if (error) throw error;
-  return (await toItems(data as EventRow[])).filter((e) => !eventHasEnded(e));
+  return toItems(data as EventRow[]);
 };
 
 export const fetchCreatedEvents = async (userId: string): Promise<EventItem[]> => {

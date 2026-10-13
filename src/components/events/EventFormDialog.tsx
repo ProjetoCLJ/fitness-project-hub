@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImagePlus, X } from "lucide-react";
 import { CityPicker } from "@/components/events/CityPicker";
+import { StudentSelectField } from "@/components/events/StudentSelectField";
 import { EventInput, EventItem } from "@/lib/eventStore";
 
 interface Props {
@@ -15,14 +16,16 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Quando informado, edita este evento. */
   event?: EventItem;
-  onSubmit: (input: EventInput) => Promise<void>;
+  onSubmit: (input: EventInput, inviteStudentIds: string[]) => Promise<void>;
+  /** Professor criando um evento: permite convidar alunos da carteira. */
+  trainerId?: string;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const toTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-export const EventFormDialog = ({ open, onOpenChange, event, onSubmit }: Props) => {
+export const EventFormDialog = ({ open, onOpenChange, event, onSubmit, trainerId }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
@@ -38,6 +41,7 @@ export const EventFormDialog = ({ open, onOpenChange, event, onSubmit }: Props) 
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [students, setStudents] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,6 +62,7 @@ export const EventFormDialog = ({ open, onOpenChange, event, onSubmit }: Props) 
     setCover(null);
     setCoverPreview(event?.coverUrl ?? null);
     setRemoveCover(false);
+    setStudents([]);
   }, [open, event]);
 
   const invalidEnd = !!endTime && !!startTime && endTime < startTime;
@@ -95,7 +100,7 @@ export const EventFormDialog = ({ open, onOpenChange, event, onSubmit }: Props) 
         maxParticipants: unlimited ? null : Number(maxParticipants),
         cover,
         removeCover,
-      });
+      }, students);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -189,6 +194,8 @@ export const EventFormDialog = ({ open, onOpenChange, event, onSubmit }: Props) 
               </div>
             </RadioGroup>
           </div>
+
+          {trainerId && !event && <StudentSelectField trainerId={trainerId} selected={students} onChange={setStudents} />}
 
           <Button type="submit" variant="hero" className="w-full" disabled={saving || !canSubmit}>
             {saving ? "Salvando..." : event ? "Salvar alterações" : "Criar evento"}

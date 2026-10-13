@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATES, fetchCities } from "@/lib/eventStore";
 
@@ -11,14 +10,14 @@ interface Props {
   onChange: (value: { state: string; city: string }) => void;
 }
 
-/** Escolha de estado e, em seguida, cidade (com busca). "Outra cidade" libera um campo de texto. */
+/** Estado (lista) + cidade no mesmo campo: digitar filtra a lista e escolher preenche o próprio campo. */
 export const CityPicker = ({ state, city, onChange }: Props) => {
   const [cities, setCities] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(city);
+  const [showList, setShowList] = useState(false);
   const [otherMode, setOtherMode] = useState(false);
 
   useEffect(() => {
-    setQuery("");
     if (!state) {
       setCities([]);
       return;
@@ -30,15 +29,28 @@ export const CityPicker = ({ state, city, onChange }: Props) => {
     };
   }, [state]);
 
-  // Cidade já preenchida que não está na lista (ex.: edição) abre o modo "Outra".
+  // Valor vindo de fora (ex.: abrir a edição de um evento) aparece no campo.
+  useEffect(() => {
+    if (city && city !== query) setQuery(city);
+    if (!city && !showList && !otherMode) setQuery("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city]);
+
+  // Cidade que não está na lista (ex.: evento salvo com "Outra cidade") abre o campo livre.
   useEffect(() => {
     if (city && cities.length > 0 && !cities.includes(city)) setOtherMode(true);
   }, [city, cities]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (q ? cities.filter((c) => c.toLowerCase().includes(q)) : cities).slice(0, 40);
+    return (q ? cities.filter((c) => c.toLowerCase().includes(q)) : cities).slice(0, 30);
   }, [cities, query]);
+
+  const choose = (name: string) => {
+    setQuery(name);
+    setShowList(false);
+    onChange({ state, city: name });
+  };
 
   return (
     <div className="space-y-3">
@@ -48,6 +60,7 @@ export const CityPicker = ({ state, city, onChange }: Props) => {
           value={state}
           onValueChange={(uf) => {
             setOtherMode(false);
+            setQuery("");
             onChange({ state: uf, city: "" });
           }}
         >
@@ -66,26 +79,33 @@ export const CityPicker = ({ state, city, onChange }: Props) => {
 
       {state && (
         <div className="space-y-2">
-          <Label>Cidade *</Label>
-          {city && !otherMode && <p className="text-sm">Selecionada: <strong>{city}</strong></p>}
-
-          {otherMode ? (
-            <div className="space-y-2">
-              <Input placeholder="Digite o nome da cidade" value={city} onChange={(e) => onChange({ state, city: e.target.value })} />
-              <Button type="button" variant="ghost" size="sm" onClick={() => { setOtherMode(false); onChange({ state, city: "" }); }}>
-                Escolher da lista
-              </Button>
-            </div>
-          ) : (
-            <>
-              <Input placeholder="Buscar cidade" value={query} onChange={(e) => setQuery(e.target.value)} />
-              <div className="max-h-40 overflow-y-auto rounded-md border divide-y">
+          <Label htmlFor="city-input">Cidade *</Label>
+          <div className="relative">
+            <Input
+              id="city-input"
+              autoComplete="off"
+              placeholder={otherMode ? "Digite o nome da cidade" : "Digite para buscar a cidade"}
+              value={query}
+              onFocus={() => !otherMode && setShowList(true)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (otherMode) {
+                  onChange({ state, city: e.target.value });
+                } else {
+                  setShowList(true);
+                  // só vale quando escolhida na lista
+                  if (city) onChange({ state, city: "" });
+                }
+              }}
+            />
+            {showList && !otherMode && (
+              <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover shadow-md divide-y">
                 {filtered.map((name) => (
                   <button
                     key={name}
                     type="button"
-                    onClick={() => onChange({ state, city: name })}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${name === city ? "bg-primary/10 font-medium" : ""}`}
+                    onClick={() => choose(name)}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                   >
                     {name}
                   </button>
@@ -93,13 +113,30 @@ export const CityPicker = ({ state, city, onChange }: Props) => {
                 {filtered.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Nenhuma cidade encontrada.</p>}
                 <button
                   type="button"
-                  onClick={() => { setOtherMode(true); onChange({ state, city: "" }); }}
+                  onClick={() => {
+                    setOtherMode(true);
+                    setShowList(false);
+                    onChange({ state, city: query });
+                  }}
                   className="w-full px-3 py-2 text-left text-sm font-medium text-primary hover:bg-muted"
                 >
-                  Outra cidade...
+                  Outra cidade (digitar o nome)
                 </button>
               </div>
-            </>
+            )}
+          </div>
+          {otherMode && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => {
+                setOtherMode(false);
+                setQuery("");
+                onChange({ state, city: "" });
+              }}
+            >
+              Escolher da lista
+            </button>
           )}
         </div>
       )}

@@ -18,10 +18,9 @@ const ConfirmEmail = () => {
   const resend = async () => {
     if (!email) return;
     setSending(true);
-    const { error } = await supabase.auth.resend({
-      type: "signup",
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirmado` },
+      options: { emailRedirectTo: `${window.location.origin}/completar-cadastro` },
     });
     setSending(false);
     toast(
@@ -39,7 +38,7 @@ const ConfirmEmail = () => {
           <MailCheck className="h-10 w-10 text-primary mx-auto" />
           <h1 className="text-xl font-bold">Confirme seu e-mail</h1>
           <p className="text-sm text-muted-foreground">
-            Enviamos um link de confirmação para {email ? <strong>{email}</strong> : "o seu e-mail"}. Clique nele para ativar sua conta e entrar.
+            Enviamos um link para {email ? <strong>{email}</strong> : "o seu e-mail"}. Clique nele para confirmar sua conta, criar sua senha e concluir o cadastro.
           </p>
           <Button variant="outline" className="w-full" onClick={resend} disabled={sending || !email}>
             {sending ? "Enviando..." : "Reenviar e-mail"}

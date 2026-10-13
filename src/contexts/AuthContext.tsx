@@ -18,7 +18,6 @@ interface User {
 
 export interface RegisterInput {
   email: string;
-  password: string;
   fullName: string;
   phone: string;
   userType: "trainer" | "student";
@@ -42,8 +41,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   /** Autentica contra o Supabase Auth — o papel (aluno/profissional) vem do perfil, nunca é escolhido no login. */
   login: (email: string, password: string) => Promise<void>;
-  /** Devolve "confirm" quando o projeto exige confirmar o e-mail (a pessoa ainda não está logada). */
-  register: (input: RegisterInput) => Promise<"done" | "confirm">;
+  /** Envia o e-mail para a pessoa criar a senha e concluir o cadastro. */
+  register: (input: RegisterInput) => Promise<"confirm">;
   logout: () => void;
   isLoading: boolean;
 }
@@ -62,7 +61,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-type ExtraProfile = Omit<RegisterInput, "email" | "password" | "fullName" | "phone">;
+type ExtraProfile = Omit<RegisterInput, "email" | "fullName" | "phone">;
 
 /**
  * Dados extras do cadastro (data de nascimento, CREF, preços etc.) viajam nos metadados do signUp,
@@ -184,33 +183,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  /**
+   * Cadastro em duas etapas: aqui só enviamos o link por e-mail com os dados básicos. A senha e o restante
+   * são preenchidos em /completar-cadastro, depois que a pessoa abre o link.
+   */
   const register = async (input: RegisterInput) => {
-    setIsLoading(true);
-    try {
-      const { email, password, fullName, phone, ...extra } = input;
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/confirmado`,
-          data: { full_name: fullName, role: input.userType, phone, extra },
-        },
-      });
-      if (error) throw new Error(error.message);
-      if (!data.user) throw new Error("Não foi possível criar sua conta.");
-
-      // Com confirmação de e-mail ativa não há sessão até a pessoa clicar no link enviado.
-      if (!data.session) return "confirm";
-
-      const registeredUser = await loadUser(data.session.user.id);
-      if (!registeredUser) throw new Error("Conta criada, mas não foi possível carregar seu perfil.");
-
-      setUser(registeredUser);
-      navigate(takePendingInvitePath() ?? (registeredUser.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"));
-      return "done";
-    } finally {
-      setIsLoading(false);
-    }
+    const { email, fullName, phone, ...extra } = input;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/completar-cadastro`,
+        data: { full_name: fullName, role: input.userType, phone, extra, needs_setup: true },
+      },
+    });
+    if (error) throw new Error(error.message);
+    return "confirm" as const;
   };
 
   const logout = () => {

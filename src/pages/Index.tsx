@@ -103,7 +103,7 @@ const Index = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <Button variant="hero" size="lg" onClick={() => navigate("/register/student")}>
-                Quero conhecer o FIT
+                Fazer cadastro
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
               <Button
@@ -276,7 +276,7 @@ const Index = () => {
           <p className="text-muted-foreground mb-8">Comece a organizar sua jornada hoje.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button variant="hero" size="lg" onClick={() => navigate("/register/student")}>
-              Quero conhecer o FIT
+              Fazer cadastro
             </Button>
             <Button variant="outline" size="lg" onClick={() => navigate("/register/trainer")}>
               Sou profissional

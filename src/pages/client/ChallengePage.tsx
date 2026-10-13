@@ -11,6 +11,8 @@ import { ChallengeFormDialog } from "@/components/challenge/ChallengeFormDialog"
 import { LogActivityDialog } from "@/components/challenge/LogActivityDialog";
 import { ActivityFeed } from "@/components/challenge/ActivityFeed";
 import { ChallengeProgressBar } from "@/components/challenge/ChallengeProgressBar";
+import { StudentPicker } from "@/components/events/StudentPicker";
+import { inviteStudentsToChallenge } from "@/lib/eventStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useToast } from "@/hooks/use-toast";
@@ -48,6 +50,7 @@ const ChallengePage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ChallengePost | undefined>();
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
 
   const backPath = user?.userType === "trainer" ? "/dashboard/trainer/challenges" : "/dashboard/student/challenges";
 
@@ -330,6 +333,28 @@ const ChallengePage = () => {
               <Share2 className="h-4 w-4 mr-2" />
               Compartilhar
             </Button>
+            {user.userType === "trainer" && (
+              <div className="space-y-2 pt-3 border-t">
+                <p className="text-sm font-medium">Convidar alunos</p>
+                <StudentPicker trainerId={user.id} selected={selectedStudents} onChange={setSelectedStudents} />
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  disabled={selectedStudents.length === 0 || !challenge.inviteActive}
+                  onClick={async () => {
+                    try {
+                      const sent = await inviteStudentsToChallenge(challenge.id, selectedStudents);
+                      toast({ title: sent > 0 ? `${sent} convite(s) enviado(s)` : "Esses alunos já foram convidados ou já participam" });
+                      setSelectedStudents([]);
+                    } catch (error) {
+                      toast({ title: error instanceof Error ? error.message : "Não foi possível enviar os convites", variant: "destructive" });
+                    }
+                  }}
+                >
+                  Enviar convites
+                </Button>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm pt-2 border-t">
               <span className="text-muted-foreground">
                 {challenge.inviteActive ? "O link está ativo." : "O link está desativado: ninguém novo consegue entrar."}

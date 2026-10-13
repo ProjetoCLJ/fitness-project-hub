@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Plus, Swords, Trophy } from "lucide-react";
 import { Challenge, challengeProgress, createChallenge, fetchMyChallenges } from "@/lib/challengeStore";
+import { inviteStudentsToChallenge } from "@/lib/eventStore";
 
 const Challenges = () => {
   const { user } = useAuth();
@@ -115,10 +116,18 @@ const Challenges = () => {
       <ChallengeFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onSubmit={async (input) => {
+        trainerId={user.userType === "trainer" ? user.id : undefined}
+        onSubmit={async (input, studentIds) => {
           if (!uid) return;
           try {
             const id = await createChallenge(uid, input);
+            if (studentIds.length > 0) {
+              try {
+                await inviteStudentsToChallenge(id, studentIds);
+              } catch {
+                toast({ title: "Desafio criado, mas não foi possível enviar os convites", variant: "destructive" });
+              }
+            }
             navigate(`/desafios/${id}`);
           } catch (error) {
             toast({ title: "Não foi possível criar o desafio", variant: "destructive" });

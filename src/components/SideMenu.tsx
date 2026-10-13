@@ -20,6 +20,7 @@ import {
   CalendarDays,
   Wallet,
   LineChart,
+  CalendarHeart,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -46,6 +47,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Estatísticas", icon: LineChart, path: "/dashboard/student/stats" },
     { label: "Profissionais", icon: Search, path: "/trainers" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
+    { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
   ];
 
   const trainerLinks = [
@@ -54,6 +56,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Agenda", icon: CalendarDays, path: "/dashboard/trainer/agenda" },
     { label: "Financeiro", icon: Wallet, path: "/dashboard/trainer/financial" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/trainer/challenges" },
+    { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
   ];
 
   const profilePath = user?.userType === "trainer" ? "/dashboard/trainer/profile" : "/dashboard/student/profile";

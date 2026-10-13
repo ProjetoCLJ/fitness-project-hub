@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Challenge, ChallengeInput } from "@/lib/challengeStore";
+import { StudentPicker } from "@/components/events/StudentPicker";
 import { toLocalISO } from "@/lib/agendaStore";
 
 interface Props {
@@ -12,16 +13,19 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Quando informado, o diálogo edita este desafio. */
   challenge?: Challenge;
-  onSubmit: (input: ChallengeInput) => Promise<void>;
+  onSubmit: (input: ChallengeInput, inviteStudentIds: string[]) => Promise<void>;
+  /** Professor criando um desafio: permite convidar alunos da carteira. */
+  trainerId?: string;
 }
 
-export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit }: Props) => {
+export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit, trainerId }: Props) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [rules, setRules] = useState("");
   const [startDate, setStartDate] = useState(toLocalISO(new Date()));
   const [endDate, setEndDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [students, setStudents] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -30,6 +34,7 @@ export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit }:
     setRules(challenge?.rules ?? "");
     setStartDate(challenge?.startDate ?? toLocalISO(new Date()));
     setEndDate(challenge?.endDate ?? "");
+    setStudents([]);
   }, [open, challenge]);
 
   const invalidRange = !!endDate && endDate < startDate;
@@ -39,7 +44,7 @@ export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit }:
     if (!title.trim() || invalidRange) return;
     setSaving(true);
     try {
-      await onSubmit({ title, description, rules, startDate, endDate: endDate || null });
+      await onSubmit({ title, description, rules, startDate, endDate: endDate || null }, students);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -83,6 +88,12 @@ export const ChallengeFormDialog = ({ open, onOpenChange, challenge, onSubmit }:
             </div>
           </div>
           {invalidRange && <p className="text-xs text-destructive">A data de fim não pode ser antes do início.</p>}
+          {trainerId && !challenge && (
+            <div className="space-y-2">
+              <Label>Convidar alunos (opcional)</Label>
+              <StudentPicker trainerId={trainerId} selected={students} onChange={setStudents} />
+            </div>
+          )}
           <Button type="submit" variant="hero" className="w-full" disabled={saving || !title.trim() || invalidRange}>
             {saving ? "Salvando..." : challenge ? "Salvar alterações" : "Criar desafio"}
           </Button>

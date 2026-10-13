@@ -10,7 +10,7 @@ import { toLocalISO } from "@/lib/agendaStore";
 const db = supabase as unknown as SupabaseClient;
 
 export const REACTION_EMOJIS = ["👍", "💪", "🔥", "👏", "❤️"];
-const PENDING_CODE_KEY = "pending-challenge-code";
+const PENDING_PATH_KEY = "pending-redirect-path";
 
 export interface Challenge {
   id: string;
@@ -105,19 +105,21 @@ const toChallenge = (r: ChallengeRow): Challenge => ({
 export const inviteLink = (code: string) => `${window.location.origin}/desafio/${code}`;
 
 // Código de convite guardado enquanto a pessoa faz login/cadastro.
-export const savePendingInvite = (code: string) => {
+export const savePendingPath = (path: string) => {
   try {
-    localStorage.setItem(PENDING_CODE_KEY, code);
+    localStorage.setItem(PENDING_PATH_KEY, path);
   } catch {
     /* sem armazenamento */
   }
 };
+export const savePendingInvite = (code: string) => savePendingPath(`/desafio/${code}`);
+/** Destino guardado antes do login/cadastro (convite de desafio ou evento). */
 export const takePendingInvitePath = (): string | null => {
   try {
-    const code = localStorage.getItem(PENDING_CODE_KEY);
-    if (!code) return null;
-    localStorage.removeItem(PENDING_CODE_KEY);
-    return `/desafio/${code}`;
+    const path = localStorage.getItem(PENDING_PATH_KEY);
+    if (!path) return null;
+    localStorage.removeItem(PENDING_PATH_KEY);
+    return path;
   } catch {
     return null;
   }

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Bell, CalendarClock, Check, UserPlus, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AppNotification, fetchNotifications, markNotificationRead } from "@/lib/eventStore";
 import { RequestItem, fetchRequestsForStudent, fetchRequestsForTrainer, respondToRequest } from "@/lib/requestsStore";
 
 const kindIcon = {
@@ -21,6 +23,8 @@ const Requests = () => {
   const [items, setItems] = useState<RequestItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -35,6 +39,7 @@ const Requests = () => {
 
   useEffect(() => {
     load();
+    fetchNotifications(50).then(setNotifications).catch(() => setNotifications([]));
   }, [load]);
 
   if (!user) return null;
@@ -62,6 +67,31 @@ const Requests = () => {
           <p className="text-sm sm:text-base text-muted-foreground">Convites e pedidos que aguardam a sua resposta</p>
         </div>
 
+        {notifications.length > 0 && (
+          <div className="mb-8">
+            <h2 className="font-semibold text-base sm:text-lg mb-3">Notificações</h2>
+            <div className="space-y-2">
+              {notifications.map((n) => (
+                <Card
+                  key={n.id}
+                  className={`p-4 flex items-start gap-3 cursor-pointer hover:shadow-medium transition-smooth ${n.readAt ? "opacity-60" : ""}`}
+                  onClick={() => {
+                    markNotificationRead(n.id).catch(() => undefined);
+                    navigate(n.link ?? "/");
+                  }}
+                >
+                  <Bell className="h-4 w-4 mt-1 text-primary shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{n.title}</p>
+                    <p className="text-xs text-muted-foreground">{n.body}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <h2 className="font-semibold text-base sm:text-lg mb-3">Solicitações pendentes</h2>
         {!isLoading && items.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
             <Bell className="h-8 w-8 mx-auto mb-3" />

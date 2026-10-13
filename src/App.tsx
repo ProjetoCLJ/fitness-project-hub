@@ -27,6 +27,9 @@ import ConfirmEmail from "./pages/ConfirmEmail";
 import AuthConfirmed from "./pages/AuthConfirmed";
 import ResetPassword from "./pages/ResetPassword";
 import CompleteSignup from "./pages/CompleteSignup";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
+import EventInvite from "./pages/EventInvite";
 import ClientProfilePage from "./pages/client/ClientProfilePage";
 import ProHome from "./pages/pro/ProHome";
 import Clients from "./pages/pro/Clients";
@@ -57,6 +60,9 @@ const App = () => (
             <Route path="/auth/confirmado" element={<AuthConfirmed />} />
             <Route path="/completar-cadastro" element={<CompleteSignup />} />
             <Route path="/redefinir-senha" element={<ResetPassword />} />
+            <Route path="/eventos" element={<Events />} />
+            <Route path="/eventos/:id" element={<EventDetail />} />
+            <Route path="/evento/:code" element={<EventInvite />} />
             <Route path="/desafio/:code" element={<ChallengeInvite />} />
             <Route path="/desafios/:id" element={<ChallengePage />} />
 

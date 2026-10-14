@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { SearchVisibilityCard } from "@/components/agenda/SearchVisibilityCard";
 
 interface FormState {
   fullName: string;
@@ -215,6 +216,8 @@ const TrainerProfile = () => {
           </div>
         </div>
       </Card>
+
+      {user && <SearchVisibilityCard trainerId={user.id} />}
 
       <div className="flex justify-end">
         <Button onClick={handleSave} variant="hero" size="lg" disabled={isSaving}>

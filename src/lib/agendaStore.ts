@@ -273,6 +273,17 @@ export const fetchHiddenSlots = async (trainerId: string): Promise<HiddenSlots> 
   return new Set((data as { slot_date: string; start_time: string }[]).map((r) => hiddenKey(r.slot_date, hhmm(r.start_time))));
 };
 
+/** Disponibilidade de um professor para quem vai pedir aula (horários sem título, aluno ou agendamento). */
+export const fetchTrainerAvailability = async (trainerId: string): Promise<{ events: ScheduleEvent[]; hidden: HiddenSlots }> => {
+  const { data, error } = await looseDb.rpc("get_trainer_availability", { p_trainer_id: trainerId });
+  if (error) throw error;
+  const payload = (data ?? {}) as { events?: EventRow[]; hidden?: { slot_date: string; start_time: string }[] };
+  return {
+    events: (payload.events ?? []).filter((r) => KNOWN_TYPES.includes(r.type)).map(mapEvent),
+    hidden: new Set((payload.hidden ?? []).map((r) => hiddenKey(r.slot_date, hhmm(r.start_time)))),
+  };
+};
+
 export const setSlotHidden = async (trainerId: string, dateISO: string, start: string, hidden: boolean) => {
   const { error } = hidden
     ? await looseDb.from("hidden_slots").upsert({ trainer_id: trainerId, slot_date: dateISO, start_time: start })

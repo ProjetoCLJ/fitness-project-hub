@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import { CheckCircle2, Clock } from "lucide-react";
-import { HiddenSlots, ScheduleEvent, fetchHiddenSlots, fetchTrainerEvents, getAvailableSlots, getPublicAvailableSlots } from "@/lib/agendaStore";
+import { HiddenSlots, ScheduleEvent, fetchTrainerAvailability, getAvailableSlots, getPublicAvailableSlots } from "@/lib/agendaStore";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,15 +45,14 @@ export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerI
     if (!open) return;
     setIsLoading(true);
     Promise.all([
-      fetchTrainerEvents(trainerId),
-      fetchHiddenSlots(trainerId).catch(() => new Set<string>()),
+      fetchTrainerAvailability(trainerId),
       user?.userType === "student"
         ? supabase.from("trainer_clients").select("student_id").eq("trainer_id", trainerId).eq("student_id", user.id).eq("status", "active").maybeSingle()
         : Promise.resolve({ data: null }),
     ])
-      .then(([loaded, hiddenSlots, link]) => {
-        setEvents(loaded);
-        setHidden(hiddenSlots);
+      .then(([availability, link]) => {
+        setEvents(availability.events);
+        setHidden(availability.hidden);
         setIsMyTrainer(!!link.data);
       })
       .catch(() => setEvents([]))

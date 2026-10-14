@@ -532,15 +532,57 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          classes_count: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          total_price: number
+          trainer_id: string
+        }
+        Insert: {
+          classes_count: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          total_price: number
+          trainer_id: string
+        }
+        Update: {
+          classes_count?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          total_price?: number
+          trainer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offers_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
           booking_id: string | null
           created_at: string | null
           id: string
+          method: string | null
           notes: string | null
+          offer_id: string | null
+          offer_name: string | null
+          payer_name: string | null
           payment_date: string
-          student_id: string
+          student_id: string | null
           trainer_id: string
         }
         Insert: {
@@ -548,9 +590,13 @@ export type Database = {
           booking_id?: string | null
           created_at?: string | null
           id?: string
+          method?: string | null
           notes?: string | null
+          offer_id?: string | null
+          offer_name?: string | null
+          payer_name?: string | null
           payment_date?: string
-          student_id: string
+          student_id?: string | null
           trainer_id: string
         }
         Update: {
@@ -558,9 +604,13 @@ export type Database = {
           booking_id?: string | null
           created_at?: string | null
           id?: string
+          method?: string | null
           notes?: string | null
+          offer_id?: string | null
+          offer_name?: string | null
+          payer_name?: string | null
           payment_date?: string
-          student_id?: string
+          student_id?: string | null
           trainer_id?: string
         }
         Relationships: [
@@ -569,6 +619,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
           {

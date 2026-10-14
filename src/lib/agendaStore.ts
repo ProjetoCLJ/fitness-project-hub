@@ -4,7 +4,11 @@
 // lista de eventos já carregada); só as funções fetch*/create*/update*/delete*
 // falam com o banco.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+
+// Colunas/tabelas novas ainda não estão no arquivo de tipos gerado.
+const looseDb = supabase as unknown as SupabaseClient;
 
 export type EventType = "aula" | "expediente" | "bloqueado";
 export type RecurrenceType = "once" | "weekly";
@@ -27,6 +31,8 @@ export interface ScheduleEvent {
   startTime: string;
   endTime: string;
   bookingId?: string;
+  /** Só expediente: aparece na busca/agendamento de novos alunos. */
+  publicVisible: boolean;
 }
 
 export interface ScheduleEventInput {
@@ -40,6 +46,7 @@ export interface ScheduleEventInput {
   endDate: string | null;
   startTime: string;
   endTime: string;
+  publicVisible?: boolean;
 }
 
 export type BookingStatus = "pending" | "confirmed" | "rejected" | "suggested";
@@ -124,6 +131,7 @@ type EventRow = {
   start_time: string;
   end_time: string;
   booking_id: string | null;
+  public_visible?: boolean | null;
   schedule_event_students?: { student_id: string; student_profiles: { profiles: { full_name: string } | null } | null }[] | null;
 };
 
@@ -145,6 +153,7 @@ const mapEvent = (row: EventRow): ScheduleEvent => {
     startTime: hhmm(row.start_time),
     endTime: hhmm(row.end_time),
     bookingId: row.booking_id ?? undefined,
+    publicVisible: row.public_visible ?? true,
   };
 };
 
@@ -254,6 +263,37 @@ export const getSlotsForDate = (events: ScheduleEvent[], dateISO: string, durati
   return slots;
 };
 
+/** Exceções: horários livres que o professor ocultou da busca (chave "data|início"). */
+export type HiddenSlots = Set<string>;
+const hiddenKey = (dateISO: string, start: string) => `${dateISO}|${start}`;
+
+export const fetchHiddenSlots = async (trainerId: string): Promise<HiddenSlots> => {
+  const { data, error } = await looseDb.from("hidden_slots").select("slot_date, start_time").eq("trainer_id", trainerId);
+  if (error) throw error;
+  return new Set((data as { slot_date: string; start_time: string }[]).map((r) => hiddenKey(r.slot_date, hhmm(r.start_time))));
+};
+
+export const setSlotHidden = async (trainerId: string, dateISO: string, start: string, hidden: boolean) => {
+  const { error } = hidden
+    ? await looseDb.from("hidden_slots").upsert({ trainer_id: trainerId, slot_date: dateISO, start_time: start })
+    : await looseDb.from("hidden_slots").delete().eq("trainer_id", trainerId).eq("slot_date", dateISO).eq("start_time", start);
+  if (error) throw error;
+};
+
+export const isSlotHidden = (hidden: HiddenSlots, dateISO: string, start: string) => hidden.has(hiddenKey(dateISO, start));
+
+/** O horário aparece para novos alunos? (algum expediente visível o cobre e ele não foi ocultado) */
+export const isSlotPublic = (events: ScheduleEvent[], hidden: HiddenSlots, dateISO: string, slot: { start: string; end: string }) => {
+  if (isSlotHidden(hidden, dateISO, slot.start)) return false;
+  return getEventsForDate(events, dateISO).some(
+    (e) => e.type === "expediente" && e.publicVisible && overlaps(slot.start, slot.end, e.startTime, e.endTime)
+  );
+};
+
+/** Horários livres que novos alunos (fora da carteira) enxergam: só expedientes visíveis e sem exceção. */
+export const getPublicAvailableSlots = (events: ScheduleEvent[], hidden: HiddenSlots, dateISO: string, durationMinutes = 60) =>
+  getAvailableSlots(events, dateISO, durationMinutes).filter((s) => isSlotPublic(events, hidden, dateISO, s));
+
 /** Horários livres (dentro do expediente, sem aula nem bloqueio) — usado pelo aluno para solicitar aula. */
 export const getAvailableSlots = (events: ScheduleEvent[], dateISO: string, durationMinutes = 60): { start: string; end: string }[] =>
   getSlotsForDate(events, dateISO, durationMinutes)
@@ -322,6 +362,7 @@ const toRow = (trainerId: string, input: ScheduleEventInput, bookingId?: string)
   start_time: input.startTime,
   end_time: input.endTime,
   booking_id: bookingId ?? null,
+  public_visible: input.type === "expediente" ? input.publicVisible ?? true : true,
 });
 
 const setStudents = async (eventId: string, type: EventType, studentIds: string[]) => {
@@ -333,7 +374,7 @@ const setStudents = async (eventId: string, type: EventType, studentIds: string[
 };
 
 export const createScheduleEvent = async (trainerId: string, input: ScheduleEventInput, bookingId?: string): Promise<string> => {
-  const { data, error } = await supabase.from("schedule_events").insert(toRow(trainerId, input, bookingId)).select("id").single();
+  const { data, error } = await looseDb.from("schedule_events").insert(toRow(trainerId, input, bookingId)).select("id").single();
   if (error) throw error;
   await setStudents(data.id, input.type, input.studentIds);
   return data.id;
@@ -347,7 +388,7 @@ export const updateScheduleEvent = async (
   patch: ScheduleEventInput
 ): Promise<void> => {
   const updateWhole = async () => {
-    const { error } = await supabase.from("schedule_events").update(toRow(original.trainerId, patch, original.bookingId)).eq("id", original.id);
+    const { error } = await looseDb.from("schedule_events").update(toRow(original.trainerId, patch, original.bookingId)).eq("id", original.id);
     if (error) throw error;
     await setStudents(original.id, patch.type, patch.studentIds);
   };

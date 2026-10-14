@@ -12,7 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { ptBR } from "date-fns/locale";
 import { format } from "date-fns";
 import { CheckCircle2, Clock } from "lucide-react";
-import { ScheduleEvent, fetchTrainerEvents, getAvailableSlots } from "@/lib/agendaStore";
+import { HiddenSlots, ScheduleEvent, fetchHiddenSlots, fetchTrainerEvents, getAvailableSlots, getPublicAvailableSlots } from "@/lib/agendaStore";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingRequestDialogProps {
   open: boolean;
@@ -28,18 +30,35 @@ export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerI
   const [sent, setSent] = useState(false);
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hidden, setHidden] = useState<HiddenSlots>(new Set());
+  const [isMyTrainer, setIsMyTrainer] = useState(false);
+  const { user } = useAuth();
 
   const dateISO = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const slots = useMemo(() => (dateISO ? getAvailableSlots(events, dateISO) : []), [dateISO, events]);
+  // Alunos da carteira enxergam todos os horários livres; novos alunos, só os liberados na busca.
+  const slots = useMemo(() => {
+    if (!dateISO) return [];
+    return isMyTrainer ? getAvailableSlots(events, dateISO) : getPublicAvailableSlots(events, hidden, dateISO);
+  }, [dateISO, events, hidden, isMyTrainer]);
 
   useEffect(() => {
     if (!open) return;
     setIsLoading(true);
-    fetchTrainerEvents(trainerId)
-      .then(setEvents)
+    Promise.all([
+      fetchTrainerEvents(trainerId),
+      fetchHiddenSlots(trainerId).catch(() => new Set<string>()),
+      user?.userType === "student"
+        ? supabase.from("trainer_clients").select("student_id").eq("trainer_id", trainerId).eq("student_id", user.id).eq("status", "active").maybeSingle()
+        : Promise.resolve({ data: null }),
+    ])
+      .then(([loaded, hiddenSlots, link]) => {
+        setEvents(loaded);
+        setHidden(hiddenSlots);
+        setIsMyTrainer(!!link.data);
+      })
       .catch(() => setEvents([]))
       .finally(() => setIsLoading(false));
-  }, [open, trainerId]);
+  }, [open, trainerId, user]);
 
   const handleSelectDate = (date: Date | undefined) => {
     setSelectedDate(date);

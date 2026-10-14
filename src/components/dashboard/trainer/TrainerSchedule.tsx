@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertTriangle, Calendar as CalendarIcon, Clock, Plus, Settings2, X } from "lucide-react";
+import { AlertTriangle, Calendar as CalendarIcon, Clock, EyeOff, Plus, Settings2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,6 +26,11 @@ import {
   LinkedStudent,
   ScheduleEvent,
   ScheduleEventInput,
+  HiddenSlots,
+  fetchHiddenSlots,
+  isSlotHidden,
+  isSlotPublic,
+  setSlotHidden,
   ScheduleSlot,
   createScheduleEvent,
   deleteScheduleEvent,
@@ -71,6 +77,7 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
   const [students, setStudents] = useState<LinkedStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [context, setContext] = useState<SlotContext | null>(null);
+  const [hidden, setHidden] = useState<HiddenSlots>(new Set());
 
   const dateISO = format(selectedDate, "yyyy-MM-dd");
   const slots = useMemo(() => getSlotsForDate(events, dateISO), [events, dateISO]);
@@ -79,9 +86,14 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
 
   const reload = useCallback(async () => {
     try {
-      const [loadedEvents, loadedStudents] = await Promise.all([fetchTrainerEvents(trainerId), fetchLinkedStudents(trainerId)]);
+      const [loadedEvents, loadedStudents, loadedHidden] = await Promise.all([
+        fetchTrainerEvents(trainerId),
+        fetchLinkedStudents(trainerId),
+        fetchHiddenSlots(trainerId).catch(() => new Set<string>()),
+      ]);
       setEvents(loadedEvents);
       setStudents(loadedStudents);
+      setHidden(loadedHidden);
     } catch {
       toast({ title: "Não foi possível carregar a agenda", variant: "destructive" });
     } finally {
@@ -191,6 +203,12 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
                   <span className="text-sm truncate max-w-[55%] text-right">{eventTitle(slot.event)}</span>
                 )}
                 {slot.status === "fora_expediente" && <span className="text-xs">Fora de expediente</span>}
+                {slot.status === "available" && !isSlotPublic(events, hidden, dateISO, slot) && (
+                  <span className="text-xs flex items-center gap-1 text-muted-foreground">
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Oculto na busca
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -203,6 +221,15 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
           context={context}
           trainerId={trainerId}
           students={students}
+          hidden={hidden}
+          onHiddenChange={async (date, start, value) => {
+            try {
+              await setSlotHidden(trainerId, date, start, value);
+              setHidden(await fetchHiddenSlots(trainerId));
+            } catch {
+              toast({ title: "Não foi possível atualizar a visibilidade do horário", variant: "destructive" });
+            }
+          }}
           onEditExpediente={(expediente) => setContext({ ...context, event: expediente, expedienteEvent: undefined })}
           onClose={() => setContext(null)}
           onSaved={async () => {
@@ -238,12 +265,14 @@ interface EventDialogProps {
   context: SlotContext;
   trainerId: string;
   students: LinkedStudent[];
+  hidden: HiddenSlots;
+  onHiddenChange: (date: string, start: string, hidden: boolean) => void | Promise<void>;
   onEditExpediente: (event: ScheduleEvent) => void;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }
 
-const EventDialog = ({ context, trainerId, students, onEditExpediente, onClose, onSaved }: EventDialogProps) => {
+const EventDialog = ({ context, trainerId, students, hidden, onHiddenChange, onEditExpediente, onClose, onSaved }: EventDialogProps) => {
   const { toast } = useToast();
   const event = context.event;
   const isEditing = !!event;
@@ -265,6 +294,7 @@ const EventDialog = ({ context, trainerId, students, onEditExpediente, onClose, 
   const [pendingScopeAction, setPendingScopeAction] = useState<"save" | "delete" | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [publicVisible, setPublicVisible] = useState(event?.publicVisible ?? true);
 
   const setStudentAt = (index: number, value: string) => setStudentIds((prev) => prev.map((s, i) => (i === index ? value : s)));
   const removeStudentRow = (index: number) => setStudentIds((prev) => prev.filter((_, i) => i !== index));
@@ -288,6 +318,7 @@ const EventDialog = ({ context, trainerId, students, onEditExpediente, onClose, 
       studentIds: type === "aula" ? chosenStudents : [],
       startTime,
       endTime,
+      publicVisible: type === "expediente" ? publicVisible : undefined,
     };
 
     if (recurrence === "once") {
@@ -410,6 +441,37 @@ const EventDialog = ({ context, trainerId, students, onEditExpediente, onClose, 
                 ))}
               </div>
             </div>
+
+            {type === "expediente" && (
+              <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Visível na busca de profissionais</p>
+                  <p className="text-xs text-muted-foreground">
+                    Quando ligado, novos alunos podem solicitar os horários livres deste expediente. Seus alunos sempre veem todos os horários livres.
+                  </p>
+                </div>
+                <Switch checked={publicVisible} onCheckedChange={setPublicVisible} aria-label="Visível na busca" />
+              </div>
+            )}
+
+            {!isEditing && context.expedienteEvent && type === "aula" && (
+              <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Mostrar este horário na busca</p>
+                  <p className="text-xs text-muted-foreground">
+                    {context.expedienteEvent.publicVisible
+                      ? "Desligue para ocultar só este horário de novos alunos nesta data."
+                      : "O expediente deste horário já está oculto da busca."}
+                  </p>
+                </div>
+                <Switch
+                  checked={context.expedienteEvent.publicVisible && !isSlotHidden(hidden, context.date, context.start)}
+                  disabled={!context.expedienteEvent.publicVisible}
+                  onCheckedChange={(visible) => onHiddenChange(context.date, context.start, !visible)}
+                  aria-label="Mostrar este horário na busca"
+                />
+              </div>
+            )}
 
             {type === "aula" && (
               <div className="space-y-2">

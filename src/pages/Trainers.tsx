@@ -47,7 +47,8 @@ const Trainers = () => {
       const { data } = await supabase
         .from("trainer_profiles")
         .select("id, experience_years, base_price, rating, total_reviews, is_active, profiles(full_name, profile_image_url), trainer_specialties(specialties(name))")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .filter("listed_in_search", "eq", true);
 
       const rows = (data ?? []).map((row) => {
         const profile = row.profiles as { full_name: string; profile_image_url: string | null } | null;

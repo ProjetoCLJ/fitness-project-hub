@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Check, X, Clock3, CalendarClock } from "lucide-react";
 import TrainerSchedule from "@/components/dashboard/trainer/TrainerSchedule";
+import { SearchVisibilityCard } from "@/components/agenda/SearchVisibilityCard";
 import { Booking, fetchBookingsForTrainer, respondProposal } from "@/lib/agendaStore";
 
 
@@ -107,6 +108,8 @@ const Agenda = () => {
           <h1 className="text-xl sm:text-3xl font-bold">Agenda</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Sua disponibilidade e atendimentos</p>
         </div>
+
+        <SearchVisibilityCard trainerId={trainerId} />
 
         {pending.length > 0 && (
           <Card className="p-4 sm:p-6 mb-4">

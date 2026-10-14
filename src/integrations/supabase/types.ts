@@ -1528,6 +1528,7 @@ export type Database = {
       }
       can_access_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_access_workout: { Args: { _workout_id: string }; Returns: boolean }
+      can_read_challenge_photo: { Args: { _name: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       challenge_is_open: { Args: { _challenge_id: string }; Returns: boolean }
       confirm_booking: { Args: { p_booking_id: string }; Returns: string }

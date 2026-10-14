@@ -50,6 +50,13 @@
       "when": 1791990563182,
       "tag": "0006_0006_search_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791999557313,
+      "tag": "0007_challenge_photos_member_read",
+      "breakpoints": true
     }
   ]
 }

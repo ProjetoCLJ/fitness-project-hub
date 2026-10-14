@@ -43,6 +43,13 @@
       "when": 1791988082871,
       "tag": "0005_offers_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791990563182,
+      "tag": "0006_0006_search_visibility",
+      "breakpoints": true
     }
   ]
 }

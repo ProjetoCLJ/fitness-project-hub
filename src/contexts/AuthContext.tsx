@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { takePendingInvitePath } from "@/lib/challengeStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +49,10 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Mantém a mesma instância do contexto entre recargas a quente (HMR); senão Provider e useAuth ficam com cópias diferentes.
+const globalForAuth = globalThis as unknown as { __authContext?: React.Context<AuthContextType | undefined> };
+const AuthContext = globalForAuth.__authContext ?? createContext<AuthContextType | undefined>(undefined);
+globalForAuth.__authContext = AuthContext;
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

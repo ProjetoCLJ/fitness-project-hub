@@ -36,6 +36,13 @@
       "when": 1791924270267,
       "tag": "0004_events",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791988082871,
+      "tag": "0005_offers_payments",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,8 @@ import { ChevronRight, ShieldAlert, Trash2 } from "lucide-react";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, Restriction, deleteRestriction, fetchPlansForStudent, fetchRestrictions } from "@/lib/planStore";
+import { PaymentsList } from "@/components/finance/PaymentsList";
+import { Payment, fetchStudentPayments } from "@/lib/financeStore";
 
 const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
 
@@ -20,6 +22,7 @@ const ClientProfilePage = () => {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [restrictions, setRestrictions] = useState<Restriction[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -29,6 +32,9 @@ const ClientProfilePage = () => {
     fetchRestrictions(clientId)
       .then(setRestrictions)
       .catch(() => setRestrictions([]));
+    fetchStudentPayments(clientId)
+      .then(setPayments)
+      .catch(() => setPayments([]));
   }, [clientId]);
 
   if (!user || user.userType !== "student") return null;
@@ -117,6 +123,18 @@ const ClientProfilePage = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Pagamentos */}
+        <div>
+          <h2 className="font-semibold text-base sm:text-lg mb-3">Pagamentos</h2>
+          <Card className="p-4 sm:p-6">
+            {payments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum pagamento registrado pelo seu profissional ainda.</p>
+            ) : (
+              <PaymentsList payments={payments} showPayer={false} showTrainer />
+            )}
+          </Card>
         </div>
 
         {/* Profissionais */}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,20 +9,19 @@ import { DollarSign, Package, Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Offer, createOffer, deleteOffer, fetchOffers, formatBRL, setOfferActive } from "@/lib/financeStore";
 
-interface PricingPackage {
-  id: number;
-  name: string;
-  classesCount: number;
-  price: number;
-  discountPercentage: number;
-  isActive: boolean;
+interface Props {
+  /** Muda quando uma oferta é criada em outro lugar (ex.: no lançamento de pagamento). */
+  refreshKey?: number;
 }
 
-const TrainerPricing = () => {
+const TrainerPricing = ({ refreshKey = 0 }: Props) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [basePrice, setBasePrice] = useState("0.00");
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [newOffer, setNewOffer] = useState({ name: "", classesCount: "", totalPrice: "" });
 
   useEffect(() => {
     if (!user) return;
@@ -33,70 +32,54 @@ const TrainerPricing = () => {
       .maybeSingle()
       .then(({ data }) => setBasePrice(Number(data?.base_price ?? 0).toFixed(2)));
   }, [user]);
-  const [packages, setPackages] = useState<PricingPackage[]>([]);
 
-  const [newPackage, setNewPackage] = useState({
-    name: "",
-    classesCount: "",
-    discountPercentage: ""
-  });
+  const loadOffers = useCallback(async () => {
+    if (!user) return;
+    try {
+      setOffers(await fetchOffers(user.id));
+    } catch {
+      toast({ title: "Não foi possível carregar as ofertas", variant: "destructive" });
+    }
+  }, [user, toast]);
 
-  const calculatePackagePrice = (classesCount: number, discount: number) => {
-    const base = parseFloat(basePrice);
-    const total = base * classesCount;
-    return total * (1 - discount / 100);
-  };
+  useEffect(() => {
+    loadOffers();
+  }, [loadOffers, refreshKey]);
 
-  const addPackage = () => {
-    if (!newPackage.name || !newPackage.classesCount || !newPackage.discountPercentage) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos do novo pacote",
-        variant: "destructive"
-      });
+  const addOffer = async () => {
+    const classes = parseInt(newOffer.classesCount, 10);
+    const total = parseFloat(newOffer.totalPrice);
+    if (!user || !newOffer.name.trim() || !(classes > 0) || !Number.isFinite(total) || total < 0) {
+      toast({ title: "Preencha nome, número de aulas e valor total", variant: "destructive" });
       return;
     }
-
-    const classes = parseInt(newPackage.classesCount);
-    const discount = parseFloat(newPackage.discountPercentage);
-    const price = calculatePackagePrice(classes, discount);
-
-    const pkg: PricingPackage = {
-      id: packages.length === 0 ? 1 : Math.max(...packages.map(p => p.id)) + 1,
-      name: newPackage.name,
-      classesCount: classes,
-      price: price,
-      discountPercentage: discount,
-      isActive: true
-    };
-
-    setPackages([...packages, pkg]);
-    setNewPackage({ name: "", classesCount: "", discountPercentage: "" });
-
-    toast({
-      title: "Pacote adicionado!",
-      description: "Novo pacote criado com sucesso.",
-    });
+    try {
+      await createOffer(user.id, { name: newOffer.name, classesCount: classes, totalPrice: total });
+      setNewOffer({ name: "", classesCount: "", totalPrice: "" });
+      await loadOffers();
+      toast({ title: "Oferta criada" });
+    } catch {
+      toast({ title: "Não foi possível criar a oferta", variant: "destructive" });
+    }
   };
 
-  const togglePackage = (id: number) => {
-    setPackages(packages.map(p =>
-      p.id === id ? { ...p, isActive: !p.isActive } : p
-    ));
-
-    const pkg = packages.find(p => p.id === id);
-    toast({
-      title: pkg?.isActive ? "Pacote desativado" : "Pacote ativado",
-      description: pkg?.isActive ? "Pacote não estará visível para alunos" : "Pacote agora está disponível",
-    });
+  const toggleOffer = async (offer: Offer) => {
+    try {
+      await setOfferActive(offer.id, !offer.isActive);
+      await loadOffers();
+    } catch {
+      toast({ title: "Não foi possível atualizar a oferta", variant: "destructive" });
+    }
   };
 
-  const removePackage = (id: number) => {
-    setPackages(packages.filter(p => p.id !== id));
-    toast({
-      title: "Pacote removido",
-      description: "Pacote excluído com sucesso.",
-    });
+  const removeOffer = async (offer: Offer) => {
+    if (!window.confirm(`Excluir a oferta "${offer.name}"? Os pagamentos já lançados continuam no histórico.`)) return;
+    try {
+      await deleteOffer(offer.id);
+      await loadOffers();
+    } catch {
+      toast({ title: "Não foi possível excluir a oferta", variant: "destructive" });
+    }
   };
 
   const handleSave = async () => {
@@ -108,78 +91,52 @@ const TrainerPricing = () => {
         return;
       }
     }
-    toast({
-      title: "Preços atualizados!",
-      description: "Suas alterações foram salvas com sucesso.",
-    });
+    toast({ title: "Preço atualizado!", description: "Suas alterações foram salvas com sucesso." });
   };
+
+  const perClass = (o: Offer) => (o.classesCount > 0 ? o.totalPrice / o.classesCount : 0);
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-2">
           <DollarSign className="h-6 w-6 text-primary" />
-          Preço Base da Aula
+          Preço padrão da aula
         </h2>
-        <div className="max-w-xs">
-          <Label htmlFor="base-price">Valor por Aula (R$)</Label>
-          <Input
-            id="base-price"
-            type="number"
-            step="0.01"
-            value={basePrice}
-            onChange={(e) => setBasePrice(e.target.value)}
-            className="text-lg"
-          />
-          <p className="text-sm text-muted-foreground mt-2">
-            Este é o preço que será cobrado por aula avulsa
-          </p>
+        <div className="max-w-xs space-y-2">
+          <Label htmlFor="base-price">Valor por aula (R$)</Label>
+          <Input id="base-price" type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} className="text-lg" />
+          <p className="text-sm text-muted-foreground">Preço cobrado por aula avulsa.</p>
+          <Button onClick={handleSave} variant="hero" className="w-full">
+            Salvar preço
+          </Button>
         </div>
       </Card>
 
-      <Card className="p-6">
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-2">
           <Package className="h-6 w-6 text-primary" />
-          Pacotes de Aulas
+          Ofertas
         </h2>
 
-        {packages.length === 0 && (
-          <p className="text-sm text-muted-foreground mb-6">Nenhum pacote criado ainda.</p>
-        )}
+        {offers.length === 0 && <p className="text-sm text-muted-foreground mb-6">Nenhuma oferta criada ainda.</p>}
 
-        <div className="space-y-4 mb-6">
-          {packages.map((pkg) => (
-            <div
-              key={pkg.id}
-              className="flex items-center justify-between p-4 border rounded-lg hover:shadow-soft transition-smooth"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="font-semibold text-lg">{pkg.name}</h3>
-                  {pkg.isActive ? (
-                    <Badge className="bg-primary/10 text-primary">Ativo</Badge>
-                  ) : (
-                    <Badge variant="outline">Inativo</Badge>
-                  )}
+        <div className="space-y-3 mb-6">
+          {offers.map((offer) => (
+            <div key={offer.id} className="flex items-center justify-between gap-3 p-4 border rounded-lg">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold truncate">{offer.name}</h3>
+                  {offer.isActive ? <Badge className="bg-primary/10 text-primary">Ativa</Badge> : <Badge variant="outline">Inativa</Badge>}
                 </div>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <p>{pkg.classesCount} aulas</p>
-                  <p>Desconto: {pkg.discountPercentage}%</p>
-                  <p className="text-xl font-bold text-primary mt-2">
-                    R$ {pkg.price.toFixed(2)}
-                  </p>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  {offer.classesCount} {offer.classesCount === 1 ? "aula" : "aulas"} · {formatBRL(perClass(offer))} por aula
+                </p>
+                <p className="text-lg font-bold text-primary">{formatBRL(offer.totalPrice)}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={pkg.isActive}
-                  onCheckedChange={() => togglePackage(pkg.id)}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removePackage(pkg.id)}
-                >
+              <div className="flex items-center gap-2 shrink-0">
+                <Switch checked={offer.isActive} onCheckedChange={() => toggleOffer(offer)} aria-label="Ativar ou desativar oferta" />
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeOffer(offer)} aria-label="Excluir oferta">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -188,57 +145,27 @@ const TrainerPricing = () => {
         </div>
 
         <div className="border-t pt-6">
-          <h3 className="font-semibold mb-4">Criar Novo Pacote</h3>
+          <h3 className="font-semibold mb-4">Criar nova oferta</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="space-y-2">
-              <Label htmlFor="package-name">Nome do Pacote</Label>
-              <Input
-                id="package-name"
-                placeholder="Ex: Pacote 6 aulas"
-                value={newPackage.name}
-                onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
-              />
+              <Label htmlFor="offer-name">Nome da oferta</Label>
+              <Input id="offer-name" placeholder="Ex: Pacote 6 aulas" value={newOffer.name} onChange={(e) => setNewOffer({ ...newOffer, name: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="classes-count">Número de Aulas</Label>
-              <Input
-                id="classes-count"
-                type="number"
-                value={newPackage.classesCount}
-                onChange={(e) => setNewPackage({ ...newPackage, classesCount: e.target.value })}
-              />
+              <Label htmlFor="offer-classes">Número de aulas</Label>
+              <Input id="offer-classes" type="number" min={1} value={newOffer.classesCount} onChange={(e) => setNewOffer({ ...newOffer, classesCount: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="discount">Desconto (%)</Label>
-              <Input
-                id="discount"
-                type="number"
-                step="0.1"
-                value={newPackage.discountPercentage}
-                onChange={(e) => setNewPackage({ ...newPackage, discountPercentage: e.target.value })}
-              />
+              <Label htmlFor="offer-total">Valor total (R$)</Label>
+              <Input id="offer-total" type="number" min={0} step="0.01" value={newOffer.totalPrice} onChange={(e) => setNewOffer({ ...newOffer, totalPrice: e.target.value })} />
             </div>
           </div>
-          {newPackage.classesCount && newPackage.discountPercentage && (
-            <p className="text-sm text-muted-foreground mb-4">
-              Preço calculado: R$ {calculatePackagePrice(
-                parseInt(newPackage.classesCount),
-                parseFloat(newPackage.discountPercentage)
-              ).toFixed(2)}
-            </p>
-          )}
-          <Button onClick={addPackage} variant="outline" className="w-full">
+          <Button onClick={addOffer} variant="outline" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar Pacote
+            Adicionar oferta
           </Button>
         </div>
       </Card>
-
-      <div className="flex justify-end">
-        <Button onClick={handleSave} variant="hero" size="lg">
-          Salvar Alterações
-        </Button>
-      </div>
     </div>
   );
 };

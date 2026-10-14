@@ -25,6 +25,9 @@ import {
   fetchRestrictions,
 } from "@/lib/planStore";
 import { NewPlanDialog } from "@/components/plan/NewPlanDialog";
+import { PaymentDialog } from "@/components/finance/PaymentDialog";
+import { PaymentsList } from "@/components/finance/PaymentsList";
+import { Payment, deletePayment, fetchTrainerPayments, formatBRL } from "@/lib/financeStore";
 import { PlanDetail } from "@/components/plan/PlanDetail";
 
 const formatDate = (iso: string) =>
@@ -68,6 +71,9 @@ const ClientProfilePro = () => {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [restrictionDraft, setRestrictionDraft] = useState("");
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
 
   const trainerId = user?.id ?? "";
 
@@ -78,6 +84,30 @@ const ClientProfilePro = () => {
       .catch(() => setClient(null))
       .finally(() => setClientLoaded(true));
   }, [user, id]);
+
+  const loadPayments = useCallback(async () => {
+    if (!user || !client) return;
+    try {
+      setPayments(await fetchTrainerPayments(user.id, client.id));
+    } catch {
+      setPayments([]);
+    }
+  }, [user, client]);
+
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
+  const removePayment = async (payment: Payment) => {
+    if (!window.confirm(`Excluir o lançamento de ${formatBRL(payment.amount)}?`)) return;
+    try {
+      await deletePayment(payment.id);
+      await loadPayments();
+      toast({ title: "Lançamento excluído" });
+    } catch {
+      toast({ title: "Não foi possível excluir o lançamento", variant: "destructive" });
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!client) return;
@@ -390,11 +420,51 @@ const ClientProfilePro = () => {
           </TabsContent>
 
           <TabsContent value="financial">
-            <Card className="p-6 sm:p-8 text-center border-dashed">
-              <Wallet className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="font-medium mb-1">Financeiro do aluno</p>
-              <p className="text-sm text-muted-foreground">Em breve você poderá registrar aqui os pagamentos de {client.name}.</p>
+            <Card className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    Pagamentos de {client.name}
+                  </h2>
+                  {payments.length > 0 && (
+                    <p className="text-xs text-muted-foreground">Total pago: {formatBRL(payments.reduce((sum, p) => sum + p.amount, 0))}</p>
+                  )}
+                </div>
+                <Button
+                  variant="hero"
+                  size="sm"
+                  onClick={() => {
+                    setEditingPayment(undefined);
+                    setPaymentOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Lançar pagamento
+                </Button>
+              </div>
+              {payments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum pagamento lançado para este aluno ainda.</p>
+              ) : (
+                <PaymentsList
+                  payments={payments}
+                  showPayer={false}
+                  onEdit={(p) => {
+                    setEditingPayment(p);
+                    setPaymentOpen(true);
+                  }}
+                  onDelete={removePayment}
+                />
+              )}
             </Card>
+            <PaymentDialog
+              open={paymentOpen}
+              onOpenChange={setPaymentOpen}
+              trainerId={trainerId}
+              payment={editingPayment}
+              presetStudentId={client.id}
+              onSaved={loadPayments}
+            />
           </TabsContent>
 
           <TabsContent value="permissions">

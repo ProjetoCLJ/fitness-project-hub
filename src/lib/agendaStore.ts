@@ -280,6 +280,18 @@ export const setSlotHidden = async (trainerId: string, dateISO: string, start: s
   if (error) throw error;
 };
 
+export const clearHiddenSlots = async (trainerId: string) => {
+  const { error } = await looseDb.from("hidden_slots").delete().eq("trainer_id", trainerId);
+  if (error) throw error;
+};
+
+/** Liga/desliga a visibilidade na busca de vários expedientes de uma vez. */
+export const setExpedientesVisible = async (eventIds: string[], visible: boolean) => {
+  if (eventIds.length === 0) return;
+  const { error } = await looseDb.from("schedule_events").update({ public_visible: visible }).in("id", eventIds);
+  if (error) throw error;
+};
+
 export const isSlotHidden = (hidden: HiddenSlots, dateISO: string, start: string) => hidden.has(hiddenKey(dateISO, start));
 
 /** O horário aparece para novos alunos? (algum expediente visível o cobre e ele não foi ocultado) */

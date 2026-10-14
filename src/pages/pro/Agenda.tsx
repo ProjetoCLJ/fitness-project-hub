@@ -109,7 +109,7 @@ const Agenda = () => {
           <p className="text-sm sm:text-base text-muted-foreground">Sua disponibilidade e atendimentos</p>
         </div>
 
-        <SearchVisibilityCard trainerId={trainerId} />
+        <SearchVisibilityCard trainerId={trainerId} onChanged={() => setScheduleRefresh((k) => k + 1)} />
 
         {pending.length > 0 && (
           <Card className="p-4 sm:p-6 mb-4">

@@ -499,6 +499,35 @@ export type Database = {
           },
         ]
       }
+      hidden_slots: {
+        Row: {
+          created_at: string
+          slot_date: string
+          start_time: string
+          trainer_id: string
+        }
+        Insert: {
+          created_at?: string
+          slot_date: string
+          start_time: string
+          trainer_id: string
+        }
+        Update: {
+          created_at?: string
+          slot_date?: string
+          start_time?: string
+          trainer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hidden_slots_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -948,6 +977,7 @@ export type Database = {
           end_time: string
           excluded_dates: string[] | null
           id: string
+          public_visible: boolean
           recurrence: Database["public"]["Enums"]["schedule_recurrence"]
           start_date: string
           start_time: string
@@ -964,6 +994,7 @@ export type Database = {
           end_time: string
           excluded_dates?: string[] | null
           id?: string
+          public_visible?: boolean
           recurrence: Database["public"]["Enums"]["schedule_recurrence"]
           start_date: string
           start_time: string
@@ -980,6 +1011,7 @@ export type Database = {
           end_time?: string
           excluded_dates?: string[] | null
           id?: string
+          public_visible?: boolean
           recurrence?: Database["public"]["Enums"]["schedule_recurrence"]
           start_date?: string
           start_time?: string
@@ -1240,6 +1272,7 @@ export type Database = {
           instagram: string | null
           is_active: boolean | null
           linkedin: string | null
+          listed_in_search: boolean
           objectives: string | null
           profile_id: string
           rating: number | null
@@ -1259,6 +1292,7 @@ export type Database = {
           instagram?: string | null
           is_active?: boolean | null
           linkedin?: string | null
+          listed_in_search?: boolean
           objectives?: string | null
           profile_id: string
           rating?: number | null
@@ -1278,6 +1312,7 @@ export type Database = {
           instagram?: string | null
           is_active?: boolean | null
           linkedin?: string | null
+          listed_in_search?: boolean
           objectives?: string | null
           profile_id?: string
           rating?: number | null

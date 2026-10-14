@@ -10,7 +10,7 @@ interface Props {
 }
 
 /** Histórico de pagamentos lançados pelo profissional (mais recentes primeiro). */
-const TrainerEarnings = ({ payments, onEdit, onDelete }: Props) => {
+const TrainerEarnings = ({ payments = [], onEdit, onDelete }: Props) => {
   const total = payments.reduce((sum, p) => sum + p.amount, 0);
   return (
     <Card className="p-4 sm:p-6">

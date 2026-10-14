@@ -1552,6 +1552,10 @@ export type Database = {
         }[]
       }
       get_event_preview: { Args: { p_code: string }; Returns: Json }
+      get_trainer_availability: {
+        Args: { p_trainer_id: string }
+        Returns: Json
+      }
       invite_student: { Args: { p_email: string }; Returns: Json }
       invite_students_to_challenge: {
         Args: { p_challenge_id: string; p_student_ids: string[] }
@@ -1569,6 +1573,7 @@ export type Database = {
       is_event_creator: { Args: { _event_id: string }; Returns: boolean }
       is_event_invited: { Args: { _event_id: string }; Returns: boolean }
       is_event_participant: { Args: { _event_id: string }; Returns: boolean }
+      is_event_student: { Args: { _event_id: string }; Returns: boolean }
       is_linked_trainer_of_student: {
         Args: { _student_id: string }
         Returns: boolean

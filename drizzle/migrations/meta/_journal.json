@@ -57,6 +57,13 @@
       "when": 1791999557313,
       "tag": "0007_challenge_photos_member_read",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791999940028,
+      "tag": "0008_restrict_schedule_reads",
+      "breakpoints": true
     }
   ]
 }

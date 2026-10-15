@@ -77,56 +77,57 @@ const statTiles = [
   { value: "1:1", label: "Acompanhamento direto do seu profissional" },
 ];
 
+type FeatureCardData = (typeof carouselCards)[number];
+
+const FeatureCard = ({ card, onClick, className = "" }: { card: FeatureCardData; onClick: () => void; className?: string }) => (
+  <div
+    className={`relative h-72 rounded-2xl overflow-hidden bg-secondary group cursor-pointer ${className}`}
+    onClick={onClick}
+  >
+    <div className="absolute inset-0 bg-gradient-hero opacity-90 group-hover:opacity-100 transition-smooth" />
+    <card.icon className="absolute -right-4 -bottom-4 h-40 w-40 text-white/10" />
+    <div className="relative h-full flex flex-col justify-end p-6 text-white">
+      <p className="text-xl font-bold mb-1">{card.title}</p>
+      <p className="text-sm text-white/85 mb-4">{card.description}</p>
+      <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-smooth">
+        <ArrowUpRight className="h-4 w-4" />
+      </div>
+    </div>
+  </div>
+);
+
 const Index = () => {
   const [loginOpen, setLoginOpen] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
+  const navigate = useNavigate();
   const [slide, setSlide] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
   const pausedUntil = useRef(0);
-  const slideRef = useRef(0);
+  const touchStartX = useRef<number | null>(null);
 
-  // Posição de cada cartão no carrossel (já descontando o espaçamento lateral).
-  const slideLeft = (el: HTMLDivElement, index: number) => {
-    const card = el.children[index] as HTMLElement | undefined;
-    if (!card) return 0;
-    const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0;
-    return el.scrollLeft + card.getBoundingClientRect().left - el.getBoundingClientRect().left - pad;
-  };
-
-  const goToSlide = (index: number) => {
-    const el = carouselRef.current;
-    if (!el) return;
-    el.scrollTo({ left: slideLeft(el, index), behavior: "smooth" });
-    slideRef.current = index;
-    setSlide(index);
-  };
-
-  // Troca de cartão sozinha a cada 4,5 s; pausa por alguns segundos quando a pessoa mexe no carrossel.
+  // Troca de cartão sozinha a cada 4,5 s (só no celular); pausa alguns segundos quando a pessoa interage.
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const timer = setInterval(() => {
-      const el = carouselRef.current;
-      if (!el || Date.now() < pausedUntil.current) return;
-      goToSlide((slideRef.current + 1) % carouselCards.length);
+      if (Date.now() < pausedUntil.current) return;
+      setSlide((current) => (current + 1) % carouselCards.length);
     }, 4500);
     return () => clearInterval(timer);
   }, []);
 
-  const handleCarouselScroll = () => {
-    const el = carouselRef.current;
-    if (!el) return;
-    const nearest = Array.from(el.children).reduce(
-      (best, _, i) => (Math.abs(slideLeft(el, i) - el.scrollLeft) < Math.abs(slideLeft(el, best) - el.scrollLeft) ? i : best),
-      0
-    );
-    slideRef.current = nearest;
-    setSlide(nearest);
-  };
-
   const pauseCarousel = () => {
     pausedUntil.current = Date.now() + 8000;
   };
-  const navigate = useNavigate();
+
+  const goToSlide = (index: number) => {
+    pauseCarousel();
+    setSlide((index + carouselCards.length) % carouselCards.length);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) > 40) goToSlide(slide + (dx < 0 ? 1 : -1));
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,19 +135,17 @@ const Index = () => {
 
       {/* 1. HERO — vídeo de fundo */}
       <section className="relative min-h-[100svh] flex items-end overflow-hidden bg-secondary">
-        {/* O vídeo aparece com um fade assim que começa a tocar; até lá o fundo escuro do hero fica visível. */}
+        {/* Vídeo leve (~0,7 MB) com o índice no início do arquivo: começa a tocar assim que os primeiros dados chegam. */}
         <video
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
+          className="absolute inset-0 w-full h-full object-cover"
           src="/videos/hero-background.mp4"
           autoPlay
           muted
           loop
           playsInline
           preload="auto"
-          onCanPlay={() => setVideoReady(true)}
-          onPlaying={() => setVideoReady(true)}
         />
-        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-black/55" />
         <div className="container mx-auto px-4 relative z-10 pt-28 pb-20 sm:pt-24 sm:pb-28">
           <div className="max-w-3xl">
             <h1 className="text-3xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[1] text-white mb-6">
@@ -176,45 +175,40 @@ const Index = () => {
         <div className="container mx-auto px-4 mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold">Tudo que faz parte da sua jornada.</h2>
         </div>
-        <div
-          ref={carouselRef}
-          onScroll={handleCarouselScroll}
-          onTouchStart={pauseCarousel}
-          onWheel={pauseCarousel}
-          onPointerDown={pauseCarousel}
-          className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 scroll-px-4 pb-4 scrollbar-hide"
-        >
-          {carouselCards.map((card) => (
-            <div
-              key={card.title}
-              className="relative shrink-0 w-[calc(100vw-2rem)] sm:w-[22rem] h-72 rounded-2xl overflow-hidden snap-start bg-secondary group cursor-pointer"
-              onClick={() => navigate(card.to)}
-            >
-              <div className="absolute inset-0 bg-gradient-hero opacity-90 group-hover:opacity-100 transition-smooth" />
-              <card.icon className="absolute -right-4 -bottom-4 h-40 w-40 text-white/10" />
-              <div className="relative h-full flex flex-col justify-end p-6 text-white">
-                <p className="text-xl font-bold mb-1">{card.title}</p>
-                <p className="text-sm text-white/85 mb-4">{card.description}</p>
-                <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-smooth">
-                  <ArrowUpRight className="h-4 w-4" />
-                </div>
-              </div>
+        <div className="container mx-auto px-4">
+          {/* Celular: um cartão por vez, com a largura exata do conteúdo (mesma margem do título). */}
+          <div
+            className="overflow-hidden rounded-2xl sm:hidden"
+            onTouchStart={(e) => {
+              pauseCarousel();
+              touchStartX.current = e.touches[0].clientX;
+            }}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${slide * 100}%)` }}>
+              {carouselCards.map((card) => (
+                <FeatureCard key={card.title} card={card} onClick={() => navigate(card.to)} className="w-full shrink-0" />
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="flex justify-center gap-2 mt-2">
-          {carouselCards.map((card, i) => (
-            <button
-              key={card.title}
-              type="button"
-              aria-label={`Ir para ${card.title}`}
-              onClick={() => {
-                pauseCarousel();
-                goToSlide(i);
-              }}
-              className={`h-2 rounded-full transition-all ${i === slide ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
-            />
-          ))}
+          </div>
+          <div className="flex justify-center gap-2 mt-4 sm:hidden">
+            {carouselCards.map((card, i) => (
+              <button
+                key={card.title}
+                type="button"
+                aria-label={`Ir para ${card.title}`}
+                onClick={() => goToSlide(i)}
+                className={`h-2 rounded-full transition-all ${i === slide ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
+              />
+            ))}
+          </div>
+
+          {/* Computador: todos os cartões lado a lado. */}
+          <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {carouselCards.map((card) => (
+              <FeatureCard key={card.title} card={card} onClick={() => navigate(card.to)} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -227,17 +221,17 @@ const Index = () => {
           <p className="opacity-90 max-w-xl mx-auto mb-8">
             Crie desafios com os amigos, participe de eventos e convide quem você quiser por link.
           </p>
-          <div className="flex flex-wrap justify-center gap-8">
+          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
             {[
               { icon: Flame, label: "Desafios" },
               { icon: CalendarHeart, label: "Eventos" },
               { icon: Link2, label: "Convite por link" },
             ].map((item) => (
-              <div key={item.label} className="flex flex-col items-center gap-2">
+              <div key={item.label} className="flex flex-col items-center gap-2 text-center">
                 <div className="h-14 w-14 rounded-full bg-primary-foreground/15 flex items-center justify-center">
                   <item.icon className="h-6 w-6" />
                 </div>
-                <span className="text-sm font-medium">{item.label}</span>
+                <span className="text-sm font-medium leading-tight">{item.label}</span>
               </div>
             ))}
           </div>

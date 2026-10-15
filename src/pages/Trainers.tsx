@@ -30,7 +30,7 @@ interface TrainerCard {
 const Trainers = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 1024);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();

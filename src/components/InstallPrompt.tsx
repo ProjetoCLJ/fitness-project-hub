@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Share, SquarePlus, MoreVertical } from "lucide-react";
 
 const SEEN_KEY = "myjourn-install-hint-seen";
 
@@ -62,59 +61,62 @@ export const InstallPrompt = () => {
     dismiss();
   };
 
+  const Step = ({ n, children }: { n: number; children: React.ReactNode }) => (
+    <li className="flex gap-3">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-xs font-medium">{n}</span>
+      <span className="text-sm leading-6">{children}</span>
+    </li>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(next) => !next && dismiss()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5 text-primary" />
-            Instale o MyJourn
-          </DialogTitle>
-          <DialogDescription>Tenha o app na tela inicial do seu celular, com acesso rápido e em tela cheia.</DialogDescription>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm rounded-xl">
+        <DialogHeader className="space-y-2 text-left">
+          <DialogTitle className="text-lg">Instale o MyJourn</DialogTitle>
+          <DialogDescription className="text-sm leading-6">
+            Tenha o app na tela inicial do seu celular, com acesso rápido e em tela cheia.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 text-sm">
-          {isIOSNonSafari && (
-            <p className="rounded-md bg-muted p-3">
-              No iPhone, só o <strong>Safari</strong> consegue instalar. Abra este endereço no Safari para continuar.
-            </p>
-          )}
+        {isIOSNonSafari && (
+          <p className="rounded-md border border-border p-3 text-sm leading-6">
+            No iPhone, só o Safari consegue instalar. Abra este endereço no Safari para continuar.
+          </p>
+        )}
 
-          {isIOS && (
-            <ol className="space-y-2">
-              <li className="flex items-start gap-2">
-                <Share className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                Toque em <strong>Compartilhar</strong> (o quadrado com a seta).
-              </li>
-              <li className="flex items-start gap-2">
-                <SquarePlus className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                Escolha <strong>Adicionar à Tela de Início</strong>.
-              </li>
-              <li>Confirme em <strong>Adicionar</strong>.</li>
+        {isIOS && (
+          <ol className="space-y-3">
+            <Step n={1}>
+              Toque em <strong className="font-semibold">Compartilhar</strong> (o quadrado com a seta para cima).
+            </Step>
+            <Step n={2}>
+              Escolha <strong className="font-semibold">Adicionar à Tela de Início</strong>.
+            </Step>
+            <Step n={3}>
+              Confirme em <strong className="font-semibold">Adicionar</strong>.
+            </Step>
+          </ol>
+        )}
+
+        {isAndroid &&
+          (installEvent ? (
+            <Button className="w-full" onClick={installNow}>
+              Instalar agora
+            </Button>
+          ) : (
+            <ol className="space-y-3">
+              <Step n={1}>
+                Toque no menu <strong className="font-semibold">⋮</strong> do navegador.
+              </Step>
+              <Step n={2}>
+                Escolha <strong className="font-semibold">Instalar aplicativo</strong> (ou{" "}
+                <strong className="font-semibold">Adicionar à tela inicial</strong>).
+              </Step>
+              <Step n={3}>
+                Confirme em <strong className="font-semibold">Instalar</strong>.
+              </Step>
             </ol>
-          )}
-
-          {isAndroid && (
-            <>
-              {installEvent ? (
-                <Button variant="hero" className="w-full" onClick={installNow}>
-                  Instalar agora
-                </Button>
-              ) : (
-                <ol className="space-y-2">
-                  <li className="flex items-start gap-2">
-                    <MoreVertical className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-                    Toque no menu <strong>⋮</strong> do navegador.
-                  </li>
-                  <li>
-                    Escolha <strong>Instalar aplicativo</strong> (ou <strong>Adicionar à tela inicial</strong>).
-                  </li>
-                  <li>Confirme em <strong>Instalar</strong>.</li>
-                </ol>
-              )}
-            </>
-          )}
-        </div>
+          ))}
 
         <Button variant="ghost" className="w-full" onClick={dismiss}>
           Agora não

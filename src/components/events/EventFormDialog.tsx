@@ -150,8 +150,8 @@ export const EventFormDialog = ({ open, onOpenChange, event, onSubmit, trainerId
 
           <CityPicker state={state} city={city} onChange={(v) => { setState(v.state); setCity(v.city); }} />
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-2 col-span-3 sm:col-span-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-2 col-span-2 sm:col-span-1">
               <Label htmlFor="ev-date">Data *</Label>
               <Input id="ev-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </div>

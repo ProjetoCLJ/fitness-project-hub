@@ -273,7 +273,7 @@ const ChallengePage = () => {
       </div>
 
       {!ended && (
-        <div className="fixed bottom-0 inset-x-0 z-40 p-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+        <div className="fixed bottom-0 inset-x-0 z-40 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
           <div className="container mx-auto max-w-3xl pointer-events-auto">
             <Button variant="hero" size="lg" className="w-full shadow-strong" onClick={openLog}>
               <Plus className="h-5 w-5 mr-2" />

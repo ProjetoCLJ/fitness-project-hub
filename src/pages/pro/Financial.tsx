@@ -111,15 +111,15 @@ const Financial = () => {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <div className="text-lg sm:text-2xl font-bold">{formatBRL(realizado)}</div>
+                  <div className="text-sm sm:text-2xl font-bold leading-tight break-words">{formatBRL(realizado)}</div>
                   <div className="text-xs opacity-90">Realizado</div>
                 </div>
                 <div>
-                  <div className="text-lg sm:text-2xl font-bold">{formatBRL(revenue.previsto)}</div>
+                  <div className="text-sm sm:text-2xl font-bold leading-tight break-words">{formatBRL(revenue.previsto)}</div>
                   <div className="text-xs opacity-90">Previsto</div>
                 </div>
                 <div>
-                  <div className="text-lg sm:text-2xl font-bold">{formatBRL(revenue.possivel)}</div>
+                  <div className="text-sm sm:text-2xl font-bold leading-tight break-words">{formatBRL(revenue.possivel)}</div>
                   <div className="text-xs opacity-90">Possível</div>
                 </div>
               </div>

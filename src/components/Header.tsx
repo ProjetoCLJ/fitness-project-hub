@@ -12,9 +12,11 @@ interface HeaderProps {
   transparentOnTop?: boolean;
   /** Sem menu lateral, botão Entrar e link do logo (telas de cadastro em andamento). */
   minimal?: boolean;
+  /** Esconde o botão Entrar (o login continua no menu lateral). */
+  hideLogin?: boolean;
 }
 
-export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false }: HeaderProps) => {
+export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false, hideLogin = false }: HeaderProps) => {
   const { isAuthenticated } = useAuth();
   const [scrolled, setScrolled] = useState(!transparentOnTop);
 
@@ -58,7 +60,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
 
           <div className="justify-self-end">
             {isAuthenticated && !minimal && !transparentOnTop && <NotificationBell className="text-white hover:bg-white/10 hover:text-white" />}
-            {!isAuthenticated && !minimal && (
+            {!isAuthenticated && !minimal && !hideLogin && (
               <Button
                 onClick={onLoginClick}
                 variant={isTransparent ? "secondary" : "hero"}

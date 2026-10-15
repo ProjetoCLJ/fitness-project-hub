@@ -1,17 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { LoginDialog } from "@/components/LoginDialog";
-import { PhoneFrame } from "@/components/landing/PhoneFrame";
 import { WaveDivider } from "@/components/landing/WaveDivider";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo/logo-header.png";
 import {
   Dumbbell,
-  Target,
-  ShieldAlert,
   Users,
-  Search,
   ArrowRight,
   ArrowUpRight,
   Flame,
@@ -32,26 +28,31 @@ const carouselCards = [
     title: "Treinos",
     description: "O treino do dia, as semanas do plano e o registro de cada série.",
     icon: Dumbbell,
+    to: "/register/student",
   },
   {
     title: "Evolução",
     description: "Peso, cargas e histórico para ver o seu avanço de verdade.",
     icon: TrendingUp,
+    to: "/register/student",
   },
   {
     title: "Desafios",
     description: "Entre em desafios com os amigos e registre seus treinos.",
     icon: Flame,
+    to: "/register/student",
   },
   {
     title: "Eventos",
     description: "Corridas, aulas em grupo e encontros para treinar junto.",
     icon: CalendarHeart,
+    to: "/register/student",
   },
   {
     title: "Profissionais",
     description: "Encontre, agende e treine com quem acompanha a sua evolução.",
     icon: Users,
+    to: "/trainers",
   },
 ];
 
@@ -79,11 +80,57 @@ const statTiles = [
 const Index = () => {
   const [loginOpen, setLoginOpen] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [slide, setSlide] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const pausedUntil = useRef(0);
+  const slideRef = useRef(0);
+
+  // Posição de cada cartão no carrossel (já descontando o espaçamento lateral).
+  const slideLeft = (el: HTMLDivElement, index: number) => {
+    const card = el.children[index] as HTMLElement | undefined;
+    if (!card) return 0;
+    const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0;
+    return el.scrollLeft + card.getBoundingClientRect().left - el.getBoundingClientRect().left - pad;
+  };
+
+  const goToSlide = (index: number) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: slideLeft(el, index), behavior: "smooth" });
+    slideRef.current = index;
+    setSlide(index);
+  };
+
+  // Troca de cartão sozinha a cada 4,5 s; pausa por alguns segundos quando a pessoa mexe no carrossel.
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => {
+      const el = carouselRef.current;
+      if (!el || Date.now() < pausedUntil.current) return;
+      goToSlide((slideRef.current + 1) % carouselCards.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleCarouselScroll = () => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const nearest = Array.from(el.children).reduce(
+      (best, _, i) => (Math.abs(slideLeft(el, i) - el.scrollLeft) < Math.abs(slideLeft(el, best) - el.scrollLeft) ? i : best),
+      0
+    );
+    slideRef.current = nearest;
+    setSlide(nearest);
+  };
+
+  const pauseCarousel = () => {
+    pausedUntil.current = Date.now() + 8000;
+  };
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => setLoginOpen(true)} transparentOnTop />
+      <Header onLoginClick={() => setLoginOpen(true)} transparentOnTop hideLogin />
 
       {/* 1. HERO — vídeo de fundo */}
       <section className="relative min-h-[100svh] flex items-end overflow-hidden bg-secondary">
@@ -107,10 +154,7 @@ const Index = () => {
               <br />
               <span className="text-primary">Evolua com quem acompanha.</span>
             </h1>
-            <p className="text-lg text-white/80 max-w-lg mb-8">
-              Treine e evolua junto com os amigos, e tenha o acompanhamento do seu profissional — tudo em um só lugar.
-            </p>
-            <div className="flex flex-col items-start sm:flex-row gap-3 mb-8">
+            <div className="flex flex-col items-start sm:flex-row gap-3 mt-8">
               <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
                 Fazer cadastro
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -123,13 +167,6 @@ const Index = () => {
                 Sou profissional
               </Button>
             </div>
-            <button
-              onClick={() => navigate("/trainers")}
-              className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full py-3 px-5 text-white/90 hover:bg-white/20 transition-smooth max-w-sm w-full"
-            >
-              <Search className="h-4 w-4 shrink-0" />
-              <span className="text-sm">Buscar um profissional perto de você</span>
-            </button>
           </div>
         </div>
       </section>
@@ -139,12 +176,19 @@ const Index = () => {
         <div className="container mx-auto px-4 mb-8">
           <h2 className="text-2xl sm:text-3xl font-bold">Tudo que faz parte da sua jornada.</h2>
         </div>
-        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide">
+        <div
+          ref={carouselRef}
+          onScroll={handleCarouselScroll}
+          onTouchStart={pauseCarousel}
+          onWheel={pauseCarousel}
+          onPointerDown={pauseCarousel}
+          className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 scroll-px-4 pb-4 scrollbar-hide"
+        >
           {carouselCards.map((card) => (
             <div
               key={card.title}
-              className="relative shrink-0 w-[80vw] sm:w-[22rem] h-72 rounded-2xl overflow-hidden snap-start bg-secondary group cursor-pointer"
-              onClick={() => navigate("/register/student")}
+              className="relative shrink-0 w-[calc(100vw-2rem)] sm:w-[22rem] h-72 rounded-2xl overflow-hidden snap-start bg-secondary group cursor-pointer"
+              onClick={() => navigate(card.to)}
             >
               <div className="absolute inset-0 bg-gradient-hero opacity-90 group-hover:opacity-100 transition-smooth" />
               <card.icon className="absolute -right-4 -bottom-4 h-40 w-40 text-white/10" />
@@ -156,6 +200,20 @@ const Index = () => {
                 </div>
               </div>
             </div>
+          ))}
+        </div>
+        <div className="flex justify-center gap-2 mt-2">
+          {carouselCards.map((card, i) => (
+            <button
+              key={card.title}
+              type="button"
+              aria-label={`Ir para ${card.title}`}
+              onClick={() => {
+                pauseCarousel();
+                goToSlide(i);
+              }}
+              className={`h-2 rounded-full transition-all ${i === slide ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
+            />
           ))}
         </div>
       </section>
@@ -186,36 +244,16 @@ const Index = () => {
         </div>
       </section>
 
-      {/* 4. SEÇÃO PINNED — MEU PLANO */}
+      {/* 4. COMO FUNCIONA */}
       <section className="bg-secondary text-secondary-foreground">
         <div className="container mx-auto px-4 py-16 sm:py-24">
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div className="space-y-14 lg:py-12">
-              {pinnedFeatures.map((f) => (
-                <div key={f.title}>
-                  <h3 className="text-3xl sm:text-4xl font-bold mb-3">{f.title}</h3>
-                  <p className="opacity-70 max-w-sm">{f.description}</p>
-                </div>
-              ))}
-            </div>
-            <div className="lg:sticky lg:top-24 h-fit">
-              <PhoneFrame label="Meu Plano">
-                {[
-                  { icon: Target, label: "Objetivos" },
-                  { icon: Dumbbell, label: "Treinos" },
-                  { icon: TrendingUp, label: "Evolução" },
-                  { icon: ShieldAlert, label: "Restrições" },
-                  { icon: Users, label: "Profissionais vinculados" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
-                    <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <item.icon className="h-4 w-4 text-primary" />
-                    </div>
-                    <span className="text-sm">{item.label}</span>
-                  </div>
-                ))}
-              </PhoneFrame>
-            </div>
+          <div className="grid md:grid-cols-3 gap-10">
+            {pinnedFeatures.map((f) => (
+              <div key={f.title}>
+                <h3 className="text-3xl sm:text-4xl font-bold mb-3">{f.title}</h3>
+                <p className="opacity-70 max-w-sm">{f.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -248,6 +286,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
+              <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-3">Para profissionais</p>
               <h2 className="text-3xl sm:text-5xl font-bold mb-4">Mais do que uma agenda. Sua operação fitness.</h2>
               <p className="opacity-80 mb-8 max-w-md">
                 Carteira de clientes, agenda, planos de treino, eventos e financeiro — organizados em um só painel.

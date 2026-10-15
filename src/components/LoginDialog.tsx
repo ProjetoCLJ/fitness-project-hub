@@ -86,7 +86,7 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-            Bem-vindo ao FIT
+            Bem-vindo ao MyJourn
           </DialogTitle>
           <DialogDescription>
             Entre com sua conta ou crie uma nova para começar

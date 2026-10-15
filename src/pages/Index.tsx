@@ -78,6 +78,7 @@ const statTiles = [
 
 const Index = () => {
   const [loginOpen, setLoginOpen] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const navigate = useNavigate();
 
   return (
@@ -86,13 +87,17 @@ const Index = () => {
 
       {/* 1. HERO — vídeo de fundo */}
       <section className="relative min-h-[100svh] flex items-end overflow-hidden bg-secondary">
+        {/* O vídeo aparece com um fade assim que começa a tocar; até lá o fundo escuro do hero fica visível. */}
         <video
-          className="absolute inset-0 w-full h-full object-cover"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
           src="/videos/hero-background.mp4"
           autoPlay
           muted
           loop
           playsInline
+          preload="auto"
+          onCanPlay={() => setVideoReady(true)}
+          onPlaying={() => setVideoReady(true)}
         />
         <div className="absolute inset-0 bg-black/40" />
         <div className="container mx-auto px-4 relative z-10 pt-28 pb-20 sm:pt-24 sm:pb-28">

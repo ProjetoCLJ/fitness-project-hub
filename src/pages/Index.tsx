@@ -8,20 +8,19 @@ import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo/logo-header.png";
 import {
   Dumbbell,
-  Apple,
   Target,
   ShieldAlert,
   Users,
   Search,
   ArrowRight,
   ArrowUpRight,
-  Check,
-  Trophy,
   Flame,
   TrendingUp,
-  Lock,
+  Link2,
+  Smartphone,
   Wallet,
   CalendarCheck,
+  CalendarHeart,
   Facebook,
   Instagram,
   Linkedin,
@@ -30,23 +29,28 @@ import {
 
 const carouselCards = [
   {
-    title: "Meu Plano",
-    description: "Objetivos, estratégia e histórico organizados em um só lugar.",
-    icon: Target,
-  },
-  {
     title: "Treinos",
-    description: "Séries, cargas, descanso e progressões — sempre à mão.",
+    description: "O treino do dia, as semanas do plano e o registro de cada série.",
     icon: Dumbbell,
   },
   {
-    title: "Nutrição",
-    description: "Plano alimentar conectado ao seu treinamento.",
-    icon: Apple,
+    title: "Evolução",
+    description: "Peso, cargas e histórico para ver o seu avanço de verdade.",
+    icon: TrendingUp,
+  },
+  {
+    title: "Desafios",
+    description: "Entre em desafios com os amigos e registre seus treinos.",
+    icon: Flame,
+  },
+  {
+    title: "Eventos",
+    description: "Corridas, aulas em grupo e encontros para treinar junto.",
+    icon: CalendarHeart,
   },
   {
     title: "Profissionais",
-    description: "Encontre, conheça e agende personal trainers e nutricionistas.",
+    description: "Encontre, agende e treine com quem acompanha a sua evolução.",
     icon: Users,
   },
 ];
@@ -57,19 +61,19 @@ const pinnedFeatures = [
     description: "Acompanhe o treino do dia, registre cada série e veja sua progressão de carga ao longo do tempo.",
   },
   {
-    title: "Nutrição",
-    description: "Visualize o plano alimentar definido pelo seu nutricionista, conectado ao mesmo plano do treino.",
+    title: "Evolução",
+    description: "Seu peso, seu histórico de treinos e o avanço em cada plano, à vista de você e do seu profissional.",
   },
   {
-    title: "Continuidade",
-    description: "Autorize um novo profissional a acessar seu histórico — sem começar do zero.",
+    title: "Acompanhamento",
+    description: "Seu profissional monta o plano, acompanha a execução e ajusta conforme você evolui.",
   },
 ];
 
 const statTiles = [
-  { value: "1", label: "Plano centralizado para toda a jornada" },
-  { value: "2+", label: "Tipos de profissionais conectados ao mesmo plano" },
-  { value: "100%", label: "Controle do que cada profissional acessa" },
+  { value: "1", label: "Plano organizado para toda a sua jornada" },
+  { value: "3", label: "Jeitos de evoluir: treinos, desafios e eventos" },
+  { value: "1:1", label: "Acompanhamento direto do seu profissional" },
 ];
 
 const Index = () => {
@@ -93,13 +97,13 @@ const Index = () => {
         <div className="absolute inset-0 bg-black/40" />
         <div className="container mx-auto px-4 relative z-10 pt-28 pb-20 sm:pt-24 sm:pb-28">
           <div className="max-w-3xl">
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[0.95] text-white mb-6">
-              Sua vida mais
+            <h1 className="text-3xl sm:text-6xl lg:text-7xl font-bold uppercase leading-[1] text-white mb-6">
+              Treine com quem importa.
               <br />
-              <span className="text-primary">organizada.</span>
+              <span className="text-primary">Evolua com quem acompanha.</span>
             </h1>
             <p className="text-lg text-white/80 max-w-lg mb-8">
-              Plano, treinos, nutrição e evolução em um só lugar — conectado aos profissionais da sua jornada.
+              Treine e evolua junto com os amigos, e tenha o acompanhamento do seu profissional — tudo em um só lugar.
             </p>
             <div className="flex flex-col items-start sm:flex-row gap-3 mb-8">
               <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
@@ -155,16 +159,16 @@ const Index = () => {
       <section className="py-16 sm:py-24 bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-5xl font-bold mb-4 max-w-2xl mx-auto">
-            Consistência também merece reconhecimento.
+            Treinar junto motiva mais.
           </h2>
           <p className="opacity-90 max-w-xl mx-auto mb-8">
-            FIT Score, níveis, ranking e desafios — construídos em torno da sua aderência ao plano, não do excesso de treino.
+            Crie desafios com os amigos, participe de eventos e convide quem você quiser por link.
           </p>
           <div className="flex flex-wrap justify-center gap-8">
             {[
-              { icon: Trophy, label: "FIT Score" },
-              { icon: TrendingUp, label: "Ranking" },
               { icon: Flame, label: "Desafios" },
+              { icon: CalendarHeart, label: "Eventos" },
+              { icon: Link2, label: "Convite por link" },
             ].map((item) => (
               <div key={item.label} className="flex flex-col items-center gap-2">
                 <div className="h-14 w-14 rounded-full bg-primary-foreground/15 flex items-center justify-center">
@@ -194,7 +198,7 @@ const Index = () => {
                 {[
                   { icon: Target, label: "Objetivos" },
                   { icon: Dumbbell, label: "Treinos" },
-                  { icon: Apple, label: "Nutrição" },
+                  { icon: TrendingUp, label: "Evolução" },
                   { icon: ShieldAlert, label: "Restrições" },
                   { icon: Users, label: "Profissionais vinculados" },
                 ].map((item) => (
@@ -226,8 +230,8 @@ const Index = () => {
             ))}
           </div>
           <p className="flex items-center justify-center gap-2 font-medium mt-10">
-            <Lock className="h-4 w-4 text-primary" />
-            Você controla o que cada profissional pode acessar.
+            <Smartphone className="h-4 w-4 text-primary" />
+            No celular ou no computador, sempre com você.
           </p>
         </div>
       </section>
@@ -241,10 +245,10 @@ const Index = () => {
             <div>
               <h2 className="text-3xl sm:text-5xl font-bold mb-4">Mais do que uma agenda. Sua operação fitness.</h2>
               <p className="opacity-80 mb-8 max-w-md">
-                Carteira de clientes, agenda, planos, marketplace e financeiro — organizados em um só painel.
+                Carteira de clientes, agenda, planos de treino, eventos e financeiro — organizados em um só painel.
               </p>
               <Button variant="hero" size="lg" onClick={() => navigate("/register/trainer")}>
-                Quero ser profissional FIT
+                Quero ser profissional no MyJourn
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
@@ -252,7 +256,7 @@ const Index = () => {
               {[
                 { icon: Users, label: "Carteira de clientes" },
                 { icon: CalendarCheck, label: "Agenda" },
-                { icon: Search, label: "Marketplace" },
+                { icon: CalendarHeart, label: "Eventos" },
                 { icon: Wallet, label: "Financeiro" },
               ].map((item) => (
                 <div key={item.label} className="flex flex-col items-center gap-2 text-center bg-secondary-foreground/5 rounded-xl p-6">
@@ -267,11 +271,11 @@ const Index = () => {
 
       {/* 7. FECHAMENTO */}
       <section className="relative py-24 sm:py-32 bg-background overflow-hidden text-center">
-        <span className="absolute inset-0 flex items-center justify-center whitespace-nowrap text-8xl sm:text-[14rem] lg:text-[22rem] font-bold text-muted/50 select-none leading-none pointer-events-none">
-          FIT
+        <span className="absolute inset-0 flex items-center justify-center whitespace-nowrap text-6xl sm:text-[9rem] lg:text-[14rem] font-bold text-muted/50 select-none leading-none pointer-events-none">
+          MyJourn
         </span>
         <div className="container mx-auto px-4 relative">
-          <h2 className="text-3xl sm:text-5xl font-bold mb-4">É mais que treino.<br />É o FIT.</h2>
+          <h2 className="text-3xl sm:text-5xl font-bold mb-4">É mais que treino.<br />É a sua jornada.</h2>
           <p className="text-muted-foreground mb-8">Comece a organizar sua jornada hoje.</p>
           <div className="flex flex-col items-center sm:flex-row gap-3 justify-center">
             <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
@@ -297,7 +301,7 @@ const Index = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-6 border-t border-secondary-foreground/10 pt-8 text-sm opacity-70">
             <div className="flex items-center gap-2">
               <img src={logo} alt="MyJourn" className="h-6 w-auto object-contain" />
-              <span className="hidden sm:inline">— Seu fitness. Organizado em um só lugar.</span>
+              <span className="hidden sm:inline">— Treine com quem importa.</span>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               <span>Sobre</span>

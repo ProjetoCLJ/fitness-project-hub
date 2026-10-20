@@ -8,9 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import {
-  Flame,
-  Trophy,
-  TrendingUp,
   Clock,
   User,
   Target,
@@ -64,12 +61,6 @@ const ClientHome = () => {
   const pendingBookings = bookings.filter((b) => b.status === "pending");
   const suggestions = bookings.filter((b) => b.status === "suggested");
 
-  // Gamificação (pontuação/ranking/sequência) ainda não tem backend — fica zerada até existir.
-  const fitScore = 0;
-  const level = { name: "Iniciante", min: 0, max: 999 };
-  const levelProgress = ((fitScore - level.min) / (level.max - level.min)) * 100;
-  const streak = 0;
-
   const todayISO = toLocalISO(new Date());
   const todaysWorkouts = plans.flatMap((p) => workoutsOnDate(p, todayISO).map((w) => ({ workout: w, plan: p })));
   const firstWorkout = plans.flatMap((p) => p.workouts.map((w) => ({ workout: w, plan: p })))[0];
@@ -109,40 +100,6 @@ const ClientHome = () => {
           <h1 className="text-xl sm:text-3xl font-bold">Olá, {user.profile.fullName.split(" ")[0]}!</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Aqui está o resumo do seu dia</p>
         </div>
-
-        {/* Resumo do dia: pontuação, nível, ranking */}
-        <Card className="p-4 sm:p-6 mb-4 bg-gradient-hero text-primary-foreground">
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Trophy className="h-4 w-4" />
-                <span className="text-xl sm:text-2xl font-bold">{fitScore}</span>
-              </div>
-              <div className="text-xs opacity-90">FIT Score</div>
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <TrendingUp className="h-4 w-4" />
-                <span className="text-xl sm:text-2xl font-bold">—</span>
-              </div>
-              <div className="text-xs opacity-90">No ranking</div>
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Flame className="h-4 w-4" />
-                <span className="text-xl sm:text-2xl font-bold">{streak}</span>
-              </div>
-              <div className="text-xs opacity-90">Dias seguidos</div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs mb-1 opacity-90">
-              <span>Nível {level.name}</span>
-              <span>{fitScore}/{level.max}</span>
-            </div>
-            <Progress value={levelProgress} className="h-2 bg-white/20" />
-          </div>
-        </Card>
 
         {/* Próximo treino */}
         <Card className="p-4 sm:p-6 mb-4">

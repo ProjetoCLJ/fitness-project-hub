@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, Plus, Swords, Trophy } from "lucide-react";
+import { ChevronRight, Plus, Swords } from "lucide-react";
 import { Challenge, challengeProgress, createChallenge, fetchMyChallenges } from "@/lib/challengeStore";
 import { inviteStudentsToChallenge } from "@/lib/eventStore";
 
@@ -35,9 +35,6 @@ const Challenges = () => {
 
   if (!user) return null;
 
-  // Pontuação geral ainda não tem backend — fica zerada até existir.
-  const fitScore = 0;
-
   return (
     <div className="min-h-screen bg-background">
       <Header onLoginClick={() => {}} />
@@ -49,20 +46,6 @@ const Challenges = () => {
             Consistência gera resultado — acompanhe sua jornada
           </p>
         </div>
-
-        <section className="mb-8">
-          <h2 className="font-semibold text-base sm:text-lg mb-3">FIT Score</h2>
-          <Card className="p-4 sm:p-6 bg-gradient-hero text-primary-foreground">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-5 w-5" />
-                <span className="font-semibold">Seu FIT Score</span>
-              </div>
-              <span className="text-2xl font-bold">{fitScore}</span>
-            </div>
-            <p className="text-sm opacity-90 mt-1">Você ainda não aparece no ranking geral</p>
-          </Card>
-        </section>
 
         <section>
           <div className="flex items-center justify-between mb-3">

@@ -19,8 +19,8 @@ import {
   Users,
   CalendarDays,
   Wallet,
-  LineChart,
   CalendarHeart,
+  Medal,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,14 +40,22 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     setOpen(false);
   };
 
+  // Biblioteca temporariamente oculta do menu (página segue disponível em /dashboard/student/library).
   const clientLinks = [
     { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
-    // Biblioteca temporariamente oculta do menu (página segue disponível em /dashboard/student/library).
-    { label: "Estatísticas", icon: LineChart, path: "/dashboard/student/stats" },
+    { label: "Ligas", icon: Medal, path: "/dashboard/student/leagues" },
     { label: "Profissionais", icon: Search, path: "/trainers" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
     { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
+  ];
+
+  // O profissional também é atleta: seção própria com as abas de aluno (Desafios e Eventos já estão na seção profissional).
+  const athleteLinksForTrainer = [
+    { label: "Início", icon: Home, path: "/dashboard/student" },
+    { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
+    { label: "Ligas", icon: Medal, path: "/dashboard/student/leagues" },
+    { label: "Encontrar profissional", icon: Search, path: "/trainers" },
   ];
 
   const trainerLinks = [
@@ -59,8 +67,8 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
   ];
 
-  const profilePath = user?.userType === "trainer" ? "/dashboard/trainer/profile" : "/dashboard/student/profile";
-  const links = user?.userType === "trainer" ? trainerLinks : clientLinks;
+  const isTrainer = user?.userType === "trainer";
+  const links = isTrainer ? trainerLinks : clientLinks;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -80,7 +88,8 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
 
         {isAuthenticated && user ? (
           <>
-            <nav className="flex-1 flex flex-col gap-1 py-4">
+            <nav className="flex-1 flex flex-col gap-1 py-4 overflow-y-auto">
+              {isTrainer && <p className="px-3 pt-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Profissional</p>}
               {links.map((link) => (
                 <Button
                   key={link.path}
@@ -92,16 +101,38 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
                   {link.label}
                 </Button>
               ))}
+              {isTrainer && (
+                <>
+                  <p className="px-3 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Meus treinos</p>
+                  {athleteLinksForTrainer.map((link) => (
+                    <Button
+                      key={link.path}
+                      variant="ghost"
+                      className="justify-start gap-3"
+                      onClick={() => goTo(link.path)}
+                    >
+                      <link.icon className="h-4 w-4" />
+                      {link.label}
+                    </Button>
+                  ))}
+                </>
+              )}
             </nav>
 
             <div className="border-t border-border pt-4 space-y-1">
+              {isTrainer && (
+                <Button variant="ghost" className="justify-start gap-3 w-full" onClick={() => goTo("/dashboard/trainer/profile")}>
+                  <User className="h-4 w-4" />
+                  Perfil profissional
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className="justify-start gap-3 w-full"
-                onClick={() => goTo(profilePath)}
+                onClick={() => goTo("/dashboard/student/profile")}
               >
                 <User className="h-4 w-4" />
-                Perfil
+                {isTrainer ? "Perfil de atleta" : "Perfil"}
               </Button>
               <Button
                 variant="ghost"

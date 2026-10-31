@@ -4,8 +4,12 @@ import { takePendingInvitePath } from "@/lib/challengeStore";
 import { supabase } from "@/integrations/supabase/client";
 
 interface User {
-  /** id do registro em trainer_profiles/student_profiles — é esse id que o resto do app deve usar como trainerId/clientId. */
+  /** id do registro do papel principal (trainer_profiles para profissional, student_profiles para aluno). */
   id: string;
+  /** id em student_profiles: todo usuário (inclusive profissional) também é atleta. */
+  studentId: string;
+  /** id em trainer_profiles; nulo para quem é só aluno. */
+  trainerId: string | null;
   email: string;
   userType: "trainer" | "student";
   /** Cadastro iniciado mas senha ainda não criada: só pode usar /completar-cadastro. */
@@ -116,20 +120,26 @@ const loadUser = async (authUserId: string): Promise<User | null> => {
   if (!profileRow) return null;
 
   let roleProfileId = profileRow.id;
+  let trainerId: string | null = null;
+  let studentId = profileRow.id;
+  const { data: studentRow } = await supabase
+    .from("student_profiles")
+    .select("id")
+    .eq("profile_id", profileRow.id)
+    .maybeSingle();
+  if (studentRow) studentId = studentRow.id;
   if (profileRow.role === "trainer") {
     const { data: trainerRow } = await supabase
       .from("trainer_profiles")
       .select("id")
       .eq("profile_id", profileRow.id)
       .maybeSingle();
-    if (trainerRow) roleProfileId = trainerRow.id;
+    if (trainerRow) {
+      roleProfileId = trainerRow.id;
+      trainerId = trainerRow.id;
+    }
   } else {
-    const { data: studentRow } = await supabase
-      .from("student_profiles")
-      .select("id")
-      .eq("profile_id", profileRow.id)
-      .maybeSingle();
-    if (studentRow) roleProfileId = studentRow.id;
+    roleProfileId = studentId;
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
@@ -137,6 +147,8 @@ const loadUser = async (authUserId: string): Promise<User | null> => {
 
   return {
     id: roleProfileId,
+    studentId,
+    trainerId,
     email: profileRow.email,
     userType: profileRow.role,
     needsSetup,

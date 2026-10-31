@@ -84,7 +84,7 @@ const Trainers = () => {
               <ChevronDown className="h-4 w-4 mr-2 rotate-90" />
               Voltar
             </Button>
-            {user?.userType === "student" && (
+            {user && (
               <Button variant="outline" onClick={() => setHistoryOpen(true)}>
                 <History className="h-4 w-4 mr-2" />
                 Histórico de aulas

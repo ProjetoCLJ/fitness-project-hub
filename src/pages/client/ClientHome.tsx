@@ -18,6 +18,9 @@ import {
 import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, toLocalISO, upcomingOccurrences } from "@/lib/agendaStore";
 import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule";
 import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
+import { FocoCard } from "@/components/gamification/FocoCard";
+import { flushPending } from "@/lib/offlineQueue";
+import { useRefreshGamification } from "@/hooks/useGamification";
 
 
 const formatBookingDate = (dateISO: string, startTime: string) =>
@@ -25,14 +28,33 @@ const formatBookingDate = (dateISO: string, startTime: string) =>
 
 const ClientHome = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [aulas, setAulas] = useState<{ event: ScheduleEvent & { trainerName: string }; date: string }[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
+  const refreshGm = useRefreshGamification();
   const [rescheduling, setRescheduling] = useState<{ event: ScheduleEvent; date: string } | null>(null);
+
+  // Treinos feitos offline sobem quando houver internet (ao abrir o app e quando a conexão volta).
+  useEffect(() => {
+    if (!clientId) return;
+    const sync = () =>
+      flushPending(clientId)
+        .then(({ synced }) => {
+          if (synced > 0) {
+            toast({ title: "Treinos sincronizados", description: `${synced} ${synced === 1 ? "treino registrado offline foi enviado" : "treinos registrados offline foram enviados"}.` });
+            refreshGm();
+          }
+        })
+        .catch(() => undefined);
+    sync();
+    window.addEventListener("online", sync);
+    return () => window.removeEventListener("online", sync);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -55,7 +77,7 @@ const ClientHome = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   const nextAulas = aulas.slice(0, 3);
   const pendingBookings = bookings.filter((b) => b.status === "pending");
@@ -75,7 +97,7 @@ const ClientHome = () => {
     : null;
 
   const startOfWeek = new Date();
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7)); // semana de segunda a domingo
   startOfWeek.setHours(0, 0, 0, 0);
   const completedThisWeek = executions.filter((exec) => new Date(exec.date) >= startOfWeek).length;
   let plannedThisWeek = 0;
@@ -100,6 +122,9 @@ const ClientHome = () => {
           <h1 className="text-xl sm:text-3xl font-bold">Olá, {user.profile.fullName.split(" ")[0]}!</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Aqui está o resumo do seu dia</p>
         </div>
+
+        {/* Seu Foco: dias, meta, XP e liga */}
+        <FocoCard autoOpenGoal />
 
         {/* Próximo treino */}
         <Card className="p-4 sm:p-6 mb-4">

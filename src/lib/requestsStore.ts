@@ -19,11 +19,11 @@ const fmtDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
 
 export const INVITE_ERRORS: Record<string, string> = {
-  EMAIL_IS_TRAINER: "Esse e-mail pertence a uma conta de profissional.",
   ALREADY_LINKED: "Esse aluno já está na sua carteira.",
   ALREADY_INVITED: "Já existe um convite pendente para esse e-mail.",
   INVALID_EMAIL: "Digite um e-mail válido.",
   NOT_TRAINER: "Apenas profissionais podem convidar alunos.",
+  SELF_INVITE: "Você não pode convidar a si mesmo.",
 };
 
 /** Traduz o erro das funções do banco (a mensagem vem com o código, ex.: "ALREADY_LINKED"). */

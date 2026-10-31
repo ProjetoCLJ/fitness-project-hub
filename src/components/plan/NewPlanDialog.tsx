@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { ptBR } from "date-fns/locale";
-import { PlanInput, WEEKDAY_SHORT } from "@/lib/planStore";
+import { PlanInput, WEEKDAY_SHORT, WEEK_COLUMNS } from "@/lib/planStore";
+import { SPORTS, SportCode } from "@/lib/sports";
 import { toLocalISO } from "@/lib/agendaStore";
 
 interface NewPlanDialogProps {
@@ -15,16 +16,16 @@ interface NewPlanDialogProps {
   onCreate: (input: PlanInput) => void | Promise<void>;
 }
 
-/** Prévia do ciclo: uma linha por semana, de domingo a sábado. */
+/** Prévia do ciclo: uma linha por semana, de segunda a domingo. */
 export const CyclePreview = ({ weeks }: { weeks: number }) => (
   <div className="space-y-2">
     {Array.from({ length: weeks }, (_, week) => (
       <div key={week} className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground w-16 shrink-0">Semana {week + 1}</span>
         <div className="grid grid-cols-7 gap-1 flex-1">
-          {WEEKDAY_SHORT.map((day) => (
-            <div key={day} className="rounded-md border bg-muted/30 py-2 text-center text-xs font-medium">
-              {day}
+          {WEEK_COLUMNS.map((i) => (
+            <div key={i} className="rounded-md border bg-muted/30 py-2 text-center text-xs font-medium">
+              {WEEKDAY_SHORT[i]}
             </div>
           ))}
         </div>
@@ -36,6 +37,7 @@ export const CyclePreview = ({ weeks }: { weeks: number }) => (
 export const NewPlanDialog = ({ open, onOpenChange, onCreate }: NewPlanDialogProps) => {
   const today = toLocalISO(new Date());
   const [title, setTitle] = useState("");
+  const [sport, setSport] = useState<SportCode>("musculacao");
   const [objective, setObjective] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -47,6 +49,7 @@ export const NewPlanDialog = ({ open, onOpenChange, onCreate }: NewPlanDialogPro
 
   const reset = () => {
     setTitle("");
+    setSport("musculacao");
     setObjective("");
     setDescription("");
     setStartDate(today);
@@ -64,6 +67,7 @@ export const NewPlanDialog = ({ open, onOpenChange, onCreate }: NewPlanDialogPro
         startDate,
         endDate: endDate || null,
         cycleWeeks: cycleWeeks > 0 ? cycleWeeks : null,
+        sport,
       });
       reset();
     } finally {
@@ -83,6 +87,22 @@ export const NewPlanDialog = ({ open, onOpenChange, onCreate }: NewPlanDialogPro
           <div className="space-y-2">
             <Label htmlFor="plan-title">Título</Label>
             <Input id="plan-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Hipertrofia — Out/2026" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="plan-sport">Esporte</Label>
+            <select
+              id="plan-sport"
+              value={sport}
+              onChange={(e) => setSport(e.target.value as SportCode)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {SPORTS.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">Cada treino concluído rende XP nesse esporte. Vale treino de 25 minutos ou mais.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="plan-objective">Objetivo</Label>

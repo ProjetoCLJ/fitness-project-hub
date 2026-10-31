@@ -11,14 +11,17 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ArrowLeft, Pencil, Plus } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Plan, Workout, WEEKDAY_SHORT, deleteWorkout, saveWorkout, setPlanStatus, updatePlan, workoutPositionLabel } from "@/lib/planStore";
+import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, deleteWorkout, saveWorkout, setPlanStatus, updatePlan, workoutPositionLabel } from "@/lib/planStore";
 import { toLocalISO } from "@/lib/agendaStore";
+import { sportLabel } from "@/lib/sports";
 import { WorkoutDraft, WorkoutEditorDialog } from "@/components/plan/WorkoutEditorDialog";
 
 interface PlanDetailProps {
   plan: Plan;
   onBack: () => void;
   onChanged: () => void | Promise<void>;
+  /** Quem pode editar a estrutura: o profissional do plano ou o próprio atleta (plano próprio). */
+  canEdit?: boolean;
 }
 
 const formatDate = (iso: string) =>
@@ -37,9 +40,9 @@ interface EditorTarget {
   workoutDate: string | null;
 }
 
-export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
+export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDetailProps) => {
   const { toast } = useToast();
-  const readOnly = plan.status !== "active";
+  const readOnly = plan.status !== "active" || !canEdit;
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [confirm, setConfirm] = useState<"completed" | "cancelled" | null>(null);
@@ -80,12 +83,16 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
   const handleDeleteWorkout = async () => {
     if (!editor?.workout) return;
     const id = editor.workout.id;
-    await run(() => deleteWorkout(id), "Treino excluído");
+    await run(async () => {
+      const effective = await deleteWorkout(id);
+      toast({ title: "Treino excluído", description: `Vale a partir de ${formatDate(effective)}. Até lá, ele ainda conta na semana.` });
+    }, "Treino excluído");
     setEditor(null);
   };
 
   const cycleCell = (week: number, weekday: number) => {
-    const workouts = plan.workouts.filter((w) => w.weekIndex === week && w.weekday === weekday);
+    const today = toLocalISO(new Date());
+    const workouts = plan.workouts.filter((w) => w.weekIndex === week && w.weekday === weekday && (!w.removedAt || w.removedAt > today));
     return (
       <div key={weekday} className="rounded-md border p-1 min-h-[72px] flex flex-col gap-1">
         <span className="text-[10px] font-medium text-muted-foreground text-center">{WEEKDAY_SHORT[weekday]}</span>
@@ -115,7 +122,7 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
   };
 
   const selectedISO = toLocalISO(selectedDay);
-  const dayWorkouts = plan.workouts.filter((w) => w.workoutDate === selectedISO);
+  const dayWorkouts = plan.workouts.filter((w) => w.workoutDate === selectedISO && (!w.removedAt || w.removedAt > toLocalISO(new Date())));
   const datesWithWorkouts = plan.workouts.filter((w) => w.workoutDate).map((w) => new Date(`${w.workoutDate}T00:00:00`));
 
   return (
@@ -182,6 +189,10 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
                 </p>
               </div>
               <div>
+                <p className="text-muted-foreground">Esporte</p>
+                <p className="font-medium">{sportLabel(plan.sport)}</p>
+              </div>
+              <div>
                 <p className="text-muted-foreground">Criado por</p>
                 <p className="font-medium">{plan.trainerName}</p>
               </div>
@@ -208,7 +219,7 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
               {Array.from({ length: plan.cycleWeeks }, (_, week) => (
                 <div key={week} className="space-y-1">
                   <p className="text-sm font-medium">Semana {week + 1}</p>
-                  <div className="grid grid-cols-7 gap-1">{[0, 1, 2, 3, 4, 5, 6].map((weekday) => cycleCell(week, weekday))}</div>
+                  <div className="grid grid-cols-7 gap-1">{WEEK_COLUMNS.map((weekday) => cycleCell(week, weekday))}</div>
                 </div>
               ))}
             </>
@@ -257,6 +268,7 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
       <WorkoutEditorDialog
         workout={editor?.workout ?? null}
         positionLabel={editor ? workoutPositionLabel(editor) : ""}
+        sport={plan.sport}
         open={!!editor}
         onOpenChange={(open) => !open && setEditor(null)}
         onSave={handleSaveWorkout}
@@ -271,8 +283,8 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
             <DialogTitle>{confirm === "completed" ? "Concluir plano?" : "Excluir plano?"}</DialogTitle>
             <DialogDescription>
               {confirm === "completed"
-                ? "O plano será encerrado e movido para o histórico do aluno."
-                : "O plano será movido para o histórico como excluído. Os treinos já realizados continuam registrados."}
+                ? "O plano será encerrado e movido para o histórico. Vale a partir da próxima segunda-feira: os treinos da semana atual ainda contam."
+                : "O plano será movido para o histórico como excluído. Vale a partir da próxima segunda-feira: os treinos da semana atual ainda contam, e os já realizados continuam registrados."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">
@@ -287,7 +299,9 @@ export const PlanDetail = ({ plan, onBack, onChanged }: PlanDetailProps) => {
                 const status = confirm;
                 setConfirm(null);
                 if (status) {
-                  await run(() => setPlanStatus(plan.id, status), status === "completed" ? "Plano concluído" : "Plano excluído");
+                  await run(async () => {
+                    await setPlanStatus(plan.id, status);
+                  }, status === "completed" ? "Plano concluído" : "Plano excluído");
                   onBack();
                 }
               }}

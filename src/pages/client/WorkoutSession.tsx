@@ -11,10 +11,36 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Dumbbell, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Dumbbell, Check, Play, Timer, Flame, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { fetchGmOverview } from "@/lib/gamification";
+import { useRefreshGamification } from "@/hooks/useGamification";
+import { isNetworkError, queueExecution } from "@/lib/offlineQueue";
 import { ExerciseLog, Plan, SetLog, WorkoutExecution, fetchExecutions, fetchPlansForStudent, recordExecution } from "@/lib/planStore";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
+
+const MIN_MINUTES = 25;
+const MAX_MINUTES = 240;
+const timerKey = (workoutId: string | undefined) => `workout-timer:${workoutId}`;
+
+const formatElapsed = (ms: number) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+};
+
+interface FinishResult {
+  valid: boolean;
+  minutes: number;
+  xpGained: number;
+  focoDays: number | null;
+  offline: boolean;
+}
 
 const parseRestSeconds = (rest: string) => {
   const match = rest.match(/(\d+)/);
@@ -35,7 +61,7 @@ interface ExerciseDraft {
 
 const WorkoutSession = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
   const { workoutId } = useParams();
@@ -46,6 +72,43 @@ const WorkoutSession = () => {
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const [priorExecutions, setPriorExecutions] = useState<WorkoutExecution[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const refreshGm = useRefreshGamification();
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [tick, setTick] = useState(Date.now());
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [minutes, setMinutes] = useState("");
+  const [result, setResult] = useState<FinishResult | null>(null);
+
+  // Cronômetro: guarda o início no aparelho (sobrevive a recarregar) e se encerra sozinho em 4 h.
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(timerKey(workoutId)));
+      if (saved && Date.now() - saved < MAX_MINUTES * 60000) setStartedAt(saved);
+      else localStorage.removeItem(timerKey(workoutId));
+    } catch {
+      /* sem storage */
+    }
+  }, [workoutId]);
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
+  const startTimer = () => {
+    const now = Date.now();
+    setStartedAt(now);
+    setTick(now);
+    try {
+      localStorage.setItem(timerKey(workoutId), String(now));
+    } catch {
+      /* sem storage */
+    }
+  };
+
+  const elapsedMs = startedAt ? Math.min(tick - startedAt, MAX_MINUTES * 60000) : 0;
+  const elapsedMinutes = Math.floor(elapsedMs / 60000);
 
   useEffect(() => {
     if (!clientId) return;
@@ -73,7 +136,7 @@ const WorkoutSession = () => {
     setDrafts(initial);
   }, [workout]);
 
-  if (!user || user.userType !== "student" || !plan || !workout) return null;
+  if (!user || !plan || !workout) return null;
 
   const exercise = workout.exercises[exerciseIndex];
   const draft = drafts[exercise.id];
@@ -115,8 +178,8 @@ const WorkoutSession = () => {
     updateDraft((d) => ({ ...d, swapping: !d.swapping, performedName: d.swapping ? exercise.name : d.performedName }));
   };
 
-  const finishWorkout = async () => {
-    const exerciseLogs: ExerciseLog[] = workout.exercises
+  const buildLogs = (): ExerciseLog[] =>
+    workout.exercises
       .map((ex): ExerciseLog | null => {
         const d = drafts[ex.id];
         const completedSets = d.sets.filter((s) => s.done).map(({ done, ...rest }) => rest);
@@ -142,34 +205,67 @@ const WorkoutSession = () => {
       })
       .filter((log): log is ExerciseLog => log !== null);
 
-    if (exerciseLogs.length === 0) {
+  const openFinish = () => {
+    if (!startedAt) {
+      toast({ title: "Inicie o treino primeiro", description: "Toque em Iniciar treino para ligar o cronômetro.", variant: "destructive" });
+      return;
+    }
+    if (buildLogs().length === 0) {
       toast({ title: "Nenhuma série registrada", description: "Marque ao menos uma série antes de concluir.", variant: "destructive" });
       return;
     }
+    setMinutes(String(Math.max(1, elapsedMinutes)));
+    setFinishOpen(true);
+  };
+
+  const confirmFinish = async () => {
+    const exerciseLogs = buildLogs();
+    const mins = Math.min(MAX_MINUTES, Math.max(1, Math.round(Number(minutes) || 1)));
+    const finishedAtDate = new Date();
+    const payload = {
+      planId: plan.id,
+      workoutId: workout.id,
+      workoutName: workout.name,
+      exerciseLogs,
+      observations: observations.trim() || undefined,
+      startedAt: new Date(finishedAtDate.getTime() - mins * 60000).toISOString(),
+      finishedAt: finishedAtDate.toISOString(),
+    };
 
     setIsSaving(true);
+    const before = await fetchGmOverview().catch(() => null);
+    let offline = false;
+    let valid = mins >= MIN_MINUTES;
     try {
-      await recordExecution(clientId, {
-        planId: plan.id,
-        workoutId: workout.id,
-        workoutName: workout.name,
-        exerciseLogs,
-        observations: observations.trim() || undefined,
-      });
-    } catch {
-      toast({ title: "Não foi possível salvar o treino", description: "Tente novamente.", variant: "destructive" });
-      setIsSaving(false);
-      return;
+      const saved = await recordExecution(clientId, payload);
+      valid = saved.isValid;
+    } catch (error) {
+      if (isNetworkError(error)) {
+        queueExecution(clientId, payload);
+        offline = true;
+      } else {
+        toast({ title: "Não foi possível salvar o treino", description: "Tente novamente.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+      }
     }
 
-    const prCount = exerciseLogs.filter((l) => l.isPR).length;
-    toast({
-      title: "Treino concluído!",
-      description: prCount > 0
-        ? `${workout.name} registrado — ${prCount} ${prCount > 1 ? "recordes pessoais" : "recorde pessoal"}! 🏆`
-        : `${workout.name} registrado no seu histórico.`,
+    try {
+      localStorage.removeItem(timerKey(workoutId));
+    } catch {
+      /* sem storage */
+    }
+    const after = offline ? null : await fetchGmOverview().catch(() => null);
+    refreshGm();
+    setIsSaving(false);
+    setFinishOpen(false);
+    setResult({
+      valid,
+      minutes: mins,
+      xpGained: before && after ? Math.max(0, after.xp_total - before.xp_total) : 0,
+      focoDays: after?.foco.active ? after.foco.days : null,
+      offline,
     });
-    navigate("/dashboard/student/workouts");
   };
 
   return (
@@ -184,6 +280,28 @@ const WorkoutSession = () => {
           </Button>
           <span className="text-sm text-muted-foreground">{doneSets}/{totalSets} séries</span>
         </div>
+
+        {startedAt ? (
+          <Card className="p-3 mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Timer className="h-5 w-5 text-primary" />
+              <span className="text-xl font-bold tabular-nums">{formatElapsed(elapsedMs)}</span>
+            </div>
+            <span className={`text-xs text-right ${elapsedMinutes >= MIN_MINUTES ? "text-green-600 font-medium" : "text-muted-foreground"}`}>
+              {elapsedMinutes >= MIN_MINUTES ? "Treino válido para XP e Foco" : `Faltam ${MIN_MINUTES - elapsedMinutes} min para valer XP e Foco`}
+            </span>
+          </Card>
+        ) : (
+          <Card className="p-4 mb-4 border-primary/40 space-y-3">
+            <p className="text-sm">
+              Ligue o cronômetro ao começar. Para valer <strong>XP e Foco</strong>, o treino precisa ter pelo menos <strong>{MIN_MINUTES} minutos</strong>.
+            </p>
+            <Button variant="hero" className="w-full" onClick={startTimer}>
+              <Play className="h-4 w-4 mr-2" />
+              Iniciar treino
+            </Button>
+          </Card>
+        )}
 
         <Progress value={(doneSets / totalSets) * 100} className="h-2 mb-4" />
 
@@ -328,7 +446,7 @@ const WorkoutSession = () => {
             Anterior
           </Button>
           {isLastExercise ? (
-            <Button variant="hero" className="flex-1" onClick={finishWorkout} disabled={isSaving}>
+            <Button variant="hero" className="flex-1" onClick={openFinish} disabled={isSaving}>
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Concluir treino
             </Button>
@@ -347,6 +465,79 @@ const WorkoutSession = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Concluir treino</DialogTitle>
+            <DialogDescription>Confira a duração. Você pode ajustar se esqueceu de parar o cronômetro.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="duration-min">Duração (minutos)</Label>
+              <Input id="duration-min" type="number" min={1} max={MAX_MINUTES} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
+            </div>
+            {Number(minutes) < MIN_MINUTES ? (
+              <p className="text-sm text-destructive flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                Com menos de {MIN_MINUTES} minutos o treino fica no histórico, mas não vale XP nem Foco.
+              </p>
+            ) : (
+              <p className="text-sm text-green-600">Treino válido: vai render XP e contar no seu Foco.</p>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setFinishOpen(false)} disabled={isSaving}>
+                Voltar
+              </Button>
+              <Button variant="hero" className="flex-1" onClick={confirmFinish} disabled={isSaving}>
+                Concluir
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!result}
+        onOpenChange={(open) => {
+          if (!open) navigate("/dashboard/student/workouts");
+        }}
+      >
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <DialogTitle>{result?.offline ? "Treino registrado offline" : "Treino concluído!"}</DialogTitle>
+            <DialogDescription>
+              {result?.offline
+                ? "Ele fica guardado no aparelho e sincroniza quando a internet voltar (até 24 h)."
+                : result?.valid
+                  ? `${workout.name} · ${result.minutes} min`
+                  : `${workout.name} foi registrado, mas com menos de ${MIN_MINUTES} minutos não vale XP nem Foco.`}
+            </DialogDescription>
+          </DialogHeader>
+          {result && !result.offline && result.valid && (
+            <div className="flex justify-center gap-6 py-2">
+              <div>
+                <p className="text-2xl font-bold flex items-center justify-center gap-1">
+                  <Zap className="h-5 w-5 text-yellow-500" />+{result.xpGained}
+                </p>
+                <p className="text-xs text-muted-foreground">XP</p>
+              </div>
+              {result.focoDays !== null && (
+                <div>
+                  <p className="text-2xl font-bold flex items-center justify-center gap-1">
+                    <Flame className="h-5 w-5 text-orange-500" />
+                    {result.focoDays}
+                  </p>
+                  <p className="text-xs text-muted-foreground">dias de Foco</p>
+                </div>
+              )}
+            </div>
+          )}
+          <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/workouts")}>
+            Continuar
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {restSeconds !== null && (
         <RestTimer seconds={restSeconds} onDone={() => setRestSeconds(null)} />

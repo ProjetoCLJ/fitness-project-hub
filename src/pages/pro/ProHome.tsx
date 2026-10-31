@@ -16,6 +16,7 @@ import {
 import { ScheduleEvent, countAvailableSlots, eventTitle, fetchLinkedStudents, fetchTrainerEvents, upcomingOccurrences } from "@/lib/agendaStore";
 import { fetchRequestsForTrainer } from "@/lib/requestsStore";
 import { computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
+import { AdherencePanel } from "@/components/gamification/AdherencePanel";
 
 const formatDate = (dateISO: string) =>
   new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
@@ -118,6 +119,9 @@ const ProHome = () => {
             <Badge variant="secondary">{summary.pendingRequests}</Badge>
           </Card>
         )}
+
+        {/* Adesão dos alunos: Foco e treinos da semana */}
+        <AdherencePanel />
 
         {/* Próximos atendimentos */}
         <Card className="p-4 sm:p-6 mb-4">

@@ -25,34 +25,35 @@ const addDays = (iso: string, n: number) => {
   return toLocalISO(d);
 };
 
-const sundayOf = (iso: string) => {
+/** Segunda-feira da semana (as semanas vão de segunda a domingo). */
+const mondayOf = (iso: string) => {
   const d = new Date(`${iso}T00:00:00`);
-  return addDays(iso, -d.getDay());
+  return addDays(iso, -((d.getDay() + 6) % 7));
 };
 
 const dayDiff = (a: string, b: string) =>
   Math.round((new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86400000);
 
-/** Número da semana dentro do ciclo (1-based) para o domingo informado; null se fora do plano ou sem ciclo. */
-export const cycleWeekLabel = (plan: Plan, sundayISO: string): number | null => {
+/** Número da semana dentro do ciclo (1-based) para a segunda-feira informada; null se fora do plano ou sem ciclo. */
+export const cycleWeekLabel = (plan: Plan, mondayISO: string): number | null => {
   if (!plan.cycleWeeks) return null;
-  const weeks = Math.round(dayDiff(sundayISO, sundayOf(plan.startDate)) / 7);
+  const weeks = Math.round(dayDiff(mondayISO, mondayOf(plan.startDate)) / 7);
   if (weeks < 0) return null;
-  if (plan.endDate && sundayISO > plan.endDate) return null;
+  if (plan.endDate && mondayISO > plan.endDate) return null;
   return (weeks % plan.cycleWeeks) + 1;
 };
 
 export const executionDay = (exec: WorkoutExecution) => exec.date.slice(0, 10);
 
-/** Domingos das semanas exibidas: o ciclo atual inteiro (com ciclo) ou esta semana + a próxima (sem ciclo). */
+/** Segundas-feiras das semanas exibidas: o ciclo atual inteiro (com ciclo) ou esta semana + a próxima (sem ciclo). */
 const windowStarts = (plan: Plan, todayISO: string, offsetWeeks: number): string[] => {
   if (plan.cycleWeeks) {
-    const planStart = sundayOf(plan.startDate);
-    const weeksSince = Math.max(0, Math.floor(dayDiff(sundayOf(todayISO), planStart) / 7));
+    const planStart = mondayOf(plan.startDate);
+    const weeksSince = Math.max(0, Math.floor(dayDiff(mondayOf(todayISO), planStart) / 7));
     const block = Math.floor(weeksSince / plan.cycleWeeks) * plan.cycleWeeks;
     return Array.from({ length: plan.cycleWeeks }, (_, i) => addDays(planStart, (block + i + offsetWeeks) * 7));
   }
-  const thisWeek = addDays(sundayOf(todayISO), offsetWeeks * 7);
+  const thisWeek = addDays(mondayOf(todayISO), offsetWeeks * 7);
   return [thisWeek, addDays(thisWeek, 7)];
 };
 

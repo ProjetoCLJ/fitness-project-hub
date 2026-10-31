@@ -7,14 +7,14 @@ import { PlanWeeks } from "@/components/plan/PlanWeeks";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, History, Flame, Shuffle, X } from "lucide-react";
+import { CheckCircle2, History, Flame, ListChecks, Plus, Shuffle, X } from "lucide-react";
 import { Plan, Workout, WorkoutExecution, WEEKDAY_NAMES, fetchExecutions, fetchPlansForStudent } from "@/lib/planStore";
 import { buildPlanWeeks, executionDay } from "@/lib/planSchedule";
 import { toLocalISO } from "@/lib/agendaStore";
 
 const Workouts = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[] | null>(null);
@@ -35,7 +35,7 @@ const Workouts = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  if (!user || user.userType !== "student" || plans === null) return null;
+  if (!user || plans === null) return null;
 
   const todayISO = toLocalISO(new Date());
   const todayName = WEEKDAY_NAMES[new Date().getDay()];
@@ -60,15 +60,25 @@ const Workouts = () => {
             <h1 className="text-xl sm:text-3xl font-bold">Treinos</h1>
             <p className="text-sm sm:text-base text-muted-foreground">{todayName}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/student/workouts/history")}>
-            <History className="h-4 w-4 mr-1" />
-            Histórico
-          </Button>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/student/plan")}>
+              <ListChecks className="h-4 w-4 mr-1" />
+              Meus planos
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/student/workouts/history")}>
+              <History className="h-4 w-4 mr-1" />
+              Histórico
+            </Button>
+          </div>
         </div>
 
         {plans.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            Você ainda não tem treinos. Assim que seu profissional criar seu plano, eles aparecem aqui.
+          <Card className="p-8 text-center text-sm text-muted-foreground space-y-3">
+            <p>Você ainda não tem treinos. Crie seu próprio plano ou espere seu profissional montar um.</p>
+            <Button variant="hero" onClick={() => navigate("/dashboard/student/plan?new=1")}>
+              <Plus className="h-4 w-4 mr-1" />
+              Criar meu plano
+            </Button>
           </Card>
         ) : pickMode ? (
           <>

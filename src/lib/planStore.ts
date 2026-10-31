@@ -2,7 +2,16 @@
 // O treino de um plano tem posição no ciclo (semana + dia da semana, repetindo a
 // cada N semanas) ou data específica (plano sem ciclo).
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { SportCode } from "@/lib/sports";
+
+// Colunas e funções novas (esporte, remoção, pausa, cronômetro) ainda não estão no arquivo de tipos gerado.
+const db = supabase as unknown as SupabaseClient;
+
+// Compatibilidade: se o banco ainda não recebeu as migrações 0009/0010 (colunas/funções novas), o app segue no formato antigo.
+const missingSchema = (error: { code?: string; message?: string } | null) =>
+  !!error && (["42P01", "42703", "42883", "PGRST200", "PGRST202", "PGRST204", "PGRST205"].includes(error.code ?? "") || /schema cache|does not exist/i.test(error.message ?? ""));
 
 export type PlanStatus = "active" | "completed" | "cancelled";
 
@@ -26,14 +35,26 @@ export interface Workout {
   weekday: number | null;
   /** Data específica (planos sem ciclo). */
   workoutDate: string | null;
+  /** Treino removido: deixa de valer a partir desta data (próxima segunda). */
+  removedAt: string | null;
   exercises: Exercise[];
+}
+
+export interface PlanPause {
+  startsOn: string;
+  endsOn: string | null;
 }
 
 export interface Plan {
   id: string;
   studentId: string;
-  trainerId: string;
+  /** Null nos planos criados pelo próprio atleta. */
+  trainerId: string | null;
   trainerName: string;
+  sport: SportCode;
+  /** Plano removido/encerrado: deixa de valer a partir desta data (próxima segunda). */
+  removedAt: string | null;
+  pauses: PlanPause[];
   title: string;
   objective: string;
   description: string;
@@ -68,15 +89,19 @@ export interface WorkoutExecution {
   workoutId: string | null;
   workoutName: string;
   date: string;
+  durationMinutes?: number;
+  /** Treino válido para XP/Foco (plano + pelo menos 25 min). */
+  isValid?: boolean;
   exerciseLogs: ExerciseLog[];
   observations?: string;
 }
 
 // ---------- Ciclo ----------
 
-const startOfWeekSunday = (dateISO: string) => {
+/** Segunda-feira da semana (as semanas vão de segunda a domingo). */
+const startOfWeekMonday = (dateISO: string) => {
   const d = new Date(`${dateISO}T00:00:00`);
-  d.setDate(d.getDate() - d.getDay());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return d;
 };
 
@@ -85,22 +110,29 @@ export const cycleWeekIndexFor = (plan: Plan, dateISO: string): number | null =>
   if (!plan.cycleWeeks) return null;
   if (dateISO < plan.startDate) return null;
   if (plan.endDate && dateISO > plan.endDate) return null;
-  const weeks = Math.round((startOfWeekSunday(dateISO).getTime() - startOfWeekSunday(plan.startDate).getTime()) / (7 * 24 * 3600 * 1000));
+  const weeks = Math.round((startOfWeekMonday(dateISO).getTime() - startOfWeekMonday(plan.startDate).getTime()) / (7 * 24 * 3600 * 1000));
   return weeks % plan.cycleWeeks;
 };
 
 /** Treinos que caem em determinada data (respeitando ciclo, datas e status do plano). */
+export const isPausedOn = (plan: Plan, dateISO: string) =>
+  plan.pauses.some((p) => dateISO >= p.startsOn && (!p.endsOn || dateISO <= p.endsOn));
+
 export const workoutsOnDate = (plan: Plan, dateISO: string): Workout[] => {
-  if (plan.status !== "active") return [];
-  if (!plan.cycleWeeks) return plan.workouts.filter((w) => w.workoutDate === dateISO);
+  if (plan.removedAt ? dateISO >= plan.removedAt : plan.status !== "active") return [];
+  if (isPausedOn(plan, dateISO)) return [];
+  const live = (w: Workout) => !w.removedAt || dateISO < w.removedAt;
+  if (!plan.cycleWeeks) return plan.workouts.filter((w) => w.workoutDate === dateISO && live(w));
   const week = cycleWeekIndexFor(plan, dateISO);
   if (week === null) return [];
   const weekday = new Date(`${dateISO}T00:00:00`).getDay();
-  return plan.workouts.filter((w) => w.weekIndex === week && w.weekday === weekday);
+  return plan.workouts.filter((w) => w.weekIndex === week && w.weekday === weekday && live(w));
 };
 
+// Índices seguem Date.getDay() (0 = domingo); a semana é exibida de segunda a domingo (WEEK_COLUMNS).
 export const WEEKDAY_NAMES = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 export const WEEKDAY_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+export const WEEK_COLUMNS = [1, 2, 3, 4, 5, 6, 0];
 
 export const workoutPositionLabel = (w: Pick<Workout, "weekIndex" | "weekday" | "workoutDate">) => {
   if (w.workoutDate) return new Date(`${w.workoutDate}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
@@ -129,6 +161,7 @@ type WorkoutRow = {
   week_index: number | null;
   weekday: number | null;
   workout_date: string | null;
+  removed_at: string | null;
   order_index: number | null;
   workout_exercises: ExerciseRow[] | null;
 };
@@ -136,7 +169,10 @@ type WorkoutRow = {
 type PlanRow = {
   id: string;
   student_id: string;
-  trainer_id: string;
+  trainer_id: string | null;
+  sport: SportCode | null;
+  removed_at: string | null;
+  plan_pauses: { starts_on: string; ends_on: string | null }[] | null;
   title: string;
   objective: string | null;
   description: string | null;
@@ -157,6 +193,7 @@ const mapWorkout = (row: WorkoutRow): Workout => ({
   weekIndex: row.week_index,
   weekday: row.weekday,
   workoutDate: row.workout_date,
+  removedAt: row.removed_at,
   exercises: [...(row.workout_exercises ?? [])]
     .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
     .map((ex) => ({
@@ -170,31 +207,45 @@ const mapWorkout = (row: WorkoutRow): Workout => ({
     })),
 });
 
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** Plano removido/encerrado continua valendo até a data de remoção (próxima segunda). */
+const effectiveStatus = (row: PlanRow): PlanStatus => {
+  const status = row.status ?? "active";
+  if (row.removed_at && todayISO() < row.removed_at) return "active";
+  return status;
+};
+
 const mapPlan = (row: PlanRow): Plan => ({
   id: row.id,
   studentId: row.student_id,
   trainerId: row.trainer_id,
-  trainerName: row.trainer_profiles?.profiles?.full_name ?? "Profissional",
+  trainerName: row.trainer_id ? row.trainer_profiles?.profiles?.full_name ?? "Profissional" : "Você",
+  sport: row.sport ?? "outro",
+  removedAt: row.removed_at,
+  pauses: (row.plan_pauses ?? []).map((p) => ({ startsOn: p.starts_on, endsOn: p.ends_on })),
   title: row.title,
   objective: row.objective ?? "",
   description: row.description ?? "",
   startDate: row.start_date,
   endDate: row.deadline,
   cycleWeeks: row.cycle_weeks,
-  status: row.status ?? "active",
+  status: effectiveStatus(row),
   createdAt: row.created_at ?? "",
   workouts: [...(row.workouts ?? [])].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)).map(mapWorkout),
 });
 
-const PLAN_SELECT = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*))";
+const PLAN_SELECT_LEGACY = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*))";
+const PLAN_SELECT = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*)), plan_pauses(starts_on, ends_on)";
 
 /** Planos de um aluno. Para o profissional, o banco só devolve os planos criados por ele. */
 export const fetchPlansForStudent = async (studentId: string): Promise<Plan[]> => {
-  const { data, error } = await supabase
-    .from("plans")
-    .select(PLAN_SELECT)
-    .eq("student_id", studentId)
-    .order("created_at", { ascending: false });
+  const query = (select: string) => db.from("plans").select(select).eq("student_id", studentId).order("created_at", { ascending: false });
+  let { data, error } = await query(PLAN_SELECT);
+  if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT_LEGACY));
   if (error) throw error;
   return ((data ?? []) as unknown as PlanRow[]).map(mapPlan);
 };
@@ -208,30 +259,30 @@ export interface PlanInput {
   startDate: string;
   endDate: string | null;
   cycleWeeks: number | null;
+  sport: SportCode;
 }
 
-export const createPlan = async (trainerId: string, studentId: string, input: PlanInput): Promise<string> => {
-  const { data, error } = await supabase
-    .from("plans")
-    .insert({
-      trainer_id: trainerId,
-      student_id: studentId,
-      title: input.title,
-      objective: input.objective || null,
-      description: input.description || null,
-      start_date: input.startDate,
-      deadline: input.endDate,
-      cycle_weeks: input.cycleWeeks,
-      status: "active",
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
+/** trainerId nulo = plano criado pelo próprio atleta. */
+export const createPlan = async (trainerId: string | null, studentId: string, input: PlanInput): Promise<string> => {
+  const row = {
+    trainer_id: trainerId,
+    student_id: studentId,
+    title: input.title,
+    objective: input.objective || null,
+    description: input.description || null,
+    start_date: input.startDate,
+    deadline: input.endDate,
+    cycle_weeks: input.cycleWeeks,
+    status: "active",
+  };
+  let { data, error } = await db.from("plans").insert({ ...row, sport: input.sport }).select("id").single();
+  if (missingSchema(error)) ({ data, error } = await db.from("plans").insert(row).select("id").single());
+  if (error || !data) throw error;
   return data.id;
 };
 
 export const updatePlan = async (planId: string, patch: Pick<PlanInput, "title" | "objective" | "description" | "endDate">) => {
-  const { error } = await supabase
+  const { error } = await db
     .from("plans")
     .update({
       title: patch.title,
@@ -243,12 +294,30 @@ export const updatePlan = async (planId: string, patch: Pick<PlanInput, "title" 
   if (error) throw error;
 };
 
-/** "completed" encerra o plano; "cancelled" é a exclusão (vai para o histórico). */
-export const setPlanStatus = async (planId: string, status: PlanStatus) => {
-  const { error } = await supabase
-    .from("plans")
-    .update({ status, end_date: status === "active" ? null : new Date().toISOString().slice(0, 10) })
-    .eq("id", planId);
+/**
+ * "completed" encerra o plano; "cancelled" é a exclusão (vai para o histórico). Vale a partir da próxima
+ * segunda-feira: a pessoa continua devendo os treinos da semana atual. Retorna a data em que passa a valer.
+ */
+export const setPlanStatus = async (planId: string, status: PlanStatus): Promise<string> => {
+  const { data, error } = await db.rpc("remove_plan", { p_plan_id: planId, p_status: status });
+  if (missingSchema(error)) {
+    const today = todayISO();
+    const legacy = await db.from("plans").update({ status, end_date: today }).eq("id", planId);
+    if (legacy.error) throw legacy.error;
+    return today;
+  }
+  if (error) throw error;
+  return data as string;
+};
+
+export const pausePlan = async (planId: string): Promise<string> => {
+  const { data, error } = await db.rpc("pause_plan", { p_plan_id: planId });
+  if (error) throw error;
+  return data as string;
+};
+
+export const resumePlan = async (planId: string) => {
+  const { error } = await db.rpc("resume_plan", { p_plan_id: planId });
   if (error) throw error;
 };
 
@@ -274,18 +343,18 @@ export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<
 
   let workoutId = input.id;
   if (workoutId) {
-    const { error } = await supabase.from("workouts").update(row).eq("id", workoutId);
+    const { error } = await db.from("workouts").update(row).eq("id", workoutId);
     if (error) throw error;
-    const del = await supabase.from("workout_exercises").delete().eq("workout_id", workoutId);
+    const del = await db.from("workout_exercises").delete().eq("workout_id", workoutId);
     if (del.error) throw del.error;
   } else {
-    const { data, error } = await supabase.from("workouts").insert(row).select("id").single();
+    const { data, error } = await db.from("workouts").insert(row).select("id").single();
     if (error) throw error;
     workoutId = data.id;
   }
 
   if (input.exercises.length > 0) {
-    const { error } = await supabase.from("workout_exercises").insert(
+    const { error } = await db.from("workout_exercises").insert(
       input.exercises.map((ex, index) => ({
         workout_id: workoutId as string,
         name: ex.name,
@@ -301,9 +370,16 @@ export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<
   }
 };
 
-export const deleteWorkout = async (workoutId: string) => {
-  const { error } = await supabase.from("workouts").delete().eq("id", workoutId);
+/** Excluir treino vale a partir da próxima segunda-feira (retorna a data). */
+export const deleteWorkout = async (workoutId: string): Promise<string> => {
+  const { data, error } = await db.rpc("remove_workout", { p_workout_id: workoutId });
+  if (missingSchema(error)) {
+    const legacy = await db.from("workouts").delete().eq("id", workoutId);
+    if (legacy.error) throw legacy.error;
+    return todayISO();
+  }
   if (error) throw error;
+  return data as string;
 };
 
 // ---------- Execuções ----------
@@ -315,6 +391,8 @@ type ExecutionRow = {
   workout_name: string | null;
   date: string;
   observations: string | null;
+  duration_minutes: number | null;
+  is_valid: boolean | null;
   workouts: { name: string } | null;
   exercise_logs:
     | {
@@ -330,7 +408,7 @@ type ExecutionRow = {
 };
 
 export const fetchExecutions = async (studentId: string): Promise<WorkoutExecution[]> => {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("workout_executions")
     .select("*, workouts(name), exercise_logs(*, set_logs(*))")
     .eq("student_id", studentId)
@@ -343,6 +421,8 @@ export const fetchExecutions = async (studentId: string): Promise<WorkoutExecuti
     workoutId: row.workout_id,
     workoutName: row.workout_name ?? row.workouts?.name ?? "Treino",
     date: `${row.date}T12:00:00`,
+    durationMinutes: row.duration_minutes ?? undefined,
+    isValid: row.is_valid ?? undefined,
     observations: row.observations ?? undefined,
     exerciseLogs: (row.exercise_logs ?? []).map((log) => ({
       exerciseId: log.workout_exercise_id,
@@ -357,26 +437,48 @@ export const fetchExecutions = async (studentId: string): Promise<WorkoutExecuti
   }));
 };
 
+export interface ExecutionResult {
+  id: string;
+  isValid: boolean;
+  durationMinutes: number;
+}
+
 export const recordExecution = async (
   studentId: string,
-  execution: { planId: string; workoutId: string; workoutName: string; observations?: string; exerciseLogs: ExerciseLog[] }
-): Promise<void> => {
-  const { data, error } = await supabase
+  execution: {
+    planId: string;
+    workoutId: string;
+    workoutName: string;
+    observations?: string;
+    exerciseLogs: ExerciseLog[];
+    startedAt: string;
+    finishedAt: string;
+    source?: "online" | "offline";
+  }
+): Promise<ExecutionResult> => {
+  const base = {
+    student_id: studentId,
+    plan_id: execution.planId,
+    workout_id: execution.workoutId,
+    workout_name: execution.workoutName,
+    observations: execution.observations ?? null,
+  };
+  let { data, error } = await db
     .from("workout_executions")
-    .insert({
-      student_id: studentId,
-      plan_id: execution.planId,
-      workout_id: execution.workoutId,
-      workout_name: execution.workoutName,
-      date: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`,
-      observations: execution.observations ?? null,
-    })
-    .select("id")
+    .insert({ ...base, started_at: execution.startedAt, finished_at: execution.finishedAt, source: execution.source ?? "online" })
+    .select("id, is_valid, duration_minutes")
     .single();
-  if (error) throw error;
+  if (missingSchema(error)) {
+    ({ data, error } = await db
+      .from("workout_executions")
+      .insert({ ...base, date: execution.finishedAt.slice(0, 10) })
+      .select("id")
+      .single());
+  }
+  if (error || !data) throw error;
 
   for (const log of execution.exerciseLogs) {
-    const logRes = await supabase
+    const logRes = await db
       .from("exercise_logs")
       .insert({
         execution_id: data.id,
@@ -391,7 +493,7 @@ export const recordExecution = async (
     if (logRes.error) throw logRes.error;
 
     if (log.sets.length > 0) {
-      const setsRes = await supabase.from("set_logs").insert(
+      const setsRes = await db.from("set_logs").insert(
         log.sets.map((s) => ({
           exercise_log_id: logRes.data.id,
           set_number: s.setNumber,
@@ -403,6 +505,8 @@ export const recordExecution = async (
       if (setsRes.error) throw setsRes.error;
     }
   }
+  const saved = data as { id: string; is_valid?: boolean; duration_minutes?: number };
+  return { id: saved.id, isValid: !!saved.is_valid, durationMinutes: saved.duration_minutes ?? 0 };
 };
 
 // ---------- Restrições do aluno ----------
@@ -416,7 +520,7 @@ export interface Restriction {
 }
 
 export const fetchRestrictions = async (studentId: string): Promise<Restriction[]> => {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("student_restrictions")
     .select("id, description, trainer_id, created_at, trainer_profiles(profiles(full_name))")
     .eq("student_id", studentId)
@@ -438,11 +542,37 @@ export const fetchRestrictions = async (studentId: string): Promise<Restriction[
 };
 
 export const addRestriction = async (trainerId: string, studentId: string, description: string) => {
-  const { error } = await supabase.from("student_restrictions").insert({ trainer_id: trainerId, student_id: studentId, description });
+  const { error } = await db.from("student_restrictions").insert({ trainer_id: trainerId, student_id: studentId, description });
   if (error) throw error;
 };
 
 export const deleteRestriction = async (id: string) => {
-  const { error } = await supabase.from("student_restrictions").delete().eq("id", id);
+  const { error } = await db.from("student_restrictions").delete().eq("id", id);
   if (error) throw error;
+};
+
+/** Copia um plano de profissional para um plano próprio (editável) do atleta. */
+export const copyPlanAsOwn = async (studentId: string, plan: Plan): Promise<string> => {
+  const today = todayISO();
+  const newId = await createPlan(null, studentId, {
+    title: `${plan.title} (cópia)`,
+    objective: plan.objective,
+    description: plan.description,
+    startDate: today,
+    endDate: null,
+    cycleWeeks: plan.cycleWeeks,
+    sport: plan.sport,
+  });
+  const live = plan.workouts.filter((w) => !w.removedAt && (plan.cycleWeeks || (w.workoutDate && w.workoutDate >= today)));
+  for (const w of live) {
+    await saveWorkout(newId, {
+      name: w.name,
+      description: w.description,
+      weekIndex: w.weekIndex,
+      weekday: w.weekday,
+      workoutDate: w.workoutDate,
+      exercises: w.exercises,
+    });
+  }
+  return newId;
 };

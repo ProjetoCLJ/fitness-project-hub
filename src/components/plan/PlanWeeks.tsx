@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plan, Workout, WEEKDAY_SHORT, WorkoutExecution } from "@/lib/planStore";
+import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, WorkoutExecution } from "@/lib/planStore";
 import { SlotState, buildPlanWeeks, cycleWeekLabel } from "@/lib/planSchedule";
 
 const SLOT_STYLES: Record<SlotState, string> = {
@@ -57,8 +57,8 @@ const PlanWeeksCard = ({ plan, executions, todayISO, pickMode, onPick }: Omit<Pl
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-1 text-center text-[10px] sm:text-xs text-muted-foreground">
-            {WEEKDAY_SHORT.map((d) => (
-              <span key={d}>{d}</span>
+            {WEEK_COLUMNS.map((i) => (
+              <span key={i}>{WEEKDAY_SHORT[i]}</span>
             ))}
           </div>
 

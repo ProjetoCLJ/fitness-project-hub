@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,9 +54,10 @@ const computeWeekStreak = (executions: WorkoutExecution[]) => {
 
 const MUSCLE_GROUP_BY_NAME = new Map(exerciseLibrary.map((ex) => [ex.name.toLowerCase(), ex.muscleGroup]));
 
-const Stats = () => {
+/** Estatísticas do atleta (aba do Perfil). */
+export const StatsContent = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const navigate = useNavigate();
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const [selectedExercise, setSelectedExercise] = useState<string>("");
@@ -161,7 +161,7 @@ const Stats = () => {
       });
   }, [executions, selectedExercise]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   const now = new Date();
   const thisMonth = executions.filter((e) => {
@@ -172,15 +172,7 @@ const Stats = () => {
   const recent = [...executions].reverse().slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => {}} />
-
-      <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
-        <div className="mb-6">
-          <h1 className="text-xl sm:text-3xl font-bold">Estatísticas</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Sua evolução ao longo do tempo</p>
-        </div>
-
+    <div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <Card className="p-3 sm:p-4 text-center">
             <Dumbbell className="h-4 w-4 text-primary mx-auto mb-1" />
@@ -386,9 +378,6 @@ const Stats = () => {
             </Card>
           ))}
         </div>
-      </div>
     </div>
   );
 };
-
-export default Stats;

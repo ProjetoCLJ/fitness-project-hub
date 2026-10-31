@@ -29,6 +29,9 @@ import { PaymentDialog } from "@/components/finance/PaymentDialog";
 import { PaymentsList } from "@/components/finance/PaymentsList";
 import { Payment, deletePayment, fetchTrainerPayments, formatBRL } from "@/lib/financeStore";
 import { PlanDetail } from "@/components/plan/PlanDetail";
+import { useQuery } from "@tanstack/react-query";
+import { Flame } from "lucide-react";
+import { fetchTrainerAdherence } from "@/lib/gamification";
 
 const formatDate = (iso: string) =>
   new Date(iso.length === 10 ? `${iso}T00:00:00` : iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
@@ -143,8 +146,11 @@ const ClientProfilePro = () => {
     loadData();
   }, [loadData]);
 
+  const { data: adherenceRows } = useQuery({ queryKey: ["trainer-adherence"], queryFn: fetchTrainerAdherence, retry: false });
+
   if (!user || user.userType !== "trainer") return null;
   if (!clientLoaded) return null;
+  const adherence = adherenceRows?.find((r) => r.student_id === client?.id);
 
   const backButton = (
     <Button variant="ghost" onClick={() => navigate("/dashboard/trainer/clients")} className="mb-4 -ml-2">
@@ -220,6 +226,13 @@ const ClientProfilePro = () => {
           <div>
             <h1 className="text-lg sm:text-2xl font-bold">{client.name}</h1>
             <p className="text-sm text-muted-foreground">{client.email}</p>
+            {adherence && (
+              <p className="text-sm mt-1 flex items-center gap-1.5">
+                <Flame className={`h-4 w-4 ${adherence.foco_days > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+                <span className="font-medium">{adherence.foco_days} {adherence.foco_days === 1 ? "dia" : "dias"} de Foco</span>
+                <span className="text-muted-foreground">· {adherence.week_done}/{adherence.week_planned} treinos na semana</span>
+              </p>
+            )}
           </div>
         </div>
 

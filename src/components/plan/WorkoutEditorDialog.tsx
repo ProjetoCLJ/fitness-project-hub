@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Link2, Link2Off } from "lucide-react";
 import { Exercise, Workout } from "@/lib/planStore";
+import { exerciseSuggestions } from "@/lib/sports";
 
 export interface WorkoutDraft {
   name: string;
@@ -23,6 +24,8 @@ interface WorkoutEditorDialogProps {
   workout: Workout | null;
   /** Onde o treino fica no plano (ex.: "Semana 2 · Segunda" ou "08 out."). */
   positionLabel: string;
+  /** Esporte do plano: sugere exercícios da biblioteca (a pessoa também pode digitar). */
+  sport?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (draft: WorkoutDraft) => void | Promise<void>;
@@ -38,7 +41,7 @@ const emptyExercise = (): Exercise => ({
   rest: "60s",
 });
 
-export const WorkoutEditorDialog = ({ workout, positionLabel, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
+export const WorkoutEditorDialog = ({ workout, positionLabel, sport, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
   const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()] });
   const [isBusy, setIsBusy] = useState(false);
 
@@ -133,6 +136,12 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, open, onOpenChange
             />
           </div>
 
+          <datalist id="exercise-suggestions">
+            {exerciseSuggestions(sport).map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+
           <div className="space-y-3">
             <Label>Exercícios</Label>
             <p className="text-xs text-muted-foreground -mt-2">
@@ -150,6 +159,7 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, open, onOpenChange
                         value={ex.name}
                         onChange={(e) => updateExercise(ex.id, "name", e.target.value)}
                         placeholder="Nome do exercício"
+                        list="exercise-suggestions"
                         className="flex-1"
                       />
                       {index > 0 && (

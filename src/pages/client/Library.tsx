@@ -37,7 +37,7 @@ const Library = () => {
     });
   }, [query, muscleFilter, equipmentFilter]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">

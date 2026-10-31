@@ -40,7 +40,7 @@ const StudentProfile = () => {
       const { data } = await supabase
         .from("student_profiles")
         .select("profile_id, description, fitness_goals, profiles(full_name, email, phone, birth_date)")
-        .eq("id", user.id)
+        .eq("id", user.studentId)
         .maybeSingle();
 
       if (data) {
@@ -70,7 +70,7 @@ const StudentProfile = () => {
       await supabase
         .from("student_profiles")
         .update({ description: formData.description || null, fitness_goals: formData.fitnessGoals || null })
-        .eq("id", user.id);
+        .eq("id", user.studentId);
 
       await supabase
         .from("profiles")

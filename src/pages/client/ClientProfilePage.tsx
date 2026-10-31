@@ -5,8 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { ChevronRight, ShieldAlert, Trash2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronRight, Medal, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FocoCard } from "@/components/gamification/FocoCard";
+import { AchievementsTab } from "@/components/gamification/AchievementsTab";
+import { StatsContent } from "@/components/stats/StatsContent";
+import { useGmOverview, useLeagueOverview } from "@/hooks/useGamification";
+import { leagueName } from "@/lib/gamification";
+import { sportLabel } from "@/lib/sports";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, Restriction, deleteRestriction, fetchPlansForStudent, fetchRestrictions } from "@/lib/planStore";
@@ -17,9 +24,13 @@ const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-
 
 const ClientProfilePage = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") ?? "resumo";
+  const { data: overview } = useGmOverview();
+  const { data: league } = useLeagueOverview();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [restrictions, setRestrictions] = useState<Restriction[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -37,7 +48,7 @@ const ClientProfilePage = () => {
       .catch(() => setPayments([]));
   }, [clientId]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   const handleDeleteRestriction = async (id: string) => {
     try {
@@ -48,7 +59,8 @@ const ClientProfilePage = () => {
     }
   };
 
-  const trainers = Array.from(new Map(plans.map((p) => [p.trainerId, p.trainerName])).entries());
+  const trainers = Array.from(new Map(plans.filter((p) => p.trainerId).map((p) => [p.trainerId as string, p.trainerName])).entries());
+  const isTrainer = user.userType === "trainer";
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,7 +72,72 @@ const ClientProfilePage = () => {
           <p className="text-sm sm:text-base text-muted-foreground">Suas informações e preferências</p>
         </div>
 
-        <StudentProfile />
+        <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="resumo">Resumo</TabsTrigger>
+            <TabsTrigger value="estatisticas">Estatísticas</TabsTrigger>
+            <TabsTrigger value="conquistas">
+              Conquistas
+              {!!overview?.unseen_medals && <span className="ml-1 h-2 w-2 rounded-full bg-destructive inline-block" />}
+            </TabsTrigger>
+            <TabsTrigger value="dados">Dados</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="resumo" className="space-y-4">
+            <FocoCard />
+            <Card className="p-4 sm:p-6">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-xl font-bold flex items-center justify-center gap-1">
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                    {(overview?.xp_total ?? 0).toLocaleString("pt-BR")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">XP total</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold flex items-center justify-center gap-1">
+                    <Medal className="h-4 w-4 text-primary" />
+                    {leagueName(league?.league ?? 1)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Liga</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold">{overview?.workouts_total ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Treinos realizados</p>
+                </div>
+              </div>
+            </Card>
+            <div>
+              <h2 className="font-semibold text-base sm:text-lg mb-3">XP por esporte</h2>
+              <Card className="divide-y">
+                {(overview?.xp_by_sport ?? []).length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">Seu XP por esporte aparece aqui depois dos primeiros treinos.</p>
+                ) : (
+                  overview?.xp_by_sport.map((row) => (
+                    <div key={row.sport} className="flex items-center justify-between px-4 py-3">
+                      <span>{sportLabel(row.sport)}</span>
+                      <span className="text-muted-foreground">{row.xp.toLocaleString("pt-BR")} XP</span>
+                    </div>
+                  ))
+                )}
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="estatisticas">
+            <StatsContent />
+          </TabsContent>
+
+          <TabsContent value="conquistas">
+            <AchievementsTab />
+          </TabsContent>
+
+          <TabsContent value="dados" className="space-y-6">
+        {isTrainer ? (
+          <Card className="p-4 text-sm text-muted-foreground">Seus dados pessoais ficam no Perfil profissional.</Card>
+        ) : (
+          <StudentProfile />
+        )}
 
         <ThemeToggle />
 
@@ -85,7 +162,7 @@ const ClientProfilePage = () => {
                       <p className="text-sm text-muted-foreground">
                         {fmt(plan.startDate)} — {plan.endDate ? fmt(plan.endDate) : "sem prazo"}
                       </p>
-                      <p className="text-sm text-muted-foreground">Profissional: {plan.trainerName}</p>
+                      <p className="text-sm text-muted-foreground">{plan.trainerId ? `Profissional: ${plan.trainerName}` : `${sportLabel(plan.sport)} · plano próprio`}</p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                   </div>
@@ -167,6 +244,8 @@ const ClientProfilePage = () => {
             </Card>
           )}
         </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

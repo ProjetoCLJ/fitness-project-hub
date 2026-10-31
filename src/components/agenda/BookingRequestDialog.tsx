@@ -46,8 +46,8 @@ export const BookingRequestDialog = ({ open, onOpenChange, trainerName, trainerI
     setIsLoading(true);
     Promise.all([
       fetchTrainerAvailability(trainerId),
-      user?.userType === "student"
-        ? supabase.from("trainer_clients").select("student_id").eq("trainer_id", trainerId).eq("student_id", user.id).eq("status", "active").maybeSingle()
+      user
+        ? supabase.from("trainer_clients").select("student_id").eq("trainer_id", trainerId).eq("student_id", user.studentId).eq("status", "active").maybeSingle()
         : Promise.resolve({ data: null }),
     ])
       .then(([availability, link]) => {

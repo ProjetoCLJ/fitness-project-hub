@@ -29,7 +29,11 @@ const Requests = () => {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      setItems(user.userType === "trainer" ? await fetchRequestsForTrainer(user.id) : await fetchRequestsForStudent(user.id));
+      const [asTrainer, asStudent] = await Promise.all([
+        user.trainerId ? fetchRequestsForTrainer(user.trainerId) : Promise.resolve([]),
+        fetchRequestsForStudent(user.studentId),
+      ]);
+      setItems([...asTrainer, ...asStudent].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     } catch {
       toast({ title: "Não foi possível carregar as solicitações", variant: "destructive" });
     } finally {

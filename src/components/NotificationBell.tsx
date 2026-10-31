@@ -27,8 +27,11 @@ export const NotificationBell = ({ className }: { className?: string }) => {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const all = user.userType === "trainer" ? await fetchRequestsForTrainer(user.id) : await fetchRequestsForStudent(user.id);
-      setItems(all);
+      const [asTrainer, asStudent] = await Promise.all([
+        user.trainerId ? fetchRequestsForTrainer(user.trainerId) : Promise.resolve([]),
+        fetchRequestsForStudent(user.studentId),
+      ]);
+      setItems([...asTrainer, ...asStudent].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     } catch {
       setItems([]);
     }

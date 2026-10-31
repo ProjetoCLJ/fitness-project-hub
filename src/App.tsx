@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
@@ -20,7 +20,7 @@ import Workouts from "./pages/client/Workouts";
 import WorkoutSession from "./pages/client/WorkoutSession";
 import WorkoutHistory from "./pages/client/WorkoutHistory";
 import Library from "./pages/client/Library";
-import Stats from "./pages/client/Stats";
+import Leagues from "./pages/client/Leagues";
 import Challenges from "./pages/client/Challenges";
 import ChallengePage from "./pages/client/ChallengePage";
 import ChallengeInvite from "./pages/ChallengeInvite";
@@ -76,7 +76,8 @@ const App = () => (
             <Route path="/dashboard/student/workouts/session/:workoutId" element={<WorkoutSession />} />
             <Route path="/dashboard/student/workouts/history" element={<WorkoutHistory />} />
             <Route path="/dashboard/student/library" element={<Library />} />
-            <Route path="/dashboard/student/stats" element={<Stats />} />
+            <Route path="/dashboard/student/stats" element={<Navigate to="/dashboard/student/profile?tab=estatisticas" replace />} />
+            <Route path="/dashboard/student/leagues" element={<Leagues />} />
             <Route path="/dashboard/student/challenges" element={<Challenges />} />
             <Route path="/dashboard/student/profile" element={<ClientProfilePage />} />
             <Route path="/dashboard/student/requests" element={<Requests />} />

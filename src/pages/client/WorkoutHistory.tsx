@@ -12,7 +12,7 @@ import { toLocalISO } from "@/lib/agendaStore";
 
 const WorkoutHistory = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const navigate = useNavigate();
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const [month, setMonth] = useState(() => {
@@ -26,7 +26,7 @@ const WorkoutHistory = () => {
     fetchExecutions(clientId).then(setExecutions).catch(() => setExecutions([]));
   }, [clientId]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   const byDay = new Map<string, WorkoutExecution[]>();
   executions.forEach((e) => byDay.set(executionDay(e), [...(byDay.get(executionDay(e)) ?? []), e]));

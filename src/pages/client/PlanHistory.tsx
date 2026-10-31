@@ -16,7 +16,7 @@ const statusLabel: Record<Plan["status"], string> = { active: "Atual", completed
 
 const PlanHistory = () => {
   const { user } = useAuth();
-  const clientId = user?.id ?? "";
+  const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -29,7 +29,7 @@ const PlanHistory = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  if (!user || user.userType !== "student") return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">

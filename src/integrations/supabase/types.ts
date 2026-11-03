@@ -673,6 +673,48 @@ export type Database = {
           },
         ]
       }
+      plan_pauses: {
+        Row: {
+          created_at: string
+          ends_on: string | null
+          id: string
+          plan_id: string
+          starts_on: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          plan_id: string
+          starts_on: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          ends_on?: string | null
+          id?: string
+          plan_id?: string
+          starts_on?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_pauses_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_pauses_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_versions: {
         Row: {
           created_at: string | null
@@ -712,11 +754,13 @@ export type Database = {
           id: string
           objective: string | null
           progress: number | null
+          removed_at: string | null
+          sport: string
           start_date: string
           status: Database["public"]["Enums"]["plan_status"] | null
           student_id: string
           title: string
-          trainer_id: string
+          trainer_id: string | null
           training_approach: string | null
           training_strategy: string | null
           updated_at: string | null
@@ -730,11 +774,13 @@ export type Database = {
           id?: string
           objective?: string | null
           progress?: number | null
+          removed_at?: string | null
+          sport?: string
           start_date?: string
           status?: Database["public"]["Enums"]["plan_status"] | null
           student_id: string
           title: string
-          trainer_id: string
+          trainer_id?: string | null
           training_approach?: string | null
           training_strategy?: string | null
           updated_at?: string | null
@@ -748,11 +794,13 @@ export type Database = {
           id?: string
           objective?: string | null
           progress?: number | null
+          removed_at?: string | null
+          sport?: string
           start_date?: string
           status?: Database["public"]["Enums"]["plan_status"] | null
           student_id?: string
           title?: string
-          trainer_id?: string
+          trainer_id?: string | null
           training_approach?: string | null
           training_strategy?: string | null
           updated_at?: string | null
@@ -1475,6 +1523,7 @@ export type Database = {
           observations: string | null
           order_index: number | null
           plan_id: string
+          removed_at: string | null
           updated_at: string | null
           week_index: number | null
           weekday: number | null
@@ -1488,6 +1537,7 @@ export type Database = {
           observations?: string | null
           order_index?: number | null
           plan_id: string
+          removed_at?: string | null
           updated_at?: string | null
           week_index?: number | null
           weekday?: number | null
@@ -1501,6 +1551,7 @@ export type Database = {
           observations?: string | null
           order_index?: number | null
           plan_id?: string
+          removed_at?: string | null
           updated_at?: string | null
           week_index?: number | null
           weekday?: number | null
@@ -1528,6 +1579,7 @@ export type Database = {
       }
       can_access_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_access_workout: { Args: { _workout_id: string }; Returns: boolean }
+      can_manage_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_read_challenge_photo: { Args: { _name: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       challenge_is_open: { Args: { _challenge_id: string }; Returns: boolean }
@@ -1556,6 +1608,7 @@ export type Database = {
         Args: { p_trainer_id: string }
         Returns: Json
       }
+      gm_now: { Args: never; Returns: string }
       invite_student: { Args: { p_email: string }; Returns: Json }
       invite_students_to_challenge: {
         Args: { p_challenge_id: string; p_student_ids: string[] }
@@ -1578,7 +1631,12 @@ export type Database = {
         Args: { _student_id: string }
         Returns: boolean
       }
+      is_own_plan: { Args: { _plan_id: string }; Returns: boolean }
       is_plan_trainer: { Args: { _plan_id: string }; Returns: boolean }
+      is_same_person: {
+        Args: { _student_id: string; _trainer_id: string }
+        Returns: boolean
+      }
       is_trainer_user: { Args: never; Returns: boolean }
       is_workout_trainer: { Args: { _workout_id: string }; Returns: boolean }
       join_challenge: { Args: { p_code: string }; Returns: string }
@@ -1586,8 +1644,16 @@ export type Database = {
         Args: { p_code?: string; p_event_id: string }
         Returns: string
       }
+      monday_of: { Args: { d: string }; Returns: string }
+      next_monday_brt: { Args: never; Returns: string }
       owns_execution: { Args: { _execution_id: string }; Returns: boolean }
+      pause_plan: { Args: { p_plan_id: string }; Returns: string }
       post_challenge_id: { Args: { _post_id: string }; Returns: string }
+      remove_plan: {
+        Args: { p_plan_id: string; p_status?: string }
+        Returns: string
+      }
+      remove_workout: { Args: { p_workout_id: string }; Returns: string }
       request_reschedule: {
         Args: {
           p_date: string
@@ -1606,6 +1672,8 @@ export type Database = {
         Args: { p_accept: boolean; p_invite_id: string }
         Returns: undefined
       }
+      resume_plan: { Args: { p_plan_id: string }; Returns: undefined }
+      today_brt: { Args: never; Returns: string }
       trainer_has_relation_with_profile: {
         Args: { p_profile_id: string }
         Returns: boolean

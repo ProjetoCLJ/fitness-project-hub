@@ -499,6 +499,105 @@ export type Database = {
           },
         ]
       }
+      foco_goals: {
+        Row: {
+          chosen_on: string
+          days: number
+          ended_on: string | null
+          id: string
+          menu: number
+          status: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          chosen_on?: string
+          days: number
+          ended_on?: string | null
+          id?: string
+          menu: number
+          status?: string
+          user_id: string
+          xp: number
+        }
+        Update: {
+          chosen_on?: string
+          days?: number
+          ended_on?: string | null
+          id?: string
+          menu?: number
+          status?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      foco_marcos: {
+        Row: {
+          achieved_on: string
+          days: number
+          user_id: string
+        }
+        Insert: {
+          achieved_on: string
+          days: number
+          user_id: string
+        }
+        Update: {
+          achieved_on?: string
+          days?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      gm_state: {
+        Row: {
+          anchor_menu: number
+          created_at: string
+          faults: number
+          foco_restart_gap: number
+          foco_started_on: string | null
+          idle_days: number
+          last_workout_on: string | null
+          max_clock_drop: number
+          max_faults: number
+          perfect_streak: number
+          processed_on: string | null
+          tracking_since: string
+          user_id: string
+        }
+        Insert: {
+          anchor_menu?: number
+          created_at?: string
+          faults?: number
+          foco_restart_gap?: number
+          foco_started_on?: string | null
+          idle_days?: number
+          last_workout_on?: string | null
+          max_clock_drop?: number
+          max_faults?: number
+          perfect_streak?: number
+          processed_on?: string | null
+          tracking_since?: string
+          user_id: string
+        }
+        Update: {
+          anchor_menu?: number
+          created_at?: string
+          faults?: number
+          foco_restart_gap?: number
+          foco_started_on?: string | null
+          idle_days?: number
+          last_workout_on?: string | null
+          max_clock_drop?: number
+          max_faults?: number
+          perfect_streak?: number
+          processed_on?: string | null
+          tracking_since?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hidden_slots: {
         Row: {
           created_at: string
@@ -740,6 +839,74 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planned_slots: {
+        Row: {
+          execution_id: string | null
+          id: string
+          plan_id: string
+          planned_date: string
+          resolved_at: string | null
+          status: string
+          student_id: string
+          week_start: string
+          workout_id: string | null
+          workout_name: string
+        }
+        Insert: {
+          execution_id?: string | null
+          id?: string
+          plan_id: string
+          planned_date: string
+          resolved_at?: string | null
+          status?: string
+          student_id: string
+          week_start: string
+          workout_id?: string | null
+          workout_name: string
+        }
+        Update: {
+          execution_id?: string | null
+          id?: string
+          plan_id?: string
+          planned_date?: string
+          resolved_at?: string | null
+          status?: string
+          student_id?: string
+          week_start?: string
+          workout_id?: string | null
+          workout_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planned_slots_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "workout_executions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_slots_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_slots_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planned_slots_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
             referencedColumns: ["id"]
           },
         ]
@@ -1415,13 +1582,44 @@ export type Database = {
           },
         ]
       }
+      user_medals: {
+        Row: {
+          achieved_on: string
+          medal_key: string
+          meta: Json
+          seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          achieved_on: string
+          medal_key: string
+          meta?: Json
+          seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          achieved_on?: string
+          medal_key?: string
+          meta?: Json
+          seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       workout_executions: {
         Row: {
           created_at: string | null
           date: string
+          duration_minutes: number | null
+          finished_at: string | null
           id: string
+          is_valid: boolean
           observations: string | null
           plan_id: string | null
+          slot_id: string | null
+          source: string
+          sport: string | null
+          started_at: string | null
           student_id: string
           workout_id: string | null
           workout_name: string | null
@@ -1429,9 +1627,16 @@ export type Database = {
         Insert: {
           created_at?: string | null
           date?: string
+          duration_minutes?: number | null
+          finished_at?: string | null
           id?: string
+          is_valid?: boolean
           observations?: string | null
           plan_id?: string | null
+          slot_id?: string | null
+          source?: string
+          sport?: string | null
+          started_at?: string | null
           student_id: string
           workout_id?: string | null
           workout_name?: string | null
@@ -1439,9 +1644,16 @@ export type Database = {
         Update: {
           created_at?: string | null
           date?: string
+          duration_minutes?: number | null
+          finished_at?: string | null
           id?: string
+          is_valid?: boolean
           observations?: string | null
           plan_id?: string | null
+          slot_id?: string | null
+          source?: string
+          sport?: string | null
+          started_at?: string | null
           student_id?: string
           workout_id?: string | null
           workout_name?: string | null
@@ -1567,11 +1779,63 @@ export type Database = {
           },
         ]
       }
+      xp_events: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          league_xp: number
+          occurred_on: string
+          ref_key: string
+          sport: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          kind: string
+          league_xp?: number
+          occurred_on: string
+          ref_key: string
+          sport?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          league_xp?: number
+          occurred_on?: string
+          ref_key?: string
+          sport?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      award_medal: {
+        Args: { p_key: string; p_meta: Json; p_on: string; p_user: string }
+        Returns: boolean
+      }
+      award_xp: {
+        Args: {
+          p_amount: number
+          p_key: string
+          p_kind: string
+          p_league: number
+          p_on: string
+          p_sport: string
+          p_user: string
+        }
+        Returns: boolean
+      }
       can_access_event: { Args: { _event_id: string }; Returns: boolean }
       can_access_execution: {
         Args: { _execution_id: string }
@@ -1583,9 +1847,22 @@ export type Database = {
       can_read_challenge_photo: { Args: { _name: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       challenge_is_open: { Args: { _challenge_id: string }; Returns: boolean }
+      choose_foco_goal: { Args: { p_days: number }; Returns: undefined }
       confirm_booking: { Args: { p_booking_id: string }; Returns: string }
       current_student_id: { Args: never; Returns: string }
       current_trainer_id: { Args: never; Returns: string }
+      foco_drop_faults: { Args: { n: number }; Returns: number }
+      foco_offered_menu: {
+        Args: { s: Database["public"]["Tables"]["gm_state"]["Row"] }
+        Returns: number
+      }
+      foco_options: {
+        Args: { p_current: number; p_menu: number }
+        Returns: {
+          days: number
+          xp: number
+        }[]
+      }
       get_challenge_preview: { Args: { p_code: string }; Returns: Json }
       get_challenge_ranking: {
         Args: { p_challenge_id: string }
@@ -1609,6 +1886,9 @@ export type Database = {
         Returns: Json
       }
       gm_now: { Args: never; Returns: string }
+      gm_overview: { Args: never; Returns: Json }
+      gm_process: { Args: { p_user: string }; Returns: undefined }
+      gm_sync_me: { Args: never; Returns: undefined }
       invite_student: { Args: { p_email: string }; Returns: Json }
       invite_students_to_challenge: {
         Args: { p_challenge_id: string; p_student_ids: string[] }
@@ -1643,6 +1923,13 @@ export type Database = {
       join_event: {
         Args: { p_code?: string; p_event_id: string }
         Returns: string
+      }
+      league_ensure_member: { Args: { p_user: string }; Returns: undefined }
+      league_run: { Args: never; Returns: undefined }
+      mark_medals_seen: { Args: never; Returns: undefined }
+      materialize_slots: {
+        Args: { p_from: string; p_student: string; p_to: string }
+        Returns: number
       }
       monday_of: { Args: { d: string }; Returns: string }
       next_monday_brt: { Args: never; Returns: string }

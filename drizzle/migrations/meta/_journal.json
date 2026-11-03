@@ -64,6 +64,20 @@
       "when": 1791999940028,
       "tag": "0008_restrict_schedule_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793705957771,
+      "tag": "0009_athlete_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793706078832,
+      "tag": "0010_gamification_core",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ const Badge = ({ info, earned, isNew }: { info: MedalInfo; earned: boolean; isNe
       color={info.color}
       value={info.value}
       ribbon={info.ribbon}
+      sport={info.sport}
       locked={!earned}
       label={`${info.title}${earned ? "" : " (bloqueada)"}`}
       className="h-20 w-20"

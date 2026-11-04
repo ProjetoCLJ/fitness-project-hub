@@ -9,6 +9,8 @@ Registro único das regras fechadas. A implementação está em `drizzle/lovable
 2. `0010_gamification_core.sql` — cronômetro, XP, Foco, metas, marcos, medalhas, treinos planejados.
 3. `0011_leagues.sql` — ligas mensais, ranking por esporte, privacidade.
 4. `0012_trainer_adherence.sql` — painel de adesão do profissional.
+5. `0013_multiesportista.sql` — medalha de Multiesportista por quantidade de esportes.
+6. `0014_esportes_crossfit_raquete.sql` — CrossFit; "coletivos e raquete" vira dois esportes.
 
 ## Treino válido
 - Pertence a um plano, tem cronômetro (iniciar/concluir) e **mínimo de 25 minutos** (máx. 240; duração ajustável ao concluir).
@@ -46,7 +48,7 @@ Registro único das regras fechadas. A implementação está em `drizzle/lovable
 ## Medalhas e conquistas
 Permanentes; sem XP (exceto marcos do Foco). Séries (bronze/prata/ouro por posição): Foco, treinos, XP total, semanas perfeitas,
 pódio em sequência, XP por esporte. Avulsas: pódio mensal, Campeão da Lenda, De volta ao Foco, metas ≥ 30 dias,
-primeiro treino de cada esporte, Multiesportista (3 e 5 esportes no mês).
+primeiro treino de cada esporte (16 esportes, o nome muda conforme o esporte), Multiesportista (uma medalha para cada quantidade de esportes diferentes no mês, a partir de 3: 3, 4, 5...). Pódio mostra o nome da liga e o mês.
 
 ## Modo atleta (profissional também é aluno)
 - Todo `profiles` tem `student_profiles`; dados de gamificação usam o id de autenticação.

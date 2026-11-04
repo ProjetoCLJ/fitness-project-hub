@@ -6,7 +6,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { ChevronRight, ShieldAlert, Trash2 } from "lucide-react";
+import { XpBolt } from "@/components/gamification/FocoFlame";
+import { SportIcon } from "@/components/gamification/SportIcon";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FocoCard } from "@/components/gamification/FocoCard";
@@ -90,7 +92,7 @@ const ClientProfilePage = () => {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-xl font-bold flex items-center justify-center gap-1">
-                    <Zap className="h-4 w-4 text-yellow-500" />
+                    <XpBolt className="h-5 w-5" />
                     {(overview?.xp_total ?? 0).toLocaleString("pt-BR")}
                   </p>
                   <p className="text-xs text-muted-foreground">XP total</p>
@@ -116,7 +118,10 @@ const ClientProfilePage = () => {
                 ) : (
                   overview?.xp_by_sport.map((row) => (
                     <div key={row.sport} className="flex items-center justify-between px-4 py-3">
-                      <span>{sportLabel(row.sport)}</span>
+                      <span className="flex items-center gap-3">
+                        <SportIcon sport={row.sport} className="h-6 w-6 text-primary" color="currentColor" />
+                        {sportLabel(row.sport)}
+                      </span>
                       <span className="text-muted-foreground">{row.xp.toLocaleString("pt-BR")} XP</span>
                     </div>
                   ))

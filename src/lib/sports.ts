@@ -4,6 +4,7 @@
 export type SportCode =
   | "musculacao"
   | "funcional_hiit"
+  | "crossfit"
   | "calistenia"
   | "corrida"
   | "caminhada"
@@ -12,7 +13,8 @@ export type SportCode =
   | "yoga"
   | "pilates"
   | "lutas"
-  | "coletivos_raquete"
+  | "coletivos"
+  | "raquete"
   | "danca"
   | "alongamento"
   | "outro";
@@ -25,6 +27,7 @@ export interface Sport {
 export const SPORTS: Sport[] = [
   { code: "musculacao", label: "Musculação" },
   { code: "funcional_hiit", label: "Funcional / HIIT" },
+  { code: "crossfit", label: "CrossFit" },
   { code: "calistenia", label: "Calistenia" },
   { code: "corrida", label: "Corrida" },
   { code: "caminhada", label: "Caminhada" },
@@ -33,7 +36,8 @@ export const SPORTS: Sport[] = [
   { code: "yoga", label: "Yoga" },
   { code: "pilates", label: "Pilates" },
   { code: "lutas", label: "Lutas" },
-  { code: "coletivos_raquete", label: "Esportes coletivos e de raquete" },
+  { code: "coletivos", label: "Esportes coletivos" },
+  { code: "raquete", label: "Raquete" },
   { code: "danca", label: "Dança" },
   { code: "alongamento", label: "Alongamento e mobilidade" },
   { code: "outro", label: "Outro" },
@@ -69,6 +73,9 @@ export const EXERCISES_BY_SPORT: Record<SportCode, string[]> = {
   funcional_hiit: split(
     "Burpee · Polichinelo · Mountain climber · Agachamento com salto · Kettlebell swing · Thruster · Box jump · Corda naval (battle rope) · Corda de pular · Farmer's walk · Wall ball · Afundo com salto · Flexão · Prancha · Remo ergométrico · Circuito (por tempo)"
   ),
+  crossfit: split(
+    "WOD do dia · AMRAP · EMOM · For time · Snatch · Clean and jerk · Thruster · Overhead squat · Box jump · Wall ball · Double under · Toes to bar · Muscle-up · Handstand push-up · Kettlebell swing · Burpee · Remo ergométrico · Assault bike"
+  ),
   calistenia: split("Barra fixa · Flexão (várias pegadas) · Paralelas · Agachamento (peso do corpo) · Pistol squat · Prancha · Elevação de pernas · L-sit · Muscle-up · Parada de mão"),
   corrida: split("Corrida contínua leve · Corrida longa · Tiros (intervalado) · Fartlek · Ritmo (tempo run) · Subidas (hill repeats) · Regenerativo · Corrida na esteira · Educativos de corrida"),
   caminhada: split("Caminhada leve · Caminhada rápida · Caminhada em subida · Trilha · Caminhada na esteira"),
@@ -77,7 +84,8 @@ export const EXERCISES_BY_SPORT: Record<SportCode, string[]> = {
   yoga: split("Yoga flow · Saudação ao sol · Guerreiro I / II · Cachorro olhando para baixo · Postura da criança · Cobra · Árvore · Triângulo · Ponte · Respiração (pranayama) · Meditação · Yin yoga · Savasana"),
   pilates: split("The hundred · Roll-up · Single leg stretch · Double leg stretch · Criss-cross · Spine stretch · Swan · Saw · Side kick series · Bridge · Teaser · Prancha"),
   lutas: split("Treino na sombra · Saco de pancada · Manopla (mitts) · Sparring · Técnica / drills · Rolamento (jiu-jitsu) · Condicionamento"),
-  coletivos_raquete: split("Futebol · Futsal · Basquete · Vôlei · Vôlei de praia · Handebol · Tênis · Beach tennis · Padel · Treino técnico · Treino físico · Partida"),
+  coletivos: split("Futebol · Futsal · Futebol society · Basquete · Vôlei · Vôlei de praia · Handebol · Rugby · Treino técnico · Treino físico · Partida"),
+  raquete: split("Tênis · Beach tennis · Padel · Squash · Badminton · Tênis de mesa · Treino técnico · Treino físico · Partida"),
   danca: split("Dança aeróbica · Zumba · Ballet · Dança de salão · Dança livre"),
   alongamento: split("Alongamento de posteriores · Alongamento de quadril · Alongamento de ombros · Mobilidade de coluna · Foam roller"),
   outro: [],

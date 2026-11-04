@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowDown, ArrowUp, Clock } from "lucide-react";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
+import { SportIcon } from "@/components/gamification/SportIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useToast } from "@/hooks/use-toast";
@@ -89,7 +90,10 @@ const SportRankingTab = () => {
           <SelectContent>
             {SPORTS.map((s) => (
               <SelectItem key={s.code} value={s.code}>
-                {s.label}
+                <span className="flex items-center gap-2">
+                  <SportIcon sport={s.code} className="h-4 w-4" />
+                  {s.label}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>

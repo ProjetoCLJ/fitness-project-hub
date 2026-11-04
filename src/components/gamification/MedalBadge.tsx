@@ -1,4 +1,6 @@
 import { MedalGlyph } from "@/lib/medals";
+import type { SportCode } from "@/lib/sports";
+import { SportGlyph } from "@/components/gamification/SportIcon";
 
 const hex = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
 const mix = (c: string, target: string, amount: number) => {
@@ -29,7 +31,7 @@ const star = (cx: number, cy: number, r: number) => {
 };
 
 // Símbolos desenhados em uma caixa de 24x24.
-const Glyph = ({ glyph, color }: { glyph: MedalGlyph; color: string }) => {
+const Glyph = ({ glyph, color, sport }: { glyph: MedalGlyph; color: string; sport?: SportCode }) => {
   switch (glyph) {
     case "foco":
       return <path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 1 2 2 3 3 3-1-3-1-5 0-8z" fill={color} />;
@@ -61,7 +63,7 @@ const Glyph = ({ glyph, color }: { glyph: MedalGlyph; color: string }) => {
         </g>
       );
     case "esporte":
-      return <path d={star(12, 12.5, 10)} fill={color} />;
+      return sport ? <SportGlyph sport={sport} color={color} /> : <path d={star(12, 12.5, 10)} fill={color} />;
     case "multi":
       return (
         <g fill={color}>
@@ -83,13 +85,15 @@ interface MedalBadgeProps {
   value?: string;
   /** Fita (pódio e campeão). */
   ribbon?: boolean;
+  /** Esporte: troca o símbolo "esporte" pelo ícone do esporte. */
+  sport?: SportCode;
   /** Medalha ainda não conquistada: cinza, com cadeado no canto. */
   locked?: boolean;
   label: string;
   className?: string;
 }
 
-export const MedalBadge = ({ glyph, color, value, ribbon, locked, label, className }: MedalBadgeProps) => {
+export const MedalBadge = ({ glyph, color, value, ribbon, sport, locked, label, className }: MedalBadgeProps) => {
   const t = locked ? LOCKED : tones(color);
   const len = (value ?? "").length;
   const fontSize = len <= 2 ? 30 : len <= 3 ? 25 : len <= 5 ? 19 : 16;
@@ -121,7 +125,7 @@ export const MedalBadge = ({ glyph, color, value, ribbon, locked, label, classNa
 
       {hasValue ? (
         <>
-          <g transform="translate(38 17)">{carved((c) => <Glyph glyph={glyph} color={c} />)}</g>
+          <g transform="translate(38 17)">{carved((c) => <Glyph glyph={glyph} color={c} sport={sport} />)}</g>
           <text x="50" y="73.6" textAnchor="middle" fontWeight="600" fontSize={fontSize} fill={t.shine} opacity="0.9">
             {value}
           </text>
@@ -131,7 +135,7 @@ export const MedalBadge = ({ glyph, color, value, ribbon, locked, label, classNa
         </>
       ) : (
         // Só símbolo: grande e centralizado no meio da medalha.
-        <g transform="translate(21.4 19.4) scale(2.3)">{carved((c) => <Glyph glyph={glyph} color={c} />)}</g>
+        <g transform="translate(21.4 19.4) scale(2.3)">{carved((c) => <Glyph glyph={glyph} color={c} sport={sport} />)}</g>
       )}
 
       {locked && (

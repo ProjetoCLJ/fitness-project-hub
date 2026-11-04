@@ -17,6 +17,8 @@ export interface MedalInfo {
   /** Número no centro. Sem número, o símbolo fica grande e centralizado. */
   value?: string;
   ribbon?: boolean;
+  /** Esporte (símbolo da medalha "Primeiro treino" e das séries de XP por esporte). */
+  sport?: SportCode;
   /** Linha extra sob o título (esporte, liga e mês). */
   sub?: string;
 }
@@ -82,11 +84,13 @@ export const MEDAL_SERIES: MedalSeries[] = [
 
 const SPORT_XP_STEPS = [500, 2000, 5000];
 
-export const sportXpSeries = (sport: SportCode): MedalSeries =>
-  series(`xp_esporte_${sport}`, `XP em ${sportLabel(sport)}`, "esportes", "esporte", FAMILY.esporteXp, SPORT_XP_STEPS, (v) => `xp_esporte_${sport}_${v}`, (v) => ({
+export const sportXpSeries = (sport: SportCode): MedalSeries => {
+  const base = series(`xp_esporte_${sport}`, `XP em ${sportLabel(sport)}`, "esportes", "esporte", FAMILY.esporteXp, SPORT_XP_STEPS, (v) => `xp_esporte_${sport}_${v}`, (v) => ({
     title: `${fmt(v)} XP em ${sportLabel(sport)}`,
     description: `Acumulou ${fmt(v)} XP em ${sportLabel(sport)}.`,
   }));
+  return { ...base, steps: base.steps.map((step) => ({ ...step, sport })) };
+};
 
 const MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
@@ -125,7 +129,7 @@ export const describeEventMedal = (m: UserMedal): MedalInfo | null => {
   const first = key.match(/^primeiro_(.+)$/);
   if (first) {
     const name = sportLabel(first[1]);
-    return { key, category: "esportes", glyph: "esporte", color: COLOR.esporte, title: "Primeiro treino", sub: name, description: `Concluiu o primeiro treino válido de ${name}.` };
+    return { key, category: "esportes", glyph: "esporte", sport: first[1] as SportCode, color: COLOR.esporte, title: "Primeiro treino", sub: name, description: `Concluiu o primeiro treino válido de ${name}.` };
   }
   const multi = key.match(/^multi_(\d+)$/);
   if (multi) {

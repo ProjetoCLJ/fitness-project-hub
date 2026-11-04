@@ -18,6 +18,7 @@ Rascunho para revisão — **ainda não implementado**. Regras:
 |---|---|
 | Musculação | `series` (completa desde o início) |
 | Funcional / HIIT | `series` ou `tempo` (por exercício) |
+| CrossFit | `series` ou `tempo` (WOD) |
 | Calistenia | `series` |
 | Corrida | `distancia` / `intervalos` |
 | Caminhada | `distancia` / `tempo` |
@@ -26,7 +27,8 @@ Rascunho para revisão — **ainda não implementado**. Regras:
 | Yoga | `tempo` |
 | Pilates | `series` (repetições) ou `tempo` |
 | Lutas (boxe, muay thai, jiu-jitsu...) | `tempo` / `intervalos` |
-| Esportes coletivos e de raquete | `tempo` |
+| Esportes coletivos | `tempo` |
+| Raquete | `tempo` |
 | Dança | `tempo` |
 | Alongamento e mobilidade | `tempo` |
 | Outro | `tempo` |
@@ -44,6 +46,9 @@ Rascunho para revisão — **ainda não implementado**. Regras:
 
 ## Funcional / HIIT
 Burpee · Polichinelo · Mountain climber · Agachamento com salto · Kettlebell swing · Thruster · Box jump · Corda naval (battle rope) · Corda de pular · Farmer's walk · Wall ball · Afundo com salto · Flexão · Prancha · Remo ergométrico · Circuito (por tempo)
+
+## CrossFit
+WOD do dia · AMRAP · EMOM · For time · Snatch · Clean and jerk · Thruster · Overhead squat · Box jump · Wall ball · Double under · Toes to bar · Muscle-up · Handstand push-up · Kettlebell swing · Burpee · Remo ergométrico · Assault bike
 
 ## Calistenia
 Barra fixa · Flexão (várias pegadas) · Paralelas · Agachamento (peso do corpo) · Pistol squat · Prancha · Elevação de pernas · L-sit · Muscle-up · Parada de mão
@@ -69,8 +74,11 @@ The hundred · Roll-up · Single leg stretch · Double leg stretch · Criss-cros
 ## Lutas
 Treino na sombra · Saco de pancada · Manopla (mitts) · Sparring · Técnica / drills · Rolamento (jiu-jitsu) · Condicionamento
 
-## Esportes coletivos e de raquete
-Futebol · Futsal · Basquete · Vôlei · Vôlei de praia · Handebol · Tênis · Beach tennis · Padel · Treino técnico · Treino físico · Partida
+## Esportes coletivos
+Futebol · Futsal · Futebol society · Basquete · Vôlei · Vôlei de praia · Handebol · Rugby · Treino técnico · Treino físico · Partida
+
+## Raquete
+Tênis · Beach tennis · Padel · Squash · Badminton · Tênis de mesa · Treino técnico · Treino físico · Partida
 
 ## Dança
 Dança aeróbica · Zumba · Ballet · Dança de salão · Dança livre

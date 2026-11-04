@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Flame, Zap, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { FocoFlame, XpBolt } from "@/components/gamification/FocoFlame";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { GoalDialog } from "@/components/gamification/GoalDialog";
 import { useGmOverview, useLeagueOverview } from "@/hooks/useGamification";
@@ -44,7 +45,7 @@ export const FocoCard = ({ autoOpenGoal = false }: { autoOpenGoal?: boolean }) =
           <div>
             <p className="text-sm text-muted-foreground">Seu Foco</p>
             <div className="flex items-center gap-2">
-              <Flame className={`h-7 w-7 ${foco.active ? "text-orange-500" : "text-muted-foreground"}`} />
+              <FocoFlame state={foco.goal_status === "conquered" && !foco.goal ? "goal" : foco.active ? "on" : "off"} className="h-9 w-9" />
               <span className="text-3xl font-bold">{foco.days}</span>
               <span className="text-sm text-muted-foreground">{foco.days === 1 ? "dia" : "dias"} no Foco</span>
             </div>
@@ -52,7 +53,7 @@ export const FocoCard = ({ autoOpenGoal = false }: { autoOpenGoal?: boolean }) =
           <div className="text-right">
             <p className="text-sm text-muted-foreground">XP total</p>
             <p className="text-xl font-bold flex items-center justify-end gap-1">
-              <Zap className="h-4 w-4 text-yellow-500" />
+              <XpBolt className="h-5 w-5" />
               {overview.xp_total.toLocaleString("pt-BR")}
             </p>
           </div>

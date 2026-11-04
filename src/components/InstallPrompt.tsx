@@ -2,15 +2,12 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { isStandalone } from "@/lib/pwa";
 
 const SEEN_KEY = "myjourn-install-hint-seen";
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-const isStandalone = () =>
-  window.matchMedia("(display-mode: standalone)").matches ||
-  (navigator as Navigator & { standalone?: boolean }).standalone === true ||
-  new URLSearchParams(window.location.search).get("standalone") === "1";
 
 /** Dica para instalar o app na tela inicial (só celular, só no navegador, uma vez). */
 export const InstallPrompt = () => {

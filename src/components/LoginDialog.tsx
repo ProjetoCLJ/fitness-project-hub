@@ -12,9 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Sem como fechar (tela de login do app instalado): esconde o X e ignora clique fora e Esc. */
+  locked?: boolean;
 }
 
-export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
+export const LoginDialog = ({ open, onOpenChange, locked = false }: LoginDialogProps) => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toast } = useToast();
@@ -83,7 +85,11 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className={`sm:max-w-md ${locked ? "[&>button]:hidden" : ""}`}
+        onInteractOutside={locked ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={locked ? (e) => e.preventDefault() : undefined}
+      >
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
             Bem-vindo ao MyJourn

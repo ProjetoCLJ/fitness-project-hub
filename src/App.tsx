@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import Index from "./pages/Index";
+import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import RegisterTrainer from "./pages/RegisterTrainer";
 import RegisterStudent from "./pages/RegisterStudent";
@@ -52,7 +52,7 @@ const App = () => (
         <InstallPrompt />
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Home />} />
             <Route path="/register/trainer" element={<RegisterTrainer />} />
             <Route path="/register/student" element={<RegisterStudent />} />
             <Route path="/search" element={<Search />} />

@@ -2117,6 +2117,7 @@ export type Database = {
         Returns: Json
       }
       today_brt: { Args: never; Returns: string }
+      trainer_adherence: { Args: never; Returns: Json }
       trainer_has_relation_with_profile: {
         Args: { p_profile_id: string }
         Returns: boolean

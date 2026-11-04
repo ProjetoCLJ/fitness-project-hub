@@ -1,24 +1,27 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { Award, Lock } from "lucide-react";
+import { MedalBadge } from "@/components/gamification/MedalBadge";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useRefreshGamification } from "@/hooks/useGamification";
 import { fetchMedals, markMedalsSeen } from "@/lib/gamification";
-import { MEDAL_SERIES, MedalInfo, TIER_CLASS, describeEventMedal, isSeriesMedal, sportXpSeries } from "@/lib/medals";
+import { MEDAL_SERIES, MedalInfo, describeEventMedal, isSeriesMedal, sportXpSeries } from "@/lib/medals";
 import { SPORTS } from "@/lib/sports";
 
 const Badge = ({ info, earned, isNew }: { info: MedalInfo; earned: boolean; isNew?: boolean }) => (
-  <div className="relative flex flex-col items-center text-center gap-1 w-20" title={info.description}>
-    <div
-      className={`h-16 w-16 rounded-full flex items-center justify-center text-sm font-bold shadow-sm ${
-        earned ? `bg-gradient-to-br ${TIER_CLASS[info.tier]}` : "bg-muted text-muted-foreground"
-      }`}
-    >
-      {earned ? info.badge ?? <Award className="h-7 w-7" /> : <Lock className="h-5 w-5" />}
-    </div>
-    {isNew && <span className="absolute -top-1 right-1 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">NOVA</span>}
+  <div className="relative flex flex-col items-center text-center gap-0.5 w-24" title={info.description}>
+    <MedalBadge
+      glyph={info.glyph}
+      color={info.color}
+      value={info.value}
+      ribbon={info.ribbon}
+      locked={!earned}
+      label={`${info.title}${earned ? "" : " (bloqueada)"}`}
+      className="h-20 w-20"
+    />
+    {isNew && <span className="absolute top-0 right-1 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">NOVA</span>}
     <span className={`text-[11px] leading-tight ${earned ? "font-medium" : "text-muted-foreground"}`}>{info.title}</span>
+    {info.sub && <span className="text-[11px] leading-tight text-muted-foreground">{info.sub}</span>}
   </div>
 );
 

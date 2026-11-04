@@ -92,6 +92,20 @@
       "when": 1793804274612,
       "tag": "0012_trainer_adherence",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793815616849,
+      "tag": "0013_multiesportista",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793815636815,
+      "tag": "0014_esportes_crossfit_raquete",
+      "breakpoints": true
     }
   ]
 }

@@ -550,6 +550,21 @@ export type Database = {
         }
         Relationships: []
       }
+      gm_settings: {
+        Row: {
+          ranking_public: boolean
+          user_id: string
+        }
+        Insert: {
+          ranking_public?: boolean
+          user_id: string
+        }
+        Update: {
+          ranking_public?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       gm_state: {
         Row: {
           anchor_menu: number
@@ -626,6 +641,128 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      league_closures: {
+        Row: {
+          closed_at: string
+          month: string
+        }
+        Insert: {
+          closed_at?: string
+          month: string
+        }
+        Update: {
+          closed_at?: string
+          month?: string
+        }
+        Relationships: []
+      }
+      league_group_members: {
+        Row: {
+          group_id: string
+          month: string
+          ref_xp: number
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          month: string
+          ref_xp?: number
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          month?: string
+          ref_xp?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "league_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_groups: {
+        Row: {
+          created_at: string
+          id: string
+          league: number
+          month: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          league: number
+          month: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          league?: number
+          month?: string
+        }
+        Relationships: []
+      }
+      league_results: {
+        Row: {
+          group_size: number | null
+          league: number
+          month: string
+          new_league: number
+          outcome: string
+          position: number | null
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          group_size?: number | null
+          league: number
+          month: string
+          new_league: number
+          outcome: string
+          position?: number | null
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          group_size?: number | null
+          league?: number
+          month?: string
+          new_league?: number
+          outcome?: string
+          position?: number | null
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
+      league_state: {
+        Row: {
+          created_at: string
+          joined_month: string
+          league: number
+          podium_streak: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          joined_month: string
+          league?: number
+          podium_streak?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          joined_month?: string
+          league?: number
+          podium_streak?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -1924,8 +2061,22 @@ export type Database = {
         Args: { p_code?: string; p_event_id: string }
         Returns: string
       }
+      league_close_month: { Args: { p_month: string }; Returns: undefined }
       league_ensure_member: { Args: { p_user: string }; Returns: undefined }
+      league_form_groups: { Args: { p_month: string }; Returns: undefined }
+      league_month_xp: {
+        Args: { p_month: string; p_user: string }
+        Returns: number
+      }
+      league_overview: { Args: never; Returns: Json }
       league_run: { Args: never; Returns: undefined }
+      league_zone_counts: {
+        Args: { p_league: number; p_n: number }
+        Returns: {
+          down: number
+          up: number
+        }[]
+      }
       mark_medals_seen: { Args: never; Returns: undefined }
       materialize_slots: {
         Args: { p_from: string; p_student: string; p_to: string }
@@ -1960,6 +2111,11 @@ export type Database = {
         Returns: undefined
       }
       resume_plan: { Args: { p_plan_id: string }; Returns: undefined }
+      set_ranking_public: { Args: { p_public: boolean }; Returns: undefined }
+      sport_ranking: {
+        Args: { p_period?: string; p_sport: string }
+        Returns: Json
+      }
       today_brt: { Args: never; Returns: string }
       trainer_has_relation_with_profile: {
         Args: { p_profile_id: string }

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Flame, Medal, Zap, ChevronRight } from "lucide-react";
+import { Flame, Zap, ChevronRight } from "lucide-react";
+import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { GoalDialog } from "@/components/gamification/GoalDialog";
 import { useGmOverview, useLeagueOverview } from "@/hooks/useGamification";
 import { leagueName } from "@/lib/gamification";
@@ -82,7 +83,7 @@ export const FocoCard = ({ autoOpenGoal = false }: { autoOpenGoal?: boolean }) =
             className="w-full flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-left hover:bg-muted/70 transition-smooth"
           >
             <span className="flex items-center gap-2 text-sm">
-              <Medal className="h-4 w-4 text-primary" />
+              <LeagueTrophy league={league.league} className="h-7 w-7" />
               Liga {leagueName(league.league)}
               {league.in_group && league.my_position ? ` · ${league.my_position}º lugar` : ""}
             </span>

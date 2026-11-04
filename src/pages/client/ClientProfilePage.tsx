@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, Medal, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { ChevronRight, ShieldAlert, Trash2, Zap } from "lucide-react";
+import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FocoCard } from "@/components/gamification/FocoCard";
 import { AchievementsTab } from "@/components/gamification/AchievementsTab";
@@ -96,7 +97,7 @@ const ClientProfilePage = () => {
                 </div>
                 <div>
                   <p className="text-xl font-bold flex items-center justify-center gap-1">
-                    <Medal className="h-4 w-4 text-primary" />
+                    <LeagueTrophy league={league?.league ?? 1} className="h-6 w-6" />
                     {leagueName(league?.league ?? 1)}
                   </p>
                   <p className="text-xs text-muted-foreground">Liga</p>

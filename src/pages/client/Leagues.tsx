@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Clock, Lock, Medal } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock } from "lucide-react";
+import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useToast } from "@/hooks/use-toast";
@@ -14,40 +15,43 @@ import { useLeagueOverview } from "@/hooks/useGamification";
 import { LeagueMember, LEAGUE_NAMES, fetchRankingPublic, fetchSportRanking, leagueName, setRankingPublic } from "@/lib/gamification";
 import { SPORTS } from "@/lib/sports";
 
-const LEAGUE_COLORS = [
-  "from-stone-500 to-stone-400",
-  "from-amber-700 to-amber-500",
-  "from-orange-600 to-orange-400",
-  "from-slate-500 to-slate-300",
-  "from-yellow-500 to-amber-300",
-  "from-emerald-600 to-emerald-400",
-  "from-sky-600 to-sky-400",
-  "from-violet-600 to-violet-400",
-  "from-rose-600 to-rose-400",
-  "from-fuchsia-600 to-amber-400",
-];
+/** Faixa com as 10 ligas: rola para os lados e abre centralizada na liga atual. */
+const LeagueTrail = ({ current }: { current: number }) => {
+  const scroller = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<HTMLDivElement>(null);
 
-const LeagueTrail = ({ current }: { current: number }) => (
-  <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-    {LEAGUE_NAMES.map((name, i) => {
-      const league = i + 1;
-      const reached = league <= current;
-      const isCurrent = league === current;
-      return (
-        <div key={name} className={`flex flex-col items-center shrink-0 w-16 ${isCurrent ? "" : "opacity-70"}`}>
+  useEffect(() => {
+    const box = scroller.current;
+    const el = currentRef.current;
+    if (!box || !el) return;
+    box.scrollLeft = el.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2;
+  }, [current]);
+
+  return (
+    <div ref={scroller} className="relative flex items-end gap-2 overflow-x-auto pb-2 snap-x" style={{ scrollbarWidth: "none" }}>
+      <div className="shrink-0 w-[calc(50%-48px)]" aria-hidden="true" />
+      {LEAGUE_NAMES.map((name, i) => {
+        const league = i + 1;
+        const isCurrent = league === current;
+        const locked = league > current;
+        return (
           <div
-            className={`rounded-full flex items-center justify-center text-white ${
-              isCurrent ? "h-16 w-16 ring-4 ring-primary/30" : "h-12 w-12"
-            } ${reached ? `bg-gradient-to-br ${LEAGUE_COLORS[i]}` : "bg-muted text-muted-foreground"}`}
+            key={name}
+            ref={isCurrent ? currentRef : undefined}
+            className={`flex flex-col items-center shrink-0 snap-center text-center ${isCurrent ? "w-24" : "w-[5.25rem]"}`}
           >
-            {reached ? <Medal className={isCurrent ? "h-8 w-8" : "h-6 w-6"} /> : <Lock className="h-5 w-5" />}
+            <LeagueTrophy league={league} locked={locked} className="w-full h-auto" />
+            <span className={`mt-1 text-xs leading-tight ${isCurrent ? "font-semibold text-foreground" : locked ? "text-muted-foreground" : "text-foreground"}`}>
+              {name}
+            </span>
+            {isCurrent && <span className="text-[10px] text-muted-foreground">Liga atual</span>}
           </div>
-          <span className={`mt-1 text-[11px] text-center leading-tight ${isCurrent ? "font-semibold" : "text-muted-foreground"}`}>{name}</span>
-        </div>
-      );
-    })}
-  </div>
-);
+        );
+      })}
+      <div className="shrink-0 w-[calc(50%-48px)]" aria-hidden="true" />
+    </div>
+  );
+};
 
 const ZoneDivider = ({ kind }: { kind: "up" | "down" }) => (
   <div className={`flex items-center justify-center gap-2 py-2 text-xs font-bold tracking-wide ${kind === "up" ? "text-green-600" : "text-destructive"}`}>

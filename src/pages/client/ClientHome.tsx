@@ -19,6 +19,7 @@ import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, to
 import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule";
 import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
 import { FocoCard } from "@/components/gamification/FocoCard";
+import { CelebrationHost } from "@/components/celebration/CelebrationHost";
 import { flushPending } from "@/lib/offlineQueue";
 import { useGmOverview, useRefreshGamification } from "@/hooks/useGamification";
 
@@ -127,6 +128,8 @@ const ClientHome = () => {
           <h1 className="text-xl sm:text-3xl font-bold">Olá, {user.profile.fullName.split(" ")[0]}!</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Aqui está o resumo do seu dia</p>
         </div>
+
+        <CelebrationHost />
 
         {/* Seu Foco: dias, meta, XP e liga */}
         <FocoCard autoOpenGoal />

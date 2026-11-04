@@ -57,7 +57,14 @@ export const AchievementsTab = () => {
       <section>
         <h2 className="font-semibold text-base sm:text-lg mb-3">Medalhas</h2>
         {eventMedals.length === 0 ? (
-          <Card className="p-4 text-sm text-muted-foreground">Pódios nas ligas, primeiros treinos de cada esporte e outros momentos especiais aparecem aqui.</Card>
+          <Card className="p-5 flex flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+            <div className="flex gap-2">
+              <MedalBadge glyph="foco" color="#C3CCD8" value="14" locked label="Medalha bloqueada" className="h-16 w-16" />
+              <MedalBadge glyph="podio" color="#C3CCD8" value="1º" locked label="Medalha bloqueada" className="h-16 w-16" />
+              <MedalBadge glyph="esporte" color="#C3CCD8" locked label="Medalha bloqueada" className="h-16 w-16" />
+            </div>
+            <p>Suas conquistas aparecem aqui. Cada treino, semana perfeita e pódio vira uma medalha.</p>
+          </Card>
         ) : (
           <Card className="p-4 flex flex-wrap gap-4">
             {eventMedals.map(({ medal, info }) => (

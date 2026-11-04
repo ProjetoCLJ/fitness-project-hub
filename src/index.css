@@ -133,3 +133,42 @@ All colors MUST be HSL.
     display: none;
   }
 }
+
+/* Animações das telas de comemoração (revelação da liga, medalhas, pós-treino). */
+@keyframes mj-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(-3px) rotate(-2deg); }
+  40% { transform: translateX(3px) rotate(2deg); }
+  60% { transform: translateX(-4px) rotate(-3deg); }
+  80% { transform: translateX(4px) rotate(3deg); }
+}
+@keyframes mj-glow {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 0.95; transform: scale(1.2); }
+}
+@keyframes mj-flash {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes mj-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes mj-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes mj-rise {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.mj-shake { animation: mj-shake 0.5s linear infinite; }
+.mj-glow { animation: mj-glow 1.2s ease-in-out infinite; }
+.mj-flash { animation: mj-flash 0.45s ease-out forwards; }
+.mj-pop { animation: mj-pop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.mj-spin-slow { animation: mj-spin 40s linear infinite; }
+.mj-rise { animation: mj-rise 0.5s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .mj-shake, .mj-glow, .mj-flash, .mj-pop, .mj-spin-slow, .mj-rise { animation: none; }
+}

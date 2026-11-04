@@ -14,6 +14,7 @@ const PALETTES: [string, string, string][] = [
   ["#9A5A05", "#F59E0B", "#FDE9A0"], // Lenda · dourado
 ];
 const LOCKED: [string, string, string] = ["#8A97A8", "#C3CCD8", "#E4E9F0"];
+const MYSTERY: [string, string, string] = ["#1F2937", "#374151", "#4B5563"];
 
 const star = (cx: number, cy: number, r: number) => {
   let p = "";
@@ -85,19 +86,21 @@ interface LeagueTrophyProps {
   league: number;
   /** Liga ainda não alcançada: troféu cinza com cadeado no centro. */
   locked?: boolean;
+  /** Silhueta escura com "?" (revelação do resultado da liga). */
+  mystery?: boolean;
   className?: string;
 }
 
-export const LeagueTrophy = ({ league, locked = false, className }: LeagueTrophyProps) => {
+export const LeagueTrophy = ({ league, locked = false, mystery = false, className }: LeagueTrophyProps) => {
   const n = Math.min(Math.max(league, 1), 10);
-  const [dark, base, light] = locked ? LOCKED : PALETTES[n - 1];
+  const [dark, base, light] = mystery ? MYSTERY : locked ? LOCKED : PALETTES[n - 1];
   const emblemColor = locked ? "#F4F6F9" : "#FFFFFF";
   const wingA = locked ? "#B4BECB" : "#F472B6";
   const wingB = locked ? "#DDE3EA" : "#FDE9A0";
 
   return (
     <svg viewBox="-4 0 108 106" className={className} role="img" aria-label={`Troféu ${LEAGUE_NAMES[n - 1]}${locked ? " (bloqueado)" : ""}`}>
-      {n === 10 && (
+      {n === 10 && !mystery && (
         <>
           <path d="M25 24 C8 14 -2 34 6 52 C10 43 17 40 26 42 Z" fill={wingA} />
           <path d="M25 24 C12 22 6 34 10 44 C14 38 19 36 26 38 Z" fill={wingB} />
@@ -111,7 +114,13 @@ export const LeagueTrophy = ({ league, locked = false, className }: LeagueTrophy
       <path d="M50 18 H76 V44 C76 62 64 74 50 74 Z" fill={dark} opacity="0.45" />
       <path d="M31 24 Q31 54 42 64" fill="none" stroke={light} strokeWidth="3.5" strokeLinecap="round" opacity="0.85" />
       <rect x="21" y="13" width="58" height="9" rx="4.5" fill={light} />
-      <Emblem league={n} color={emblemColor} />
+      {mystery ? (
+        <text x="50" y="54" textAnchor="middle" fontSize="28" fontWeight="600" fill="#9CA3AF">
+          ?
+        </text>
+      ) : (
+        <Emblem league={n} color={emblemColor} />
+      )}
       <rect x="44" y="74" width="12" height="11" fill={dark} />
       <rect x="30" y="85" width="40" height="8" rx="3" fill={base} />
       <rect x="26" y="93" width="48" height="9" rx="3.5" fill={dark} />

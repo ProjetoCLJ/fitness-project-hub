@@ -149,3 +149,16 @@ export const describeEventMedal = (m: UserMedal): MedalInfo | null => {
 const SERIES_KEYS = new Set<string>();
 MEDAL_SERIES.forEach((s) => s.steps.forEach((st) => SERIES_KEYS.add(st.key)));
 export const isSeriesMedal = (key: string) => SERIES_KEYS.has(key) || /^xp_esporte_/.test(key);
+
+/** Dados de exibição de qualquer medalha ganha (série, XP por esporte ou avulsa). */
+export const findMedalInfo = (medal: UserMedal): MedalInfo | null => {
+  const event = describeEventMedal(medal);
+  if (event) return event;
+  for (const s of MEDAL_SERIES) {
+    const step = s.steps.find((x) => x.key === medal.medalKey);
+    if (step) return step;
+  }
+  const sport = medal.medalKey.match(/^xp_esporte_(.+)_(\d+)$/);
+  if (sport) return sportXpSeries(sport[1] as SportCode).steps.find((x) => x.key === medal.medalKey) ?? null;
+  return null;
+};

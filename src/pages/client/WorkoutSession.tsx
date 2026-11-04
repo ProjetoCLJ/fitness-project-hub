@@ -13,7 +13,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Repeat, X, CheckCircle2, AlertTriangle, Link2, Dumbbell, Check, Play, Timer, Flame, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { fetchGmOverview } from "@/lib/gamification";
+import { GmOverview, fetchGmOverview, fetchLeagueOverview, fetchMedals } from "@/lib/gamification";
+import { PostWorkoutFlow, FlowData } from "@/components/celebration/PostWorkoutFlow";
+import { GoalDialog } from "@/components/gamification/GoalDialog";
+import { useAuthUid } from "@/hooks/useAuthUid";
+import { toLocalISO } from "@/lib/agendaStore";
 import { useRefreshGamification } from "@/hooks/useGamification";
 import { isNetworkError, queueExecution } from "@/lib/offlineQueue";
 import { ExerciseLog, Plan, SetLog, WorkoutExecution, fetchExecutions, fetchPlansForStudent, recordExecution } from "@/lib/planStore";
@@ -78,6 +82,10 @@ const WorkoutSession = () => {
   const [finishOpen, setFinishOpen] = useState(false);
   const [minutes, setMinutes] = useState("");
   const [result, setResult] = useState<FinishResult | null>(null);
+  const uid = useAuthUid();
+  const [flow, setFlow] = useState<FlowData | null>(null);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalOverview, setGoalOverview] = useState<GmOverview | null>(null);
 
   // Cronômetro: guarda o início no aparelho (sobrevive a recarregar) e se encerra sozinho em 4 h.
   useEffect(() => {
@@ -233,7 +241,11 @@ const WorkoutSession = () => {
     };
 
     setIsSaving(true);
-    const before = await fetchGmOverview().catch(() => null);
+    const [before, leagueBefore, medalsBefore] = await Promise.all([
+      fetchGmOverview().catch(() => null),
+      fetchLeagueOverview().catch(() => null),
+      uid ? fetchMedals(uid).catch(() => []) : Promise.resolve([]),
+    ]);
     let offline = false;
     let valid = mins >= MIN_MINUTES;
     try {
@@ -255,10 +267,42 @@ const WorkoutSession = () => {
     } catch {
       /* sem storage */
     }
-    const after = offline ? null : await fetchGmOverview().catch(() => null);
+    const [after, leagueAfter, medalsAfter, executions] = offline
+      ? [null, null, [], []]
+      : await Promise.all([
+          fetchGmOverview().catch(() => null),
+          fetchLeagueOverview().catch(() => null),
+          uid ? fetchMedals(uid).catch(() => []) : Promise.resolve([]),
+          fetchExecutions(clientId).catch(() => [] as WorkoutExecution[]),
+        ]);
     refreshGm();
     setIsSaving(false);
     setFinishOpen(false);
+
+    if (valid && after) {
+      const todayISO = toLocalISO(new Date());
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+      const weekStartISO = toLocalISO(weekStart);
+      const knownBefore = new Set(medalsBefore.map((m) => m.medalKey));
+      setFlow({
+        workoutName: workout.name,
+        minutes: mins,
+        xpGained: before ? Math.max(0, after.xp_total - before.xp_total) : 0,
+        before,
+        after,
+        leagueBefore,
+        leagueAfter,
+        newMedals: medalsAfter.filter((m) => !knownBefore.has(m.medalKey)),
+        conqueredGoal: before?.foco.goal && !after.foco.goal && after.foco.goal_status === "conquered" ? before.foco.goal : null,
+        firstOfDay: before?.foco.last_workout_on !== todayISO,
+        trainedDays: executions.filter((e) => e.isValid).map((e) => e.date.slice(0, 10)).filter((d) => d >= weekStartISO),
+        todayISO,
+        weekStartISO,
+      });
+      return;
+    }
+
     setResult({
       valid,
       minutes: mins,
@@ -496,6 +540,30 @@ const WorkoutSession = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {flow && (
+        <PostWorkoutFlow
+          data={flow}
+          onDone={() => {
+            const needsGoal = !!flow.conqueredGoal && !flow.after.foco.goal;
+            if (needsGoal) {
+              setGoalOverview(flow.after);
+              setGoalOpen(true);
+            } else navigate("/dashboard/student/workouts");
+            setFlow(null);
+          }}
+        />
+      )}
+      {goalOverview && (
+        <GoalDialog
+          open={goalOpen}
+          onOpenChange={(open) => {
+            setGoalOpen(open);
+            if (!open) navigate("/dashboard/student/workouts");
+          }}
+          overview={goalOverview}
+        />
+      )}
 
       <Dialog
         open={!!result}

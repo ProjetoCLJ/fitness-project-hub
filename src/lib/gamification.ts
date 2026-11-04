@@ -194,3 +194,23 @@ export const fetchTrainerAdherence = async (): Promise<StudentAdherence[]> => {
   if (error) throw error;
   return (data ?? []) as StudentAdherence[];
 };
+
+export interface ConqueredGoal {
+  id: string;
+  days: number;
+  xp: number;
+  endedOn: string;
+}
+
+/** Meta de Foco mais recentemente conquistada (para comemorar uma vez). */
+export const fetchLastConqueredGoal = async (userId: string): Promise<ConqueredGoal | null> => {
+  const { data } = await db
+    .from("foco_goals")
+    .select("id, days, xp, ended_on")
+    .eq("user_id", userId)
+    .eq("status", "conquered")
+    .order("ended_on", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? { id: data.id, days: data.days, xp: data.xp, endedOn: data.ended_on } : null;
+};

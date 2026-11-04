@@ -21,7 +21,7 @@ export const FocoCard = ({ autoOpenGoal = false }: { autoOpenGoal?: boolean }) =
   // O menu abre sozinho quando precisa de uma escolha (meta conquistada, Foco quebrado ou volta) — uma vez por dia.
   useEffect(() => {
     if (!autoOpenGoal || !overview || overview.foco.goal) return;
-    const needs = overview.foco.goal_status === "conquered" || overview.foco.goal_status === "broken" || overview.foco.active;
+    const needs = overview.foco.goal_status === "broken" || overview.foco.active;
     if (!needs) return;
     const key = `goal-menu-dismissed-${toLocalISO(new Date())}`;
     try {
@@ -74,7 +74,10 @@ export const FocoCard = ({ autoOpenGoal = false }: { autoOpenGoal?: boolean }) =
         )}
 
         {!foco.active && (
-          <p className="text-sm text-muted-foreground mb-3">Conclua um treino do seu plano para começar o Foco.</p>
+          <div className="flex items-center gap-3 mb-3 rounded-lg bg-muted/40 p-3">
+            <FocoFlame state="off" className="h-10 w-10 shrink-0" />
+            <p className="text-sm text-muted-foreground">Seu Foco começa no primeiro treino. Treine 25 minutos ou mais e a chama acende.</p>
+          </div>
         )}
 
         {league && league.joined && (

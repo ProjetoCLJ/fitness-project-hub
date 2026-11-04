@@ -3,17 +3,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import { LeagueTable, Row } from "@/components/gamification/LeagueTable";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { SportIcon } from "@/components/gamification/SportIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthUid } from "@/hooks/useAuthUid";
 import { useToast } from "@/hooks/use-toast";
 import { useLeagueOverview } from "@/hooks/useGamification";
-import { LeagueMember, LEAGUE_NAMES, fetchRankingPublic, fetchSportRanking, leagueName, setRankingPublic } from "@/lib/gamification";
+import { LEAGUE_NAMES, fetchRankingPublic, fetchSportRanking, leagueName, setRankingPublic } from "@/lib/gamification";
 import { SPORTS } from "@/lib/sports";
 
 /** Faixa com as 10 ligas: rola para os lados e abre centralizada na liga atual. */
@@ -53,27 +56,6 @@ const LeagueTrail = ({ current }: { current: number }) => {
     </div>
   );
 };
-
-const ZoneDivider = ({ kind }: { kind: "up" | "down" }) => (
-  <div className={`flex items-center justify-center gap-2 py-2 text-xs font-bold tracking-wide ${kind === "up" ? "text-green-600" : "text-destructive"}`}>
-    {kind === "up" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-    {kind === "up" ? "ZONA DE PROMOÇÃO" : "ZONA DE REBAIXAMENTO"}
-    {kind === "up" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-  </div>
-);
-
-const Row = ({ member }: { member: LeagueMember }) => (
-  <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg ${member.is_me ? "bg-primary/10" : ""}`}>
-    <span className={`w-6 text-center font-bold text-sm ${member.zone === "up" ? "text-green-600" : member.zone === "down" ? "text-destructive" : "text-muted-foreground"}`}>
-      {member.position}
-    </span>
-    <div className="h-9 w-9 rounded-full bg-muted overflow-hidden flex items-center justify-center text-xs font-semibold">
-      {member.avatar ? <img src={member.avatar} alt="" className="h-full w-full object-cover" /> : member.name.slice(0, 1).toUpperCase()}
-    </div>
-    <span className={`flex-1 min-w-0 truncate ${member.is_me ? "font-semibold" : ""}`}>{member.is_me ? `${member.name} (você)` : member.name}</span>
-    <span className="text-sm text-muted-foreground">{member.xp} XP</span>
-  </div>
-);
 
 const SportRankingTab = () => {
   const [sport, setSport] = useState("musculacao");
@@ -131,6 +113,7 @@ const Leagues = () => {
   const { toast } = useToast();
   const { data: league, isError } = useLeagueOverview();
   const [isPublic, setIsPublic] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (uid) fetchRankingPublic(uid).then(setIsPublic).catch(() => undefined);
@@ -148,9 +131,6 @@ const Leagues = () => {
     }
   };
 
-  const members = league?.members ?? [];
-  const upSlots = league?.up_slots ?? 0;
-  const downSlots = league?.down_slots ?? 0;
   const lastResult = league?.last_result;
 
   return (
@@ -181,49 +161,20 @@ const Leagues = () => {
           <TabsContent value="liga" className="space-y-3">
             {isError && <Card className="p-6 text-center text-sm text-muted-foreground">As ligas ainda estão sendo preparadas.</Card>}
 
-            {league && !league.joined && (
-              <Card className="p-6 text-center text-sm text-muted-foreground">
-                Conclua seu primeiro treino de 25 minutos ou mais para entrar na liga e disputar com seu grupo.
-              </Card>
-            )}
-
-            {league?.joined && !league.in_group && (
-              <Card className="p-6 text-center text-sm text-muted-foreground">
-                Você ainda não tem grupo neste mês. Faça um treino para entrar na disputa da liga {leagueName(league.league)}.
-              </Card>
-            )}
-
-            {league?.in_group && (
-              <>
-                <Card className="p-3 text-sm flex items-center justify-between gap-3">
-                  <span>
-                    Você está em <strong>{league.my_position}º</strong> com <strong>{league.my_xp} XP</strong>
-                  </span>
-                  <span className="text-muted-foreground text-xs text-right">
-                    {league.xp_to_promotion
-                      ? `Faltam ${league.xp_to_promotion} XP para a zona de promoção`
-                      : league.xp_to_safety
-                        ? `Faltam ${league.xp_to_safety} XP para sair do rebaixamento`
-                        : league.is_open
-                          ? "Grupo aberto: sem rebaixamento"
-                          : ""}
-                  </span>
-                </Card>
-
-                <Card className="p-2">
-                  {members.map((m, i) => (
-                    <div key={`${m.position}-${m.name}`}>
-                      {m.position === upSlots + 1 && upSlots > 0 && i > 0 && <ZoneDivider kind="up" />}
-                      {downSlots > 0 && m.position === members.length - downSlots + 1 && <ZoneDivider kind="down" />}
-                      <Row member={m} />
-                    </div>
-                  ))}
-                </Card>
-                <p className="text-xs text-muted-foreground text-center">
-                  Ranking por XP do mês (treinos e bônus semanal). O grupo é remontado a cada mês.
+            {league && (!league.joined || !league.in_group) && (
+              <Card className="p-6 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
+                <LeagueTrophy league={league.league} locked className="w-20 h-auto" />
+                <p className="font-medium text-foreground">
+                  {league.joined ? `Sua disputa na liga ${leagueName(league.league)} começa no próximo treino` : "Sua liga começa no primeiro treino"}
                 </p>
-              </>
+                <p>Conclua um treino de 25 minutos ou mais para entrar na disputa do mês.</p>
+                <Button variant="hero" onClick={() => navigate("/dashboard/student/workouts")}>
+                  Ver meus treinos
+                </Button>
+              </Card>
             )}
+
+            {league?.in_group && <LeagueTable league={league} />}
 
             {lastResult && (
               <Card className="p-4 text-sm">

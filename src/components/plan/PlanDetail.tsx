@@ -232,6 +232,7 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
                   selected={selectedDay}
                   onSelect={(d) => d && setSelectedDay(d)}
                   locale={ptBR}
+                  weekStartsOn={1}
                   modifiers={{ hasWorkout: datesWithWorkouts }}
                   modifiersClassNames={{ hasWorkout: "font-bold underline decoration-primary decoration-2 underline-offset-4" }}
                 />

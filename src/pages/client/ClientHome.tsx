@@ -20,7 +20,7 @@ import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule
 import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
 import { FocoCard } from "@/components/gamification/FocoCard";
 import { flushPending } from "@/lib/offlineQueue";
-import { useRefreshGamification } from "@/hooks/useGamification";
+import { useGmOverview, useRefreshGamification } from "@/hooks/useGamification";
 
 
 const formatBookingDate = (dateISO: string, startTime: string) =>
@@ -36,6 +36,7 @@ const ClientHome = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const refreshGm = useRefreshGamification();
+  const { data: gm } = useGmOverview();
   const [rescheduling, setRescheduling] = useState<{ event: ScheduleEvent; date: string } | null>(null);
 
   // Treinos feitos offline sobem quando houver internet (ao abrir o app e quando a conexão volta).
@@ -107,10 +108,14 @@ const ClientHome = () => {
     const iso = toLocalISO(day);
     plannedThisWeek += plans.reduce((sum, p) => sum + workoutsOnDate(p, iso).length, 0);
   }
+  // Com a gamificação ativa, a semana vem do servidor (treinos planejados x feitos, sem contar treino extra).
+  const serverWeek = gm && gm.week.planned > 0 ? gm.week : null;
+  const completed = serverWeek ? serverWeek.done : completedThisWeek;
+  const planned = serverWeek ? serverWeek.planned : plannedThisWeek;
   const weekProgress = {
-    completed: completedThisWeek,
-    planned: plannedThisWeek,
-    completionRate: plannedThisWeek > 0 ? Math.min(100, Math.round((completedThisWeek / plannedThisWeek) * 100)) : 0,
+    completed,
+    planned,
+    completionRate: planned > 0 ? Math.min(100, Math.round((completed / planned) * 100)) : 0,
   };
 
   return (

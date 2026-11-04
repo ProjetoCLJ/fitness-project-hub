@@ -154,6 +154,7 @@ export const NewPlanDialog = ({ open, onOpenChange, onCreate }: NewPlanDialogPro
                   selected={new Date(`${startDate}T00:00:00`)}
                   month={new Date(`${startDate}T00:00:00`)}
                   locale={ptBR}
+                  weekStartsOn={1}
                   disableNavigation
                 />
               </div>

@@ -87,13 +87,15 @@ interface MedalBadgeProps {
   ribbon?: boolean;
   /** Esporte: troca o símbolo "esporte" pelo ícone do esporte. */
   sport?: SportCode;
+  /** Centraliza o círculo da medalha na área (comemorações, com raios em volta). */
+  centerFace?: boolean;
   /** Medalha ainda não conquistada: cinza, com cadeado no canto. */
   locked?: boolean;
   label: string;
   className?: string;
 }
 
-export const MedalBadge = ({ glyph, color, value, ribbon, sport, locked, label, className }: MedalBadgeProps) => {
+export const MedalBadge = ({ glyph, color, value, ribbon, sport, centerFace, locked, label, className }: MedalBadgeProps) => {
   const t = locked ? LOCKED : tones(color);
   const len = (value ?? "").length;
   const fontSize = len <= 2 ? 30 : len <= 3 ? 25 : len <= 5 ? 19 : 16;
@@ -110,7 +112,7 @@ export const MedalBadge = ({ glyph, color, value, ribbon, sport, locked, label, 
   );
 
   return (
-    <svg viewBox="0 0 100 108" className={className} role="img" aria-label={label}>
+    <svg viewBox={centerFace ? "0 -8 100 112" : "0 0 100 108"} className={className} role="img" aria-label={label}>
       {ribbon && !locked && (
         <>
           <path d="M30 70 L22 100 L35 94 L42 104 L48 76 Z" fill="#DC2626" />

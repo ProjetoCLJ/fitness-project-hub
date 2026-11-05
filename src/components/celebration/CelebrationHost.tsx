@@ -80,7 +80,7 @@ export const CelebrationHost = () => {
     return (
       <Celebration
         rays={info.color}
-        art={<MedalBadge glyph={info.glyph} color={info.color} value={info.value} ribbon={info.ribbon} sport={info.sport} label={info.title} className="w-full h-auto" />}
+        art={<MedalBadge glyph={info.glyph} color={info.color} value={info.value} ribbon={info.ribbon} sport={info.sport} centerFace label={info.title} className="w-full h-auto" />}
         artSize={132}
         banner={{ text: "Nova conquista!", color: info.color }}
         title={info.title}

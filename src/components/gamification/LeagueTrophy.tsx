@@ -99,7 +99,7 @@ export const LeagueTrophy = ({ league, locked = false, mystery = false, classNam
   const wingB = locked ? "#DDE3EA" : "#FDE9A0";
 
   return (
-    <svg viewBox="-4 0 108 106" className={className} role="img" aria-label={`Troféu ${LEAGUE_NAMES[n - 1]}${locked ? " (bloqueado)" : ""}`}>
+    <svg viewBox="-4 4.5 108 106" className={className} role="img" aria-label={`Troféu ${LEAGUE_NAMES[n - 1]}${locked ? " (bloqueado)" : ""}`}>
       {n === 10 && !mystery && (
         <>
           <path d="M25 24 C8 14 -2 34 6 52 C10 43 17 40 26 42 Z" fill={wingA} />

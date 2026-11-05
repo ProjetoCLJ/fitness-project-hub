@@ -1,13 +1,23 @@
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
-/** Raios de luz girando devagar atrás da arte. */
+/**
+ * Raios de luz atrás da arte, com movimento: duas camadas girando em sentidos opostos e uma pulsação
+ * que expande e contrai. O centro dos raios é o centro do contêiner (a arte deve estar centralizada nele).
+ */
 export const Rays = ({ color, opacity = 0.16, className = "" }: { color: string; opacity?: number; className?: string }) => (
-  <svg viewBox="-150 -150 300 300" className={`absolute inset-0 h-full w-full mj-spin-slow ${className}`} aria-hidden="true">
-    {Array.from({ length: 12 }, (_, i) => (
-      <path key={i} d="M0 0 L-20 -150 L20 -150 Z" transform={`rotate(${i * 30})`} fill={color} opacity={opacity} />
-    ))}
-  </svg>
+  <div className={`absolute inset-0 mj-rays-pulse ${className}`} aria-hidden="true">
+    <svg viewBox="-150 -150 300 300" className="absolute inset-0 h-full w-full mj-spin-slow">
+      {Array.from({ length: 12 }, (_, i) => (
+        <path key={i} d="M0 0 L-20 -150 L20 -150 Z" transform={`rotate(${i * 30})`} fill={color} opacity={opacity} />
+      ))}
+    </svg>
+    <svg viewBox="-150 -150 300 300" className="absolute inset-0 h-full w-full mj-spin-rev">
+      {Array.from({ length: 12 }, (_, i) => (
+        <path key={i} d="M0 0 L-12 -112 L12 -112 Z" transform={`rotate(${i * 30 + 15})`} fill={color} opacity={opacity * 0.9} />
+      ))}
+    </svg>
+  </div>
 );
 
 export interface CelebrationProps {

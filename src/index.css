@@ -167,8 +167,14 @@ All colors MUST be HSL.
 .mj-glow { animation: mj-glow 1.2s ease-in-out infinite; }
 .mj-flash { animation: mj-flash 0.45s ease-out forwards; }
 .mj-pop { animation: mj-pop 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.mj-spin-slow { animation: mj-spin 40s linear infinite; }
+@keyframes mj-rays-pulse {
+  0%, 100% { transform: scale(0.88); opacity: 0.75; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+.mj-spin-slow { animation: mj-spin 22s linear infinite; }
+.mj-spin-rev { animation: mj-spin 34s linear infinite reverse; }
+.mj-rays-pulse { animation: mj-rays-pulse 2.6s ease-in-out infinite; }
 .mj-rise { animation: mj-rise 0.5s ease-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .mj-shake, .mj-glow, .mj-flash, .mj-pop, .mj-spin-slow, .mj-rise { animation: none; }
+  .mj-shake, .mj-glow, .mj-flash, .mj-pop, .mj-spin-slow, .mj-spin-rev, .mj-rays-pulse, .mj-rise { animation: none; }
 }

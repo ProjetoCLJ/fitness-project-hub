@@ -14,7 +14,7 @@ export type FlameState = "off" | "on" | "goal";
 export const FocoFlame = ({ state, className }: { state: FlameState; className?: string }) => {
   const off = state === "off";
   return (
-    <svg viewBox="0 0 58 58" className={className} role="img" aria-label={off ? "Sem Foco" : state === "goal" ? "Meta batida" : "Foco ativo"}>
+    <svg viewBox={state === "goal" ? "-2.8 0 58 58" : "-5 0 58 58"} className={className} role="img" aria-label={off ? "Sem Foco" : state === "goal" ? "Meta batida" : "Foco ativo"}>
       {state === "goal" && (
         <g transform="translate(6 -3)">
           <Layer scale={0.9} fill="#FBBF24" shade="#B45309" />

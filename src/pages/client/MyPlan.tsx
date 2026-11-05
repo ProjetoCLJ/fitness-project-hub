@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Target, Dumbbell, ChevronRight, CalendarClock, History, Plus, Copy, Pause, Play } from "lucide-react";
+import { ChevronRight, History, Plus, Copy, Pause, Play, Dumbbell } from "lucide-react";
 import { Plan, PlanInput, copyPlanAsOwn, createPlan, fetchPlansForStudent, pausePlan, resumePlan } from "@/lib/planStore";
 import { NewPlanDialog } from "@/components/plan/NewPlanDialog";
 import { PlanDetail } from "@/components/plan/PlanDetail";
@@ -16,6 +16,16 @@ import { toLocalISO } from "@/lib/agendaStore";
 
 const formatDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+const dayDiff = (a: string, b: string) => Math.round((new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86400000);
+
+/** Progresso do plano pelas datas (início até o prazo). Sem prazo, não há como calcular. */
+const planProgress = (plan: Plan, todayISO: string): number | null => {
+  if (!plan.endDate) return null;
+  const total = dayDiff(plan.endDate, plan.startDate);
+  if (total <= 0) return 100;
+  return Math.min(100, Math.max(0, Math.round((dayDiff(todayISO, plan.startDate) / total) * 100)));
+};
 
 const MyPlan = () => {
   const { user } = useAuth();
@@ -115,7 +125,49 @@ const MyPlan = () => {
 
       <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-4">
         {selected ? (
-          <PlanDetail plan={selected} canEdit={!selected.trainerId} onBack={() => setParams({}, { replace: true })} onChanged={load} />
+          <>
+            <PlanDetail plan={selected} canEdit={!selected.trainerId} onBack={() => setParams({}, { replace: true })} onChanged={load} />
+
+            {/* Ações do plano (antes ficavam na lista) */}
+            {(() => {
+              const pause = openPause(selected);
+              const pausedNow = !!pause && pause.startsOn <= today;
+              const own = !selected.trainerId;
+              return (
+                <Card className="p-4 sm:p-6 space-y-3">
+                  <h3 className="font-semibold">Ações do plano</h3>
+                  {pause && (
+                    <p className="text-sm text-muted-foreground">
+                      {pausedNow ? "Este plano está pausado." : `Pausa agendada para ${formatDate(pause.startsOn)}.`}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Button variant="hero" onClick={() => navigate("/dashboard/student/workouts")}>
+                      <Dumbbell className="h-4 w-4 mr-1" />
+                      Treinar
+                    </Button>
+                    {pause ? (
+                      <Button variant="outline" disabled={busy} onClick={() => resume(selected)}>
+                        <Play className="h-4 w-4 mr-1" />
+                        {pausedNow ? "Retomar plano" : "Cancelar pausa"}
+                      </Button>
+                    ) : (
+                      <Button variant="outline" disabled={busy} onClick={() => setPauseTarget(selected)}>
+                        <Pause className="h-4 w-4 mr-1" />
+                        Pausar plano
+                      </Button>
+                    )}
+                    {!own && (
+                      <Button variant="outline" disabled={busy} onClick={() => handleCopy(selected)} className="sm:col-span-2">
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copiar como meu plano
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })()}
+          </>
         ) : (
           <>
             <div className="flex items-center justify-between gap-2">
@@ -142,80 +194,37 @@ const MyPlan = () => {
               </Card>
             ) : (
               plans.map((plan) => {
-                const pause = openPause(plan);
-                const pausedNow = !!pause && pause.startsOn <= today;
-                const own = !plan.trainerId;
+                const pct = planProgress(plan, today);
                 return (
-                  <Card key={plan.id} className="p-4 sm:p-6 space-y-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h2 className="font-semibold text-lg truncate">{plan.title}</h2>
-                        <p className="text-sm text-muted-foreground">
-                          {sportLabel(plan.sport)} · {own ? "plano próprio" : `por ${plan.trainerName}`}
-                        </p>
-                      </div>
-                      {pause ? <Badge variant="secondary">{pausedNow ? "Pausado" : `Pausa em ${formatDate(pause.startsOn)}`}</Badge> : <Badge>Ativo</Badge>}
-                    </div>
-
-                    {plan.objective && (
-                      <div className="flex items-start gap-3">
-                        <Target className="h-5 w-5 text-primary mt-0.5" />
+                  <Card
+                    key={plan.id}
+                    className="p-4 sm:p-5 cursor-pointer hover:shadow-medium transition-smooth"
+                    onClick={() => setParams({ id: plan.id }, { replace: true })}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-3">
                         <div>
-                          <p className="text-sm text-muted-foreground">Objetivo</p>
-                          <p className="font-medium whitespace-pre-wrap">{plan.objective}</p>
+                          <h2 className="font-semibold text-lg truncate">{plan.title}</h2>
+                          <p className="text-sm text-muted-foreground">
+                            {sportLabel(plan.sport)} · {plan.trainerId ? `por ${plan.trainerName}` : "plano próprio"}
+                          </p>
                         </div>
+                        <p className="text-sm text-muted-foreground">Início em {formatDate(plan.startDate)}</p>
+                        {pct !== null ? (
+                          <div className="space-y-1">
+                            <Progress value={pct} className="h-2" />
+                            <p className="text-xs text-muted-foreground">{pct}% do plano</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Sem prazo definido</p>
+                        )}
                       </div>
-                    )}
-
-                    {plan.description && (
-                      <div className="flex items-start gap-3">
-                        <Dumbbell className="h-5 w-5 text-primary mt-0.5" />
-                        <div>
-                          <p className="text-sm text-muted-foreground">Descrição</p>
-                          <p className="font-medium whitespace-pre-wrap">{plan.description}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CalendarClock className="h-4 w-4" />
-                      {formatDate(plan.startDate)} — {plan.endDate ? formatDate(plan.endDate) : "sem prazo"}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" onClick={() => navigate("/dashboard/student/workouts")}>
-                        Treinar
-                      </Button>
-                      <Button variant="outline" onClick={() => setParams({ id: plan.id }, { replace: true })}>
-                        {own ? "Editar plano" : "Ver plano"}
-                      </Button>
-                      {!own && (
-                        <Button variant="ghost" disabled={busy} onClick={() => handleCopy(plan)}>
-                          <Copy className="h-4 w-4 mr-1" />
-                          Copiar como meu plano
-                        </Button>
-                      )}
-                      {pause ? (
-                        <Button variant="ghost" disabled={busy} onClick={() => resume(plan)}>
-                          <Play className="h-4 w-4 mr-1" />
-                          {pausedNow ? "Retomar" : "Cancelar pausa"}
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" disabled={busy} onClick={() => setPauseTarget(plan)}>
-                          <Pause className="h-4 w-4 mr-1" />
-                          Pausar plano
-                        </Button>
-                      )}
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                     </div>
                   </Card>
                 );
               })
             )}
-
-            <Button variant="ghost" className="w-full justify-between" onClick={() => navigate("/dashboard/student/profile?tab=dados")}>
-              Ver objetivos e restrições no seu perfil
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </>
         )}
       </div>

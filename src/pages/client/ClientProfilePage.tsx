@@ -17,6 +17,8 @@ import { StatsContent } from "@/components/stats/StatsContent";
 import { useGmOverview, useLeagueOverview } from "@/hooks/useGamification";
 import { leagueName } from "@/lib/gamification";
 import { sportLabel } from "@/lib/sports";
+import { FEATURES } from "@/lib/features";
+import { RankingPrivacySetting } from "@/components/gamification/RankingPrivacySetting";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, Restriction, deleteRestriction, fetchPlansForStudent, fetchRestrictions } from "@/lib/planStore";
@@ -145,7 +147,13 @@ const ClientProfilePage = () => {
           <StudentProfile />
         )}
 
-        <ThemeToggle />
+        <div>
+          <h2 className="font-semibold text-base sm:text-lg mb-3">Configurações</h2>
+          <div className="space-y-3">
+            <ThemeToggle />
+            <RankingPrivacySetting />
+          </div>
+        </div>
 
         {/* Planos */}
         <div>
@@ -244,9 +252,11 @@ const ClientProfilePage = () => {
           ) : (
             <Card className="p-4 sm:p-6 flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">Você ainda não tem um profissional vinculado.</p>
-              <Button variant="outline" size="sm" onClick={() => navigate("/trainers")}>
-                Encontrar
-              </Button>
+              {FEATURES.professionalSearch && (
+                <Button variant="outline" size="sm" onClick={() => navigate("/trainers")}>
+                  Encontrar
+                </Button>
+              )}
             </Card>
           )}
         </div>

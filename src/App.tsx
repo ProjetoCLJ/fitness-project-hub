@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import { FEATURES } from "@/lib/features";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
 import RegisterTrainer from "./pages/RegisterTrainer";
@@ -59,16 +60,16 @@ const App = () => (
             <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/register/trainer" element={<RegisterTrainer />} />
             <Route path="/register/student" element={<RegisterStudent />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/trainers" element={<Trainers />} />
+            <Route path="/search" element={FEATURES.professionalSearch ? <Search /> : <Navigate to="/" replace />} />
+            <Route path="/trainers" element={FEATURES.professionalSearch ? <Trainers /> : <Navigate to="/" replace />} />
             <Route path="/trainer/:id" element={<TrainerProfile />} />
             <Route path="/confirme-email" element={<ConfirmEmail />} />
             <Route path="/auth/confirmado" element={<AuthConfirmed />} />
             <Route path="/completar-cadastro" element={<CompleteSignup />} />
             <Route path="/redefinir-senha" element={<ResetPassword />} />
-            <Route path="/eventos" element={<Events />} />
-            <Route path="/eventos/:id" element={<EventDetail />} />
-            <Route path="/evento/:code" element={<EventInvite />} />
+            <Route path="/eventos" element={FEATURES.events ? <Events /> : <Navigate to="/" replace />} />
+            <Route path="/eventos/:id" element={FEATURES.events ? <EventDetail /> : <Navigate to="/" replace />} />
+            <Route path="/evento/:code" element={FEATURES.events ? <EventInvite /> : <Navigate to="/" replace />} />
             <Route path="/desafio/:code" element={<ChallengeInvite />} />
             <Route path="/desafios/:id" element={<ChallengePage />} />
 

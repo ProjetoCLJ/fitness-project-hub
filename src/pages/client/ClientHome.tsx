@@ -15,8 +15,7 @@ import {
   ChevronRight,
   CalendarClock,
 } from "lucide-react";
-import { Booking, ScheduleEvent, fetchBookingsForStudent, fetchStudentEvents, toLocalISO, upcomingOccurrences } from "@/lib/agendaStore";
-import { RescheduleDialog } from "@/components/dashboard/trainer/TrainerSchedule";
+import { Booking, fetchBookingsForStudent, toLocalISO } from "@/lib/agendaStore";
 import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
 import { FocoCard } from "@/components/gamification/FocoCard";
 import { CelebrationHost } from "@/components/celebration/CelebrationHost";
@@ -33,12 +32,10 @@ const ClientHome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [aulas, setAulas] = useState<{ event: ScheduleEvent & { trainerName: string }; date: string }[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const refreshGm = useRefreshGamification();
   const { data: gm } = useGmOverview();
-  const [rescheduling, setRescheduling] = useState<{ event: ScheduleEvent; date: string } | null>(null);
 
   // Treinos feitos offline sobem quando houver internet (ao abrir o app e quando a conexão volta).
   useEffect(() => {
@@ -62,16 +59,14 @@ const ClientHome = () => {
     if (!clientId) return;
     (async () => {
       try {
-        const [loadedBookings, events, loadedPlans, loadedExecutions] = await Promise.all([
+        const [loadedBookings, loadedPlans, loadedExecutions] = await Promise.all([
           fetchBookingsForStudent(clientId),
-          fetchStudentEvents(clientId),
           fetchPlansForStudent(clientId),
           fetchExecutions(clientId),
         ]);
         setBookings(loadedBookings);
         setPlans(loadedPlans.filter((p) => p.status === "active"));
         setExecutions(loadedExecutions);
-        setAulas(upcomingOccurrences(events, 60) as { event: ScheduleEvent & { trainerName: string }; date: string }[]);
       } catch {
         toast({ title: "Não foi possível carregar seus atendimentos", variant: "destructive" });
       }
@@ -81,20 +76,30 @@ const ClientHome = () => {
 
   if (!user) return null;
 
-  const nextAulas = aulas.slice(0, 3);
   const pendingBookings = bookings.filter((b) => b.status === "pending");
   const suggestions = bookings.filter((b) => b.status === "suggested");
 
   const todayISO = toLocalISO(new Date());
-  const todaysWorkouts = plans.flatMap((p) => workoutsOnDate(p, todayISO).map((w) => ({ workout: w, plan: p })));
-  const firstWorkout = plans.flatMap((p) => p.workouts.map((w) => ({ workout: w, plan: p })))[0];
-  const nextEntry = todaysWorkouts[0] ?? firstWorkout;
+  // Próximo treino programado (hoje ou o mais próximo dos próximos 60 dias).
+  const nextEntry = (() => {
+    for (let i = 0; i < 60; i++) {
+      const day = new Date();
+      day.setDate(day.getDate() + i);
+      const iso = toLocalISO(day);
+      const found = plans.flatMap((p) => workoutsOnDate(p, iso).map((w) => ({ workout: w, plan: p })));
+      if (found.length > 0) return { ...found[0], daysAhead: i, date: day };
+    }
+    return null;
+  })();
   const nextWorkout = nextEntry
     ? {
         name: nextEntry.workout.name,
-        day: todaysWorkouts[0] ? "Hoje" : "Quando quiser",
+        when: nextEntry.daysAhead === 0 ? "Hoje" : nextEntry.daysAhead === 1 ? "Amanhã" : `Em ${nextEntry.daysAhead} dias`,
+        dateLabel: nextEntry.date.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" }),
+        time: nextEntry.workout.startTime,
         objective: nextEntry.plan.objective || nextEntry.plan.title,
         trainerName: nextEntry.plan.trainerName,
+        isToday: nextEntry.daysAhead === 0,
       }
     : null;
 
@@ -143,50 +148,26 @@ const ClientHome = () => {
           {nextWorkout ? (
             <>
               <div className="space-y-2 mb-4">
-                <p className="font-medium">{nextWorkout.name}</p>
+                <p className="font-medium">
+                  {nextWorkout.when}: {nextWorkout.name}
+                </p>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  {nextWorkout.day}
+                  <span className="first-letter:uppercase">{nextWorkout.dateLabel}</span>
+                  {nextWorkout.time ? ` · ${nextWorkout.time}` : ""}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
                   {nextWorkout.trainerName}
                 </div>
               </div>
-              <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/plan")}>
+              <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/workouts")}>
                 <Play className="h-4 w-4 mr-2" />
-                Iniciar treino
+                {nextWorkout.isToday ? "Iniciar treino" : "Ver treinos"}
               </Button>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Nenhum treino definido ainda.</p>
-          )}
-        </Card>
-
-        {/* Próximos atendimentos */}
-        <Card className="p-4 sm:p-6 mb-4">
-          <h2 className="font-semibold text-base sm:text-lg mb-3">Próximos atendimentos</h2>
-          {nextAulas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum atendimento confirmado ainda.</p>
-          ) : (
-            <div className="space-y-2">
-              {nextAulas.map((o) => (
-                <button
-                  key={`${o.event.id}-${o.date}`}
-                  className="w-full flex items-center justify-between p-3 rounded-md bg-muted/30 text-left hover:bg-muted/50 transition-smooth"
-                  onClick={() => setRescheduling(o)}
-                >
-                  <div>
-                    <p className="font-medium">{o.event.trainerName}</p>
-                    <p className="text-sm text-muted-foreground">Personal Trainer</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{formatBookingDate(o.date, o.event.startTime)}</p>
-                    <p className="text-xs text-primary">Solicitar troca</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground">Nenhum treino programado nos próximos dias.</p>
           )}
         </Card>
 
@@ -247,20 +228,6 @@ const ClientHome = () => {
         </Card>
       </div>
 
-      {rescheduling && (
-        <RescheduleDialog
-          open
-          onOpenChange={(open) => !open && setRescheduling(null)}
-          eventId={rescheduling.event.id}
-          occurrenceDate={rescheduling.date}
-          defaultStart={rescheduling.event.startTime}
-          defaultEnd={rescheduling.event.endTime}
-          onSent={() => {
-            setRescheduling(null);
-            toast({ title: "Pedido enviado", description: "O profissional vai ver o pedido na aba Solicitações." });
-          }}
-        />
-      )}
     </div>
   );
 };

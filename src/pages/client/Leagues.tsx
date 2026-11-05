@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Clock } from "lucide-react";
@@ -13,10 +11,8 @@ import { LeagueTable, Row } from "@/components/gamification/LeagueTable";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
 import { SportIcon } from "@/components/gamification/SportIcon";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthUid } from "@/hooks/useAuthUid";
-import { useToast } from "@/hooks/use-toast";
 import { useLeagueOverview } from "@/hooks/useGamification";
-import { LEAGUE_NAMES, fetchRankingPublic, fetchSportRanking, leagueName, setRankingPublic } from "@/lib/gamification";
+import { LEAGUE_NAMES, fetchSportRanking, leagueName } from "@/lib/gamification";
 import { SPORTS } from "@/lib/sports";
 
 /** Faixa com as 10 ligas: rola para os lados e abre centralizada na liga atual. */
@@ -100,7 +96,7 @@ const SportRankingTab = () => {
       </Card>
       {data?.me && !data.public && (
         <p className="text-xs text-muted-foreground text-center">
-          Você está em {data.me.position}º lugar neste ranking, mas só você vê isso. Ative "Aparecer nos rankings por esporte" para os outros te verem.
+          Você está em {data.me.position}º lugar neste ranking, mas só você vê isso. Para os outros te verem, ative "Aparecer nos rankings por esporte" em Perfil › Dados › Configurações.
         </p>
       )}
     </div>
@@ -109,27 +105,12 @@ const SportRankingTab = () => {
 
 const Leagues = () => {
   const { user } = useAuth();
-  const uid = useAuthUid();
-  const { toast } = useToast();
   const { data: league, isError } = useLeagueOverview();
-  const [isPublic, setIsPublic] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (uid) fetchRankingPublic(uid).then(setIsPublic).catch(() => undefined);
-  }, [uid]);
 
   if (!user) return null;
 
-  const togglePublic = async (value: boolean) => {
-    setIsPublic(value);
-    try {
-      await setRankingPublic(value);
-    } catch {
-      setIsPublic(!value);
-      toast({ title: "Não foi possível salvar a preferência", variant: "destructive" });
-    }
-  };
 
   const lastResult = league?.last_result;
 
@@ -195,15 +176,6 @@ const Leagues = () => {
           </TabsContent>
         </Tabs>
 
-        <Card className="p-4 flex items-center justify-between gap-3">
-          <div>
-            <Label htmlFor="ranking-public" className="font-medium">
-              Aparecer nos rankings por esporte
-            </Label>
-            <p className="text-xs text-muted-foreground">Seu nome (primeiro nome e inicial) fica visível para todos. Desligado por padrão.</p>
-          </div>
-          <Switch id="ranking-public" checked={isPublic} onCheckedChange={togglePublic} />
-        </Card>
       </div>
     </div>
   );

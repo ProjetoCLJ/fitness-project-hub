@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { FEATURES } from "@/lib/features";
 
 interface SideMenuProps {
   onLoginClick: () => void;
@@ -45,9 +46,9 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
     { label: "Ligas", icon: Medal, path: "/dashboard/student/leagues" },
-    { label: "Profissionais", icon: Search, path: "/trainers" },
+    ...(FEATURES.professionalSearch ? [{ label: "Profissionais", icon: Search, path: "/trainers" }] : []),
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
-    { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
+    ...(FEATURES.events ? [{ label: "Eventos", icon: CalendarHeart, path: "/eventos" }] : []),
   ];
 
   // O profissional também é atleta: seção própria com as abas de aluno (Desafios e Eventos já estão na seção profissional).
@@ -55,7 +56,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
     { label: "Ligas", icon: Medal, path: "/dashboard/student/leagues" },
-    { label: "Encontrar profissional", icon: Search, path: "/trainers" },
+    ...(FEATURES.professionalSearch ? [{ label: "Encontrar profissional", icon: Search, path: "/trainers" }] : []),
   ];
 
   const trainerLinks = [
@@ -64,7 +65,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Agenda", icon: CalendarDays, path: "/dashboard/trainer/agenda" },
     { label: "Financeiro", icon: Wallet, path: "/dashboard/trainer/financial" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/trainer/challenges" },
-    { label: "Eventos", icon: CalendarHeart, path: "/eventos" },
+    ...(FEATURES.events ? [{ label: "Eventos", icon: CalendarHeart, path: "/eventos" }] : []),
   ];
 
   const isTrainer = user?.userType === "trainer";
@@ -154,10 +155,12 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
                 <Home className="h-4 w-4" />
                 Início
               </Button>
-              <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/trainers")}>
-                <Search className="h-4 w-4" />
-                Encontrar Personal
-              </Button>
+              {FEATURES.professionalSearch && (
+                <Button variant="ghost" className="justify-start gap-3" onClick={() => goTo("/trainers")}>
+                  <Search className="h-4 w-4" />
+                  Encontrar Personal
+                </Button>
+              )}
             </nav>
             <div className="border-t border-border pt-4">
               <Button

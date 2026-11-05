@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { SignupProgress } from "@/components/auth/SignupProgress";
 
 interface BasicSignupProps {
   userType: "student" | "trainer";
@@ -49,15 +50,18 @@ export const BasicSignup = ({ userType, roleLabel, subtitle }: BasicSignupProps)
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => navigate("/")} />
+      <Header onLoginClick={() => navigate("/login")} />
 
       <div className="container mx-auto px-4 pt-24 pb-12">
-        <Button variant="ghost" onClick={() => navigate("/")} className="mb-6">
+        <Button variant="ghost" onClick={() => navigate("/cadastro")} className="mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
 
         <div className="max-w-xl mx-auto">
+          <div className="mb-8">
+            <SignupProgress step={2} />
+          </div>
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold mb-3">
               Cadastro de <span className="bg-gradient-hero bg-clip-text text-transparent">{roleLabel}</span>

@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
 import RegisterTrainer from "./pages/RegisterTrainer";
 import RegisterStudent from "./pages/RegisterStudent";
@@ -53,6 +55,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/register/trainer" element={<RegisterTrainer />} />
             <Route path="/register/student" element={<RegisterStudent />} />
             <Route path="/search" element={<Search />} />

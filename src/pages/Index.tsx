@@ -28,25 +28,25 @@ const carouselCards = [
     title: "Treinos",
     description: "O treino do dia, as semanas do plano e o registro de cada série.",
     icon: Dumbbell,
-    to: "/register/student",
+    to: "/cadastro",
   },
   {
     title: "Evolução",
     description: "Peso, cargas e histórico para ver o seu avanço de verdade.",
     icon: TrendingUp,
-    to: "/register/student",
+    to: "/cadastro",
   },
   {
     title: "Desafios",
     description: "Entre em desafios com os amigos e registre seus treinos.",
     icon: Flame,
-    to: "/register/student",
+    to: "/cadastro",
   },
   {
     title: "Eventos",
     description: "Corridas, aulas em grupo e encontros para treinar junto.",
     icon: CalendarHeart,
-    to: "/register/student",
+    to: "/cadastro",
   },
   {
     title: "Profissionais",
@@ -154,8 +154,8 @@ const Index = () => {
               <span className="text-primary">Evolua com quem acompanha.</span>
             </h1>
             <div className="flex flex-col items-start sm:flex-row gap-3 mt-8">
-              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
-                Fazer cadastro
+              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/login")}>
+                Fazer Login
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
               <Button
@@ -316,7 +316,7 @@ const Index = () => {
           <h2 className="text-3xl sm:text-5xl font-bold mb-4">É mais que treino.<br />É a sua jornada.</h2>
           <p className="text-muted-foreground mb-8">Comece a organizar sua jornada hoje.</p>
           <div className="flex flex-col items-center sm:flex-row gap-3 justify-center">
-            <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/register/student")}>
+            <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/cadastro")}>
               Fazer cadastro
             </Button>
             <Button variant="outline" className="h-10 px-5 text-sm" onClick={() => navigate("/register/trainer")}>

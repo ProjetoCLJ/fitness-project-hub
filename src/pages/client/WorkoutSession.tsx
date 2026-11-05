@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { RestTimer } from "@/components/plan/RestTimer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -84,6 +85,7 @@ const WorkoutSession = () => {
   const [result, setResult] = useState<FinishResult | null>(null);
   const uid = useAuthUid();
   const [flow, setFlow] = useState<FlowData | null>(null);
+  const [accompanied, setAccompanied] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
   const [goalOverview, setGoalOverview] = useState<GmOverview | null>(null);
 
@@ -223,6 +225,7 @@ const WorkoutSession = () => {
       return;
     }
     setMinutes(String(Math.max(1, elapsedMinutes)));
+    setAccompanied(workout.accompanied);
     setFinishOpen(true);
   };
 
@@ -238,6 +241,7 @@ const WorkoutSession = () => {
       observations: observations.trim() || undefined,
       startedAt: new Date(finishedAtDate.getTime() - mins * 60000).toISOString(),
       finishedAt: finishedAtDate.toISOString(),
+      ...(plan.trainerId ? { accompanied } : {}),
     };
 
     setIsSaving(true);
@@ -521,6 +525,14 @@ const WorkoutSession = () => {
               <Label htmlFor="duration-min">Duração (minutos)</Label>
               <Input id="duration-min" type="number" min={1} max={MAX_MINUTES} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             </div>
+            {plan.trainerId && (
+              <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+                <Label htmlFor="finish-acc" className="text-sm">
+                  Foi acompanhado pelo professor?
+                </Label>
+                <Switch id="finish-acc" checked={accompanied} onCheckedChange={setAccompanied} />
+              </div>
+            )}
             {Number(minutes) < MIN_MINUTES ? (
               <p className="text-sm text-destructive flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />

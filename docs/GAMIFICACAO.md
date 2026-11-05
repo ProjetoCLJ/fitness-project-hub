@@ -11,6 +11,7 @@ Registro único das regras fechadas. A implementação está em `drizzle/lovable
 4. `0012_trainer_adherence.sql` — painel de adesão do profissional.
 5. `0013_multiesportista.sql` — medalha de Multiesportista por quantidade de esportes.
 6. `0014_esportes_crossfit_raquete.sql` — CrossFit; "coletivos e raquete" vira dois esportes.
+7. `0015_treinos_acompanhados.sql` — treino acompanhado pelo professor e horário do treino.
 
 ## Treino válido
 - Pertence a um plano, tem cronômetro (iniciar/concluir) e **mínimo de 25 minutos** (máx. 240; duração ajustável ao concluir).
@@ -61,3 +62,10 @@ primeiro treino de cada esporte (16 esportes, o nome muda conforme o esporte), M
 - Privacidade: planos próprios do aluno são privados; compartilhar com o profissional ainda não existe.
 - "Treino livre" (registrar atividade sem plano) fica para depois da Etapa 1.
 - Push no celular (guia em `docs/PWA_E_PUSH.md`).
+
+## Treinos acompanhados pelo professor (migração 0015)
+- No plano com profissional, cada treino do ciclo tem "acompanhado" (sim/não) e horário (opcional). Plano próprio do atleta nunca é acompanhado.
+- Os treinos planejados da semana copiam esses campos; mudança no plano vale para os pendentes que o aluno não ajustou.
+- O aluno ajusta um treino da semana ("só desta vez": acompanhado e/ou horário) tocando nele na página de Treinos.
+- Ao concluir, o aluno confirma "Foi acompanhado pelo professor?"; o treino concluído guarda o valor. Vale XP/Foco normalmente.
+- O painel de adesão do profissional separa treinos acompanhados e sozinhos. O horário alimenta o lembrete de treino do push.

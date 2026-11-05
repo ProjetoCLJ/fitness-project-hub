@@ -49,6 +49,11 @@ export const AdherencePanel = () => {
                   {r.week_done}/{r.week_planned} na semana{r.week_late > 0 ? ` · ${r.week_late} atrasado${r.week_late > 1 ? "s" : ""}` : ""}
                 </span>
               </div>
+              {!!r.week_accompanied && (
+                <p className="text-xs text-muted-foreground">
+                  Acompanhados: {r.week_accompanied_done ?? 0}/{r.week_accompanied} · Sozinho: {Math.max(0, r.week_done - (r.week_accompanied_done ?? 0))}/{Math.max(0, r.week_planned - r.week_accompanied)}
+                </p>
+              )}
               {!r.tracking && <p className="text-xs text-muted-foreground">Ainda não começou a usar o Foco.</p>}
             </button>
           );

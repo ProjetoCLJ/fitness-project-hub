@@ -13,6 +13,7 @@ export interface PendingPayload {
   exerciseLogs: ExerciseLog[];
   startedAt: string;
   finishedAt: string;
+  accompanied?: boolean;
 }
 
 interface Pending {

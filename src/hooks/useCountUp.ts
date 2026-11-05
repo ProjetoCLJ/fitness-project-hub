@@ -24,8 +24,11 @@ export const useCountUp = (to: number, { from = 0, duration = 900, delay = 0, en
       };
       raf = requestAnimationFrame(tick);
     }, delay);
+    // Garantia: se a animação parar (aba em segundo plano), o valor final aparece mesmo assim.
+    const done = setTimeout(() => setValue(to), delay + duration + 150);
     return () => {
       clearTimeout(timer);
+      clearTimeout(done);
       cancelAnimationFrame(raf);
     };
   }, [to, from, duration, delay, enabled]);

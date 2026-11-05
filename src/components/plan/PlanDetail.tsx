@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, UserCheck } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, deleteWorkout, saveWorkout, setPlanStatus, updatePlan, workoutPositionLabel } from "@/lib/planStore";
@@ -74,6 +74,8 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
           weekday: editor.weekday,
           workoutDate: editor.workoutDate,
           exercises: draft.exercises,
+          accompanied: draft.accompanied,
+          startTime: draft.startTime || null,
         }),
       editor.workout ? "Treino atualizado" : "Treino criado"
     );
@@ -104,6 +106,8 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
             onClick={() => setEditor({ workout: w, weekIndex: week, weekday, workoutDate: null })}
             className="rounded bg-primary/15 text-primary text-[10px] leading-tight px-1 py-1 text-left truncate hover:bg-primary/25"
           >
+            {w.accompanied && <UserCheck className="inline h-3 w-3 mr-0.5 -mt-0.5" />}
+            {w.startTime && <span className="opacity-80">{w.startTime} </span>}
             {w.name}
           </button>
         ))}
@@ -246,8 +250,14 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
                     className="p-3 flex items-center justify-between cursor-pointer hover:shadow-medium transition-smooth"
                     onClick={() => setEditor({ workout: w, weekIndex: null, weekday: null, workoutDate: selectedISO })}
                   >
-                    <span className="font-medium">{w.name}</span>
-                    <span className="text-xs text-muted-foreground">{w.exercises.length} exercícios</span>
+                    <span className="font-medium">
+                      {w.accompanied && <UserCheck className="inline h-4 w-4 mr-1 text-primary" />}
+                      {w.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {w.startTime ? `${w.startTime} · ` : ""}
+                      {w.exercises.length} exercícios
+                    </span>
                   </Card>
                 ))}
                 {!readOnly && (
@@ -270,6 +280,7 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
         workout={editor?.workout ?? null}
         positionLabel={editor ? workoutPositionLabel(editor) : ""}
         sport={plan.sport}
+        canAccompany={!!plan.trainerId}
         open={!!editor}
         onOpenChange={(open) => !open && setEditor(null)}
         onSave={handleSaveWorkout}

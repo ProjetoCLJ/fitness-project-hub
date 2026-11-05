@@ -186,6 +186,8 @@ export interface StudentAdherence {
   week_planned: number;
   week_done: number;
   week_late: number;
+  week_accompanied?: number;
+  week_accompanied_done?: number;
 }
 
 /** Painel de adesão do profissional: Foco e treinos da semana dos alunos vinculados (planos criados por ele). */

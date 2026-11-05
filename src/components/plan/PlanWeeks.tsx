@@ -2,7 +2,8 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, WorkoutExecution } from "@/lib/planStore";
+import { Plan, SlotInfo, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, WorkoutExecution } from "@/lib/planStore";
+import { UserCheck } from "lucide-react";
 import { SlotState, buildPlanWeeks, cycleWeekLabel } from "@/lib/planSchedule";
 
 const SLOT_STYLES: Record<SlotState, string> = {
@@ -19,19 +20,23 @@ interface PlanWeeksProps {
   /** No modo de escolha, treinos não concluídos ficam clicáveis. */
   pickMode?: boolean;
   onPick?: (workout: Workout, plan: Plan) => void;
+  /** Treinos planejados da semana (ajustes "só desta vez" do aluno). */
+  slots?: SlotInfo[];
+  /** Toque em um treino da semana para ajustar acompanhado/horário. */
+  onAdjust?: (workout: Workout, plan: Plan, slot: SlotInfo) => void;
 }
 
 const fmtShort = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
-export const PlanWeeks = ({ plans, executions, todayISO, pickMode = false, onPick }: PlanWeeksProps) => (
+export const PlanWeeks = ({ plans, executions, todayISO, pickMode = false, onPick, slots, onAdjust }: PlanWeeksProps) => (
   <div className="space-y-4">
     {plans.map((plan) => (
-      <PlanWeeksCard key={plan.id} plan={plan} executions={executions} todayISO={todayISO} pickMode={pickMode} onPick={onPick} />
+      <PlanWeeksCard key={plan.id} plan={plan} executions={executions} todayISO={todayISO} pickMode={pickMode} onPick={onPick} slots={slots} onAdjust={onAdjust} />
     ))}
   </div>
 );
 
-const PlanWeeksCard = ({ plan, executions, todayISO, pickMode, onPick }: Omit<PlanWeeksProps, "plans"> & { plan: Plan }) => {
+const PlanWeeksCard = ({ plan, executions, todayISO, pickMode, onPick, slots, onAdjust }: Omit<PlanWeeksProps, "plans"> & { plan: Plan }) => {
       const [offset, setOffset] = useState(0);
       const weeks = buildPlanWeeks(plan, executions, todayISO, offset);
       return (
@@ -79,18 +84,24 @@ const PlanWeeksCard = ({ plan, executions, todayISO, pickMode, onPick }: Omit<Pl
                     >
                       <span className="text-[10px] text-muted-foreground">{day.day}</span>
                       {day.slots.map((slot) => {
-                        const clickable = pickMode && slot.state !== "done";
+                        const info = slots?.find((s) => s.workoutId === slot.workout.id && s.date === day.dateISO);
+                        const accompanied = info ? info.accompanied : slot.workout.accompanied;
+                        const time = info ? info.startTime : slot.workout.startTime;
+                        const adjustable = !pickMode && !!info && info.status === "pending" && !!plan.trainerId && !!onAdjust;
+                        const clickable = (pickMode && slot.state !== "done") || adjustable;
                         return (
                           <button
                             key={slot.workout.id}
                             type="button"
                             disabled={!clickable}
                             title={slot.workout.name}
-                            onClick={() => onPick?.(slot.workout, plan)}
+                            onClick={() => (adjustable && info ? onAdjust?.(slot.workout, plan, info) : onPick?.(slot.workout, plan))}
                             className={`w-full rounded border px-1 py-0.5 text-[10px] sm:text-xs leading-tight truncate text-left ${SLOT_STYLES[slot.state]} ${
                               clickable ? "cursor-pointer hover:ring-2 hover:ring-primary" : "cursor-default"
                             }`}
                           >
+                            {accompanied && <UserCheck className="inline h-3 w-3 mr-0.5 -mt-0.5" />}
+                            {time && <span className="opacity-80">{time} </span>}
                             {slot.workout.name}
                           </button>
                         );

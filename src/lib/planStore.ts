@@ -37,6 +37,10 @@ export interface Workout {
   workoutDate: string | null;
   /** Treino removido: deixa de valer a partir desta data (próxima segunda). */
   removedAt: string | null;
+  /** Treino acompanhado pelo professor (só planos com profissional). */
+  accompanied: boolean;
+  /** Horário do treino (HH:MM), quando definido. */
+  startTime: string | null;
   exercises: Exercise[];
 }
 
@@ -162,6 +166,8 @@ type WorkoutRow = {
   weekday: number | null;
   workout_date: string | null;
   removed_at: string | null;
+  accompanied: boolean | null;
+  start_time: string | null;
   order_index: number | null;
   workout_exercises: ExerciseRow[] | null;
 };
@@ -194,6 +200,8 @@ const mapWorkout = (row: WorkoutRow): Workout => ({
   weekday: row.weekday,
   workoutDate: row.workout_date,
   removedAt: row.removed_at,
+  accompanied: !!row.accompanied,
+  startTime: row.start_time ? row.start_time.slice(0, 5) : null,
   exercises: [...(row.workout_exercises ?? [])]
     .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
     .map((ex) => ({
@@ -329,6 +337,8 @@ export interface WorkoutInput {
   weekday: number | null;
   workoutDate: string | null;
   exercises: Exercise[];
+  accompanied?: boolean;
+  startTime?: string | null;
 }
 
 export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<void> => {
@@ -341,15 +351,20 @@ export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<
     workout_date: input.workoutDate,
   };
 
+  // Campos de acompanhamento só vão se o banco já tiver as colunas (migração 0015).
+  const extra = { accompanied: !!input.accompanied, start_time: input.startTime || null };
+
   let workoutId = input.id;
   if (workoutId) {
-    const { error } = await db.from("workouts").update(row).eq("id", workoutId);
+    let { error } = await db.from("workouts").update({ ...row, ...extra }).eq("id", workoutId);
+    if (missingSchema(error)) ({ error } = await db.from("workouts").update(row).eq("id", workoutId));
     if (error) throw error;
     const del = await db.from("workout_exercises").delete().eq("workout_id", workoutId);
     if (del.error) throw del.error;
   } else {
-    const { data, error } = await db.from("workouts").insert(row).select("id").single();
-    if (error) throw error;
+    let { data, error } = await db.from("workouts").insert({ ...row, ...extra }).select("id").single();
+    if (missingSchema(error)) ({ data, error } = await db.from("workouts").insert(row).select("id").single());
+    if (error || !data) throw error;
     workoutId = data.id;
   }
 
@@ -454,6 +469,8 @@ export const recordExecution = async (
     startedAt: string;
     finishedAt: string;
     source?: "online" | "offline";
+    /** O treino foi acompanhado pelo professor? (vazio = usa o padrão do treino) */
+    accompanied?: boolean;
   }
 ): Promise<ExecutionResult> => {
   const base = {
@@ -465,9 +482,23 @@ export const recordExecution = async (
   };
   let { data, error } = await db
     .from("workout_executions")
-    .insert({ ...base, started_at: execution.startedAt, finished_at: execution.finishedAt, source: execution.source ?? "online" })
+    .insert({
+      ...base,
+      started_at: execution.startedAt,
+      finished_at: execution.finishedAt,
+      source: execution.source ?? "online",
+      ...(execution.accompanied === undefined ? {} : { accompanied: execution.accompanied }),
+    })
     .select("id, is_valid, duration_minutes")
     .single();
+  // Banco com a migração 0010 mas sem a 0015: tenta de novo sem o campo "acompanhado".
+  if (missingSchema(error) && execution.accompanied !== undefined) {
+    ({ data, error } = await db
+      .from("workout_executions")
+      .insert({ ...base, started_at: execution.startedAt, finished_at: execution.finishedAt, source: execution.source ?? "online" })
+      .select("id, is_valid, duration_minutes")
+      .single());
+  }
   if (missingSchema(error)) {
     ({ data, error } = await db
       .from("workout_executions")
@@ -575,4 +606,42 @@ export const copyPlanAsOwn = async (studentId: string, plan: Plan): Promise<stri
     });
   }
   return newId;
+};
+
+// ---------- Treinos planejados da semana (ajuste "só desta vez") ----------
+
+export interface SlotInfo {
+  id: string;
+  workoutId: string;
+  date: string;
+  accompanied: boolean;
+  startTime: string | null;
+  status: "pending" | "done" | "missed";
+}
+
+/** Treinos planejados (já materializados) do aluno entre duas datas. Vazio se o banco ainda não tem a migração. */
+export const fetchSlots = async (studentId: string, fromISO: string, toISO: string): Promise<SlotInfo[]> => {
+  const { data, error } = await db
+    .from("planned_slots")
+    .select("id, workout_id, planned_date, accompanied, start_time, status")
+    .eq("student_id", studentId)
+    .gte("planned_date", fromISO)
+    .lte("planned_date", toISO);
+  if (error) return [];
+  return ((data ?? []) as { id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; status: SlotInfo["status"] }[])
+    .filter((r) => r.workout_id)
+    .map((r) => ({
+      id: r.id,
+      workoutId: r.workout_id as string,
+      date: r.planned_date,
+      accompanied: !!r.accompanied,
+      startTime: r.start_time ? r.start_time.slice(0, 5) : null,
+      status: r.status,
+    }));
+};
+
+/** O aluno ajusta um treino da semana: acompanhado ou não e/ou horário (vale só para aquele dia). */
+export const setSlotOptions = async (slotId: string, accompanied: boolean, startTime: string | null) => {
+  const { error } = await db.rpc("set_slot_options", { p_slot_id: slotId, p_accompanied: accompanied, p_start_time: startTime });
+  if (error) throw error;
 };

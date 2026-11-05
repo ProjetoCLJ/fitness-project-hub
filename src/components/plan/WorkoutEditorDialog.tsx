@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Link2, Link2Off } from "lucide-react";
 import { Exercise, Workout } from "@/lib/planStore";
 import { exerciseSuggestions } from "@/lib/sports";
@@ -18,6 +19,9 @@ export interface WorkoutDraft {
   name: string;
   description: string;
   exercises: Exercise[];
+  accompanied: boolean;
+  /** HH:MM ou vazio. */
+  startTime: string;
 }
 
 interface WorkoutEditorDialogProps {
@@ -26,6 +30,8 @@ interface WorkoutEditorDialogProps {
   positionLabel: string;
   /** Esporte do plano: sugere exercícios da biblioteca (a pessoa também pode digitar). */
   sport?: string;
+  /** Plano com profissional: permite marcar o treino como acompanhado. */
+  canAccompany?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (draft: WorkoutDraft) => void | Promise<void>;
@@ -41,16 +47,22 @@ const emptyExercise = (): Exercise => ({
   rest: "60s",
 });
 
-export const WorkoutEditorDialog = ({ workout, positionLabel, sport, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
-  const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()] });
+export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompany = false, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
+  const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "" });
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDraft(
         workout
-          ? { name: workout.name, description: workout.description, exercises: workout.exercises.map((e) => ({ ...e })) }
-          : { name: "", description: "", exercises: [emptyExercise()] }
+          ? {
+              name: workout.name,
+              description: workout.description,
+              exercises: workout.exercises.map((e) => ({ ...e })),
+              accompanied: workout.accompanied,
+              startTime: workout.startTime ?? "",
+            }
+          : { name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "" }
       );
     }
   }, [open, workout]);
@@ -134,6 +146,32 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, open, onOpe
               rows={2}
               placeholder="Foco do treino, cuidados, progressões..."
             />
+          </div>
+
+          <div className="rounded-md border p-3 space-y-3">
+            {canAccompany && (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="workout-accompanied" className="font-medium">
+                    Acompanhado por mim
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Marque os treinos do ciclo em que você acompanha o aluno.</p>
+                </div>
+                <Switch id="workout-accompanied" checked={draft.accompanied} onCheckedChange={(v) => setDraft((prev) => ({ ...prev, accompanied: v }))} />
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="workout-time" className="font-medium">
+                Horário do treino
+              </Label>
+              <Input
+                id="workout-time"
+                type="time"
+                className="w-32"
+                value={draft.startTime}
+                onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value }))}
+              />
+            </div>
           </div>
 
           <datalist id="exercise-suggestions">

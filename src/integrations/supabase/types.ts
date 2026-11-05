@@ -982,11 +982,14 @@ export type Database = {
       }
       planned_slots: {
         Row: {
+          accompanied: boolean
           execution_id: string | null
           id: string
+          overridden: boolean
           plan_id: string
           planned_date: string
           resolved_at: string | null
+          start_time: string | null
           status: string
           student_id: string
           week_start: string
@@ -994,11 +997,14 @@ export type Database = {
           workout_name: string
         }
         Insert: {
+          accompanied?: boolean
           execution_id?: string | null
           id?: string
+          overridden?: boolean
           plan_id: string
           planned_date: string
           resolved_at?: string | null
+          start_time?: string | null
           status?: string
           student_id: string
           week_start: string
@@ -1006,11 +1012,14 @@ export type Database = {
           workout_name: string
         }
         Update: {
+          accompanied?: boolean
           execution_id?: string | null
           id?: string
+          overridden?: boolean
           plan_id?: string
           planned_date?: string
           resolved_at?: string | null
+          start_time?: string | null
           status?: string
           student_id?: string
           week_start?: string
@@ -1745,6 +1754,7 @@ export type Database = {
       }
       workout_executions: {
         Row: {
+          accompanied: boolean | null
           created_at: string | null
           date: string
           duration_minutes: number | null
@@ -1762,6 +1772,7 @@ export type Database = {
           workout_name: string | null
         }
         Insert: {
+          accompanied?: boolean | null
           created_at?: string | null
           date?: string
           duration_minutes?: number | null
@@ -1779,6 +1790,7 @@ export type Database = {
           workout_name?: string | null
         }
         Update: {
+          accompanied?: boolean | null
           created_at?: string | null
           date?: string
           duration_minutes?: number | null
@@ -1865,6 +1877,7 @@ export type Database = {
       }
       workouts: {
         Row: {
+          accompanied: boolean
           created_at: string | null
           day: string | null
           id: string
@@ -1873,12 +1886,14 @@ export type Database = {
           order_index: number | null
           plan_id: string
           removed_at: string | null
+          start_time: string | null
           updated_at: string | null
           week_index: number | null
           weekday: number | null
           workout_date: string | null
         }
         Insert: {
+          accompanied?: boolean
           created_at?: string | null
           day?: string | null
           id?: string
@@ -1887,12 +1902,14 @@ export type Database = {
           order_index?: number | null
           plan_id: string
           removed_at?: string | null
+          start_time?: string | null
           updated_at?: string | null
           week_index?: number | null
           weekday?: number | null
           workout_date?: string | null
         }
         Update: {
+          accompanied?: boolean
           created_at?: string | null
           day?: string | null
           id?: string
@@ -1901,6 +1918,7 @@ export type Database = {
           order_index?: number | null
           plan_id?: string
           removed_at?: string | null
+          start_time?: string | null
           updated_at?: string | null
           week_index?: number | null
           weekday?: number | null
@@ -2112,6 +2130,14 @@ export type Database = {
       }
       resume_plan: { Args: { p_plan_id: string }; Returns: undefined }
       set_ranking_public: { Args: { p_public: boolean }; Returns: undefined }
+      set_slot_options: {
+        Args: {
+          p_accompanied: boolean
+          p_slot_id: string
+          p_start_time: string
+        }
+        Returns: undefined
+      }
       sport_ranking: {
         Args: { p_period?: string; p_sport: string }
         Returns: Json

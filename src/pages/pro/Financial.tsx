@@ -8,7 +8,8 @@ import { PaymentDialog } from "@/components/finance/PaymentDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Info, ArrowRight, Plus, Wallet, MoreHorizontal } from "lucide-react";
+import { FEATURES } from "@/lib/features";
+import { TrendingUp, Info, ArrowRight, Plus, Wallet } from "lucide-react";
 import TrainerEarnings from "@/components/dashboard/trainer/TrainerEarnings";
 import TrainerPricing from "@/components/dashboard/trainer/TrainerPricing";
 import { fetchLinkedStudents, fetchTrainerEvents } from "@/lib/agendaStore";
@@ -133,10 +134,12 @@ const Financial = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Se todos forem ocupados, seu faturamento possível aumenta em {formatBRL(revenue.possivel)}.
                 </p>
-                <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/trainer/profile")}>
-                  Encontrar clientes para esses horários
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                {FEATURES.professionalSearch && (
+                  <Button variant="hero" className="w-full" onClick={() => navigate("/dashboard/student/profile?tab=ajustes")}>
+                    Encontrar clientes para esses horários
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
               </Card>
             )}
 
@@ -180,13 +183,6 @@ const Financial = () => {
                 <span className="block text-sm text-muted-foreground">Registre um pagamento recebido de um aluno.</span>
               </span>
             </button>
-            <div className="flex items-start gap-3 rounded-lg border border-dashed p-4 opacity-60">
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-              <span>
-                <span className="block font-semibold">Outro</span>
-                <span className="block text-sm text-muted-foreground">Em breve.</span>
-              </span>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

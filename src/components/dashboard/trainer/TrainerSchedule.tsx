@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FEATURES } from "@/lib/features";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -442,7 +443,7 @@ const EventDialog = ({ context, trainerId, students, hidden, onHiddenChange, onE
               </div>
             </div>
 
-            {type === "expediente" && (
+            {FEATURES.professionalSearch && type === "expediente" && (
               <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
                 <div>
                   <p className="text-sm font-medium">Visível na busca de profissionais</p>

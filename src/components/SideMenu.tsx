@@ -120,19 +120,13 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
             </nav>
 
             <div className="border-t border-border pt-4 space-y-1">
-              {isTrainer && (
-                <Button variant="ghost" className="justify-start gap-3 w-full" onClick={() => goTo("/dashboard/trainer/profile")}>
-                  <User className="h-4 w-4" />
-                  Perfil profissional
-                </Button>
-              )}
               <Button
                 variant="ghost"
                 className="justify-start gap-3 w-full"
                 onClick={() => goTo("/dashboard/student/profile")}
               >
                 <User className="h-4 w-4" />
-                {isTrainer ? "Perfil de atleta" : "Perfil"}
+                Perfil
               </Button>
               <Button
                 variant="ghost"

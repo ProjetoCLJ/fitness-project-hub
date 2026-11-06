@@ -19,6 +19,8 @@ import { leagueName } from "@/lib/gamification";
 import { sportLabel } from "@/lib/sports";
 import { FEATURES } from "@/lib/features";
 import { RankingPrivacySetting } from "@/components/gamification/RankingPrivacySetting";
+import TrainerProfile from "@/components/dashboard/trainer/TrainerProfile";
+import { SearchVisibilityCard } from "@/components/agenda/SearchVisibilityCard";
 import StudentProfile from "@/components/dashboard/student/StudentProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Plan, Restriction, deleteRestriction, fetchPlansForStudent, fetchRestrictions } from "@/lib/planStore";
@@ -78,7 +80,7 @@ const ClientProfilePage = () => {
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full ${isTrainer ? "grid-cols-5" : "grid-cols-4"}`}>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="estatisticas">Estatísticas</TabsTrigger>
             <TabsTrigger value="conquistas">
@@ -86,6 +88,7 @@ const ClientProfilePage = () => {
               {!!overview?.unseen_medals && <span className="ml-1 h-2 w-2 rounded-full bg-destructive inline-block" />}
             </TabsTrigger>
             <TabsTrigger value="dados">Dados</TabsTrigger>
+            {isTrainer && <TabsTrigger value="ajustes">Ajustes</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="resumo" className="space-y-4">
@@ -140,12 +143,20 @@ const ClientProfilePage = () => {
             <AchievementsTab />
           </TabsContent>
 
+          {isTrainer && (
+            <TabsContent value="ajustes" className="space-y-3">
+              <ThemeToggle />
+              <RankingPrivacySetting />
+              {FEATURES.professionalSearch && user && <SearchVisibilityCard trainerId={user.id} />}
+            </TabsContent>
+          )}
+
           <TabsContent value="dados" className="space-y-6">
         {isTrainer ? (
-          <Card className="p-4 text-sm text-muted-foreground">Seus dados pessoais ficam no Perfil profissional.</Card>
+          <TrainerProfile />
         ) : (
-          <StudentProfile />
-        )}
+          <>
+        <StudentProfile />
 
         <div>
           <h2 className="font-semibold text-base sm:text-lg mb-3">Configurações</h2>
@@ -260,6 +271,8 @@ const ClientProfilePage = () => {
             </Card>
           )}
         </div>
+          </>
+        )}
           </TabsContent>
         </Tabs>
       </div>

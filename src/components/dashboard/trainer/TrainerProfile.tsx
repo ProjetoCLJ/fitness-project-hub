@@ -1,7 +1,4 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { SearchVisibilityCard } from "@/components/agenda/SearchVisibilityCard";
 
 interface FormState {
   fullName: string;
@@ -41,8 +37,6 @@ const emptyForm: FormState = {
 const TrainerProfile = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") ?? "pessoal";
   const [formData, setFormData] = useState<FormState>(emptyForm);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,14 +108,7 @@ const TrainerProfile = () => {
   if (isLoading) return null;
 
   return (
-    <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="pessoal">Pessoal</TabsTrigger>
-        <TabsTrigger value="profissional">Profissional</TabsTrigger>
-        <TabsTrigger value="config">Ajustes</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="pessoal" className="space-y-6 mt-0">
+    <div className="space-y-6">
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-6">Informações Pessoais</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -168,9 +155,6 @@ const TrainerProfile = () => {
           </div>
         </div>
       </Card>
-      </TabsContent>
-
-      <TabsContent value="profissional" className="space-y-6 mt-0">
       <Card className="p-6">
         <h2 className="text-2xl font-bold mb-6">Informações Profissionais</h2>
         <div className="space-y-6">
@@ -230,21 +214,12 @@ const TrainerProfile = () => {
           </div>
         </div>
       </Card>
-      </TabsContent>
-
-      <TabsContent value="config" className="space-y-6 mt-0">
-        <ThemeToggle />
-        {user && <SearchVisibilityCard trainerId={user.id} />}
-      </TabsContent>
-
-      {(tab === "pessoal" || tab === "profissional") && (
-        <div className="flex justify-end">
-          <Button onClick={handleSave} variant="hero" size="lg" disabled={isSaving}>
-            {isSaving ? "Salvando..." : "Salvar Alterações"}
-          </Button>
-        </div>
-      )}
-    </Tabs>
+      <div className="flex justify-end">
+        <Button onClick={handleSave} variant="hero" size="lg" disabled={isSaving}>
+          {isSaving ? "Salvando..." : "Salvar Alterações"}
+        </Button>
+      </div>
+    </div>
   );
 };
 

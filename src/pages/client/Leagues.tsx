@@ -96,7 +96,7 @@ const SportRankingTab = () => {
       </Card>
       {data?.me && !data.public && (
         <p className="text-xs text-muted-foreground text-center">
-          Você está em {data.me.position}º lugar neste ranking, mas só você vê isso. Para os outros te verem, ative "Aparecer nos rankings por esporte" em Perfil › Dados › Configurações.
+          Você está em {data.me.position}º lugar neste ranking, mas só você vê isso. Para os outros te verem, ative "Aparecer nos rankings por esporte" em Perfil › Ajustes (ícone de engrenagem).
         </p>
       )}
     </div>

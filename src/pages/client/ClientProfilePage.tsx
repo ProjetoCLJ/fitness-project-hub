@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, ShieldAlert, Trash2 } from "lucide-react";
+import { ChevronRight, Settings, ShieldAlert, Trash2 } from "lucide-react";
 import { XpBolt } from "@/components/gamification/FocoFlame";
 import { SportIcon } from "@/components/gamification/SportIcon";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
@@ -74,13 +74,24 @@ const ClientProfilePage = () => {
       <Header onLoginClick={() => {}} />
 
       <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-3xl font-bold">Perfil</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Suas informações e preferências</p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold">Perfil</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Suas informações e preferências</p>
+          </div>
+          <Button
+            variant={tab === "ajustes" ? "secondary" : "ghost"}
+            size="icon"
+            aria-label="Ajustes"
+            title="Ajustes"
+            onClick={() => setParams({ tab: "ajustes" }, { replace: true })}
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>
-          <TabsList className={`grid w-full ${isTrainer ? "grid-cols-5" : "grid-cols-4"}`}>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="estatisticas">Estatísticas</TabsTrigger>
             <TabsTrigger value="conquistas">
@@ -88,7 +99,6 @@ const ClientProfilePage = () => {
               {!!overview?.unseen_medals && <span className="ml-1 h-2 w-2 rounded-full bg-destructive inline-block" />}
             </TabsTrigger>
             <TabsTrigger value="dados">Dados</TabsTrigger>
-            {isTrainer && <TabsTrigger value="ajustes">Ajustes</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="resumo" className="space-y-4">
@@ -143,13 +153,12 @@ const ClientProfilePage = () => {
             <AchievementsTab />
           </TabsContent>
 
-          {isTrainer && (
-            <TabsContent value="ajustes" className="space-y-3">
-              <ThemeToggle />
-              <RankingPrivacySetting />
-              {FEATURES.professionalSearch && user && <SearchVisibilityCard trainerId={user.id} />}
-            </TabsContent>
-          )}
+          <TabsContent value="ajustes" className="space-y-3">
+            <h2 className="font-semibold text-base sm:text-lg">Ajustes</h2>
+            <ThemeToggle />
+            <RankingPrivacySetting />
+            {isTrainer && FEATURES.professionalSearch && user && <SearchVisibilityCard trainerId={user.id} />}
+          </TabsContent>
 
           <TabsContent value="dados" className="space-y-6">
         {isTrainer ? (
@@ -157,14 +166,6 @@ const ClientProfilePage = () => {
         ) : (
           <>
         <StudentProfile />
-
-        <div>
-          <h2 className="font-semibold text-base sm:text-lg mb-3">Configurações</h2>
-          <div className="space-y-3">
-            <ThemeToggle />
-            <RankingPrivacySetting />
-          </div>
-        </div>
 
         {/* Planos */}
         <div>

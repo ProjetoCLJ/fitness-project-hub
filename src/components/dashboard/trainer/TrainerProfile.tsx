@@ -115,10 +115,9 @@ const TrainerProfile = () => {
 
   return (
     <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="pessoal">Pessoal</TabsTrigger>
         <TabsTrigger value="profissional">Profissional</TabsTrigger>
-        <TabsTrigger value="visibilidade">Visibilidade</TabsTrigger>
         <TabsTrigger value="config">Ajustes</TabsTrigger>
       </TabsList>
 
@@ -233,12 +232,9 @@ const TrainerProfile = () => {
       </Card>
       </TabsContent>
 
-      <TabsContent value="visibilidade" className="space-y-6 mt-0">
-        {user && <SearchVisibilityCard trainerId={user.id} />}
-      </TabsContent>
-
       <TabsContent value="config" className="space-y-6 mt-0">
         <ThemeToggle />
+        {user && <SearchVisibilityCard trainerId={user.id} />}
       </TabsContent>
 
       {(tab === "pessoal" || tab === "profissional") && (

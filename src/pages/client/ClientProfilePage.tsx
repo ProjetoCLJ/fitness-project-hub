@@ -84,14 +84,14 @@ const ClientProfilePage = () => {
             size="icon"
             aria-label="Ajustes"
             title="Ajustes"
-            onClick={() => setParams({ tab: "ajustes" }, { replace: true })}
+            onClick={() => setParams(tab === "ajustes" ? {} : { tab: "ajustes" }, { replace: true })}
           >
             <Settings className="h-5 w-5" />
           </Button>
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className={`grid w-full grid-cols-4 ${tab === "ajustes" ? "hidden" : ""}`}>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="estatisticas">Estatísticas</TabsTrigger>
             <TabsTrigger value="conquistas">

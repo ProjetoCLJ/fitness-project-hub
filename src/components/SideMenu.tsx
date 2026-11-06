@@ -53,7 +53,6 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
 
   // O profissional também é atleta: seção própria com as abas de aluno (Desafios e Eventos já estão na seção profissional).
   const athleteLinksForTrainer = [
-    { label: "Início", icon: Home, path: "/dashboard/student" },
     { label: "Treinos", icon: Dumbbell, path: "/dashboard/student/workouts" },
     { label: "Ligas", icon: Medal, path: "/dashboard/student/leagues" },
     ...(FEATURES.professionalSearch ? [{ label: "Encontrar profissional", icon: Search, path: "/trainers" }] : []),

@@ -17,6 +17,7 @@ import { ScheduleEvent, countAvailableSlots, eventTitle, fetchLinkedStudents, fe
 import { fetchRequestsForTrainer } from "@/lib/requestsStore";
 import { computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
 import { AdherencePanel } from "@/components/gamification/AdherencePanel";
+import { AthleteSummary } from "@/components/athlete/AthleteSummary";
 
 const formatDate = (dateISO: string) =>
   new Date(`${dateISO}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
@@ -158,6 +159,12 @@ const ProHome = () => {
           </div>
           <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </Card>
+
+        {/* O profissional também treina: Foco, próximo treino e progresso da semana */}
+        <div className="mt-8">
+          <h2 className="text-lg sm:text-xl font-bold mb-3">Meu treino</h2>
+          <AthleteSummary />
+        </div>
       </div>
     </div>
   );

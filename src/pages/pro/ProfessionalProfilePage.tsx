@@ -1,7 +1,6 @@
 import { Header } from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
 import TrainerProfile from "@/components/dashboard/trainer/TrainerProfile";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 const ProfessionalProfilePage = () => {
   const { user } = useAuth();
@@ -17,7 +16,6 @@ const ProfessionalProfilePage = () => {
           <h1 className="text-xl sm:text-3xl font-bold">Perfil</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Seu perfil público no marketplace</p>
         </div>
-        <ThemeToggle />
         <TrainerProfile />
       </div>
     </div>

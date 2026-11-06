@@ -21,6 +21,7 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
   const [password, setPassword] = useState("");
   const [forgot, setForgot] = useState(false);
   const [sending, setSending] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +45,13 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
       toast({ title: "Erro", description: "Preencha todos os campos", variant: "destructive" });
       return;
     }
+    setSubmitting(true);
     try {
       await login(email, password);
+      // Sucesso: o app já está indo para o painel; mantém "Entrando..." até a tela trocar.
       onSuccess?.();
     } catch (error) {
+      setSubmitting(false);
       if (error instanceof Error && error.message === "EMAIL_NOT_CONFIRMED") {
         toast({
           title: "Confirme seu e-mail",
@@ -92,14 +96,14 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
       <form onSubmit={handleLogin} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">E-mail</Label>
-          <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={submitting} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Senha</Label>
-          <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required disabled={submitting} />
         </div>
-        <Button type="submit" className="w-full" variant="hero" size="lg">
-          Entrar
+        <Button type="submit" className="w-full" variant="hero" size="lg" disabled={submitting}>
+          {submitting ? "Entrando..." : "Entrar"}
         </Button>
         <Button type="button" variant="link" className="w-full" onClick={() => setForgot(true)}>
           Esqueci minha senha

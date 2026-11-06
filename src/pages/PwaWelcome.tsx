@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { LoginDialog } from "@/components/LoginDialog";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +10,10 @@ import logo from "@/assets/logo/logo-header.png";
  */
 const PwaWelcome = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
+  // Só espera a primeira checagem da sessão (para não piscar o login de quem já está logado).
+  // Depois disso o modal fica sempre na tela, inclusive enquanto o login e o painel carregam.
+  const sessionChecked = useRef(false);
+  if (!isLoading) sessionChecked.current = true;
 
   if (isAuthenticated && user) {
     return <Navigate to={user.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"} replace />;
@@ -32,7 +37,7 @@ const PwaWelcome = () => {
       </header>
 
       {/* O login é a própria tela: o modal não fecha enquanto a pessoa não entrar. */}
-      {!isLoading && <LoginDialog open locked onOpenChange={() => undefined} />}
+      {sessionChecked.current && <LoginDialog open locked onOpenChange={() => undefined} />}
     </div>
   );
 };

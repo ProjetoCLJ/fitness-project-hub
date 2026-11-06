@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronRight, Settings, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Settings, ShieldAlert, Trash2 } from "lucide-react";
 import { XpBolt } from "@/components/gamification/FocoFlame";
 import { SportIcon } from "@/components/gamification/SportIcon";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
@@ -154,7 +154,12 @@ const ClientProfilePage = () => {
           </TabsContent>
 
           <TabsContent value="ajustes" className="space-y-3">
-            <h2 className="font-semibold text-base sm:text-lg">Ajustes</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => setParams({}, { replace: true })}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h2 className="font-semibold text-base sm:text-lg">Ajustes</h2>
+            </div>
             <ThemeToggle />
             <RankingPrivacySetting />
             {isTrainer && FEATURES.professionalSearch && user && <SearchVisibilityCard trainerId={user.id} />}

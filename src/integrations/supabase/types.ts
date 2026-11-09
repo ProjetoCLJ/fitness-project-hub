@@ -985,6 +985,7 @@ export type Database = {
           accompanied: boolean
           execution_id: string | null
           id: string
+          moved_from: string | null
           overridden: boolean
           plan_id: string
           planned_date: string
@@ -1000,6 +1001,7 @@ export type Database = {
           accompanied?: boolean
           execution_id?: string | null
           id?: string
+          moved_from?: string | null
           overridden?: boolean
           plan_id: string
           planned_date: string
@@ -1015,6 +1017,7 @@ export type Database = {
           accompanied?: boolean
           execution_id?: string | null
           id?: string
+          moved_from?: string | null
           overridden?: boolean
           plan_id?: string
           planned_date?: string
@@ -1435,6 +1438,35 @@ export type Database = {
             columns: ["exercise_log_id"]
             isOneToOne: false
             referencedRelation: "exercise_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slot_exceptions: {
+        Row: {
+          created_at: string
+          date: string
+          reason: string
+          workout_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          reason?: string
+          workout_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          reason?: string
+          workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_exceptions_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
             referencedColumns: ["id"]
           },
         ]
@@ -1887,6 +1919,102 @@ export type Database = {
           },
         ]
       }
+      workout_requests: {
+        Row: {
+          created_at: string
+          created_by: string
+          from_date: string
+          id: string
+          kind: string
+          message: string | null
+          parent_id: string | null
+          plan_id: string
+          requested_by: string
+          responded_at: string | null
+          response_message: string | null
+          status: string
+          student_id: string
+          to_date: string | null
+          to_start: string | null
+          trainer_id: string
+          workout_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          from_date: string
+          id?: string
+          kind: string
+          message?: string | null
+          parent_id?: string | null
+          plan_id: string
+          requested_by: string
+          responded_at?: string | null
+          response_message?: string | null
+          status?: string
+          student_id: string
+          to_date?: string | null
+          to_start?: string | null
+          trainer_id: string
+          workout_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          from_date?: string
+          id?: string
+          kind?: string
+          message?: string | null
+          parent_id?: string | null
+          plan_id?: string
+          requested_by?: string
+          responded_at?: string | null
+          response_message?: string | null
+          status?: string
+          student_id?: string
+          to_date?: string | null
+          to_start?: string | null
+          trainer_id?: string
+          workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_requests_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "workout_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_requests_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_requests_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_requests_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workouts: {
         Row: {
           accompanied: boolean
@@ -1987,6 +2115,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_workout_change: {
+        Args: {
+          p_cancel: boolean
+          p_from: string
+          p_start: string
+          p_to: string
+          p_workout: string
+        }
+        Returns: undefined
+      }
       award_medal: {
         Args: { p_key: string; p_meta: Json; p_on: string; p_user: string }
         Returns: boolean
@@ -2012,10 +2150,22 @@ export type Database = {
       can_access_workout: { Args: { _workout_id: string }; Returns: boolean }
       can_manage_plan: { Args: { _plan_id: string }; Returns: boolean }
       can_read_challenge_photo: { Args: { _name: string }; Returns: boolean }
+      can_see_trainer_agenda: { Args: { _trainer: string }; Returns: boolean }
       can_view_profile: { Args: { _profile_id: string }; Returns: boolean }
       challenge_is_open: { Args: { _challenge_id: string }; Returns: boolean }
       choose_foco_goal: { Args: { p_days: number }; Returns: undefined }
       confirm_booking: { Args: { p_booking_id: string }; Returns: string }
+      create_workout_request: {
+        Args: {
+          p_from: string
+          p_kind: string
+          p_message: string
+          p_start: string
+          p_to: string
+          p_workout: string
+        }
+        Returns: string
+      }
       current_student_id: { Args: never; Returns: string }
       current_trainer_id: { Args: never; Returns: string }
       foco_drop_faults: { Args: { n: number }; Returns: number }
@@ -2140,6 +2290,16 @@ export type Database = {
         Args: { p_accept: boolean; p_invite_id: string }
         Returns: undefined
       }
+      respond_workout_request: {
+        Args: {
+          p_action: string
+          p_id: string
+          p_message: string
+          p_start: string
+          p_to: string
+        }
+        Returns: string
+      }
       resume_plan: { Args: { p_plan_id: string }; Returns: undefined }
       set_ranking_public: { Args: { p_public: boolean }; Returns: undefined }
       set_slot_options: {
@@ -2150,12 +2310,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      slot_is_free: {
+        Args: {
+          p_date: string
+          p_exclude_date: string
+          p_exclude_request: string
+          p_exclude_workout: string
+          p_start: string
+          p_trainer: string
+        }
+        Returns: boolean
+      }
       sport_ranking: {
         Args: { p_period?: string; p_sport: string }
         Returns: Json
       }
       today_brt: { Args: never; Returns: string }
       trainer_adherence: { Args: never; Returns: Json }
+      trainer_agenda_availability: {
+        Args: {
+          p_exclude_date?: string
+          p_exclude_request?: string
+          p_exclude_workout?: string
+          p_from: string
+          p_to: string
+          p_trainer: string
+        }
+        Returns: {
+          day: string
+          slot_end: string
+          slot_start: string
+          status: string
+        }[]
+      }
       trainer_can_record: {
         Args: { _student: string; _workout: string }
         Returns: boolean
@@ -2169,6 +2356,9 @@ export type Database = {
         Returns: boolean
       }
       trainer_owns_execution: { Args: { _execution: string }; Returns: boolean }
+      user_of_student: { Args: { _student: string }; Returns: string }
+      user_of_trainer: { Args: { _trainer: string }; Returns: string }
+      withdraw_workout_request: { Args: { p_id: string }; Returns: undefined }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "rejected" | "suggested"

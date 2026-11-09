@@ -11,6 +11,7 @@ import { Plan, Workout, WEEKDAY_SHORT, fetchSlotsForPlans } from "@/lib/planStor
 import { fetchPlanChanges, occurrencesOn } from "@/lib/planChanges";
 import { WorkoutRequestKind, createWorkoutRequest, fetchWorkoutRequests } from "@/lib/workoutRequests";
 import { AgendaPicker, PickedSlot } from "@/components/requests/AgendaPicker";
+import { ConflictNote, RequestScope, ScopeChoice, useRecurrenceConflicts } from "@/components/requests/RecurrenceControls";
 
 interface Occurrence {
   date: string;
@@ -51,6 +52,7 @@ export const ChangeWorkoutDialog = ({ open, onOpenChange, workout, plan, as, tra
   const [pendingDates, setPendingDates] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState(0);
   const [slot, setSlot] = useState<PickedSlot | null>(null);
+  const [scope, setScope] = useState<RequestScope>("single");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -59,6 +61,7 @@ export const ChangeWorkoutDialog = ({ open, onOpenChange, workout, plan, as, tra
     setStep("type");
     setSel(0);
     setSlot(null);
+    setScope("single");
     setMessage("");
     setOccurrences(null);
     let alive = true;
@@ -100,13 +103,14 @@ export const ChangeWorkoutDialog = ({ open, onOpenChange, workout, plan, as, tra
 
   const current = occurrences?.[sel];
   const alreadyPending = !!current && pendingDates.has(current.date);
+  const conflicts = useRecurrenceConflicts(workout.id, scope === "all" ? slot : null);
 
   const send = async (kind: WorkoutRequestKind) => {
     if (!current) return;
     if (kind === "reschedule" && !slot) return;
     setBusy(true);
     try {
-      await createWorkoutRequest({ workoutId: workout.id, fromDate: current.date, kind, toDate: slot?.date, toStart: slot?.start, message });
+      await createWorkoutRequest({ workoutId: workout.id, fromDate: current.date, kind, toDate: slot?.date, toStart: slot?.start, message, scope: kind === "reschedule" ? scope : "single" });
       toast({ title: "Solicitação enviada", description: `${counterpart} vai receber o aviso. Acompanhe em Solicitações.` });
       onOpenChange(false);
     } catch (e) {
@@ -219,21 +223,34 @@ export const ChangeWorkoutDialog = ({ open, onOpenChange, workout, plan, as, tra
 
                 {step === "slot" && current && (
                   <div className="space-y-4">
+                    {plan.cycleWeeks ? (
+                      <ScopeChoice
+                        value={scope}
+                        onChange={(v) => {
+                          setScope(v);
+                          setSlot(null);
+                        }}
+                        workoutName={workout.name}
+                        fromDate={current.date}
+                      />
+                    ) : null}
                     <AgendaPicker
                       trainerId={trainerId}
                       value={slot}
                       onChange={setSlot}
-                      exclude={{ workoutId: workout.id, date: current.date }}
+                      exclude={{ workoutId: workout.id, date: scope === "all" ? undefined : current.date }}
                       detailed={as === "trainer"}
+                      onlyWeekOf={scope === "all" ? current.date : undefined}
                     />
                     {slot && (
                       <p className="text-sm">
                         Novo horário: <strong>{fmtWhen(slot.date, slot.start)}</strong>
                       </p>
                     )}
+                    <ConflictNote dates={conflicts} who={as === "trainer" ? "Você" : counterpart} />
                     {messageField}
                     <Button variant="hero" className="w-full" disabled={!slot || busy} onClick={() => send("reschedule")}>
-                      {busy ? "Enviando..." : "Enviar solicitação"}
+                      {busy ? "Enviando..." : conflicts && conflicts.length > 0 ? "Enviar mesmo assim" : "Enviar solicitação"}
                     </Button>
                   </div>
                 )}

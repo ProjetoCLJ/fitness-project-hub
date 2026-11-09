@@ -25,6 +25,7 @@ import {
 import { WEEKDAY_SHORT } from "@/lib/planStore";
 import { NewRequestDialog } from "@/components/requests/NewRequestDialog";
 import { AgendaPicker, PickedSlot } from "@/components/requests/AgendaPicker";
+import { ConflictNote, useRecurrenceConflicts } from "@/components/requests/RecurrenceControls";
 
 const kindIcon = {
   invite: UserPlus,
@@ -75,6 +76,11 @@ const WorkoutRequestCard = ({ request: r, me, busy, onAccept, onDecline, onCount
             <Badge variant="outline" className={`text-xs ${statusStyle[r.status]}`}>
               {pending && iRequested ? "Aguardando resposta" : REQUEST_STATUS_LABEL[r.status]}
             </Badge>
+            {r.scope === "all" && (
+              <Badge variant="outline" className="text-xs border-primary/60 bg-primary/10 text-primary">
+                Todas as semanas
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {who} · {r.workoutName} · {counterpart}
@@ -89,6 +95,16 @@ const WorkoutRequestCard = ({ request: r, me, busy, onAccept, onDecline, onCount
             )}
             {r.kind === "cancel" && <span className="text-muted-foreground">(cancelar este dia)</span>}
           </p>
+          {r.scope === "all" && (
+            <p className="text-xs text-muted-foreground">
+              Muda este treino em todas as semanas, daqui para frente. Os treinos já feitos não mudam e os outros treinos do plano continuam iguais.
+            </p>
+          )}
+          {r.scope === "all" && r.conflictDates.length > 0 && pending && (
+            <p className="text-xs text-amber-700 dark:text-amber-500">
+              Atenção: nas próximas semanas esse horário estava ocupado em {r.conflictDates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(", ")}.
+            </p>
+          )}
           {r.message && <p className="text-sm text-muted-foreground whitespace-pre-wrap">“{r.message}”</p>}
           {r.responseMessage && !pending && <p className="text-sm text-muted-foreground whitespace-pre-wrap">Resposta: “{r.responseMessage}”</p>}
         </div>
@@ -133,6 +149,8 @@ const Requests = () => {
   const [counterSlot, setCounterSlot] = useState<PickedSlot | null>(null);
   const [counterMsg, setCounterMsg] = useState("");
   const [declining, setDeclining] = useState<WorkoutRequest | null>(null);
+  const [confirmAll, setConfirmAll] = useState<WorkoutRequest | null>(null);
+  const counterConflicts = useRecurrenceConflicts(counter?.workoutId, counter?.scope === "all" ? counterSlot : null);
   const [declineMsg, setDeclineMsg] = useState("");
   const [tab, setTab] = useState("received");
 
@@ -193,7 +211,11 @@ const Requests = () => {
       request={r}
       me={myRole(r)}
       busy={busyId === r.id}
-      onAccept={() => run(r.id, () => respondWorkoutRequest(r.id, "accept"), "Solicitação aceita: o treino foi atualizado")}
+      onAccept={() =>
+        r.kind === "reschedule" && r.scope === "all"
+          ? setConfirmAll(r)
+          : run(r.id, () => respondWorkoutRequest(r.id, "accept"), "Solicitação aceita: o treino foi atualizado")
+      }
       onDecline={() => {
         setDeclining(r);
         setDeclineMsg("");
@@ -324,9 +346,14 @@ const Requests = () => {
                 trainerId={counter.trainerId}
                 value={counterSlot}
                 onChange={setCounterSlot}
-                exclude={{ workoutId: counter.workoutId, date: counter.fromDate, requestId: counter.id }}
+                exclude={{ workoutId: counter.workoutId, date: counter.scope === "all" ? undefined : counter.fromDate, requestId: counter.id }}
                 detailed={!!user.trainerId && counter.trainerId === user.trainerId}
+                onlyWeekOf={counter.scope === "all" ? counter.fromDate : undefined}
               />
+              {counter.scope === "all" && (
+                <p className="text-xs text-muted-foreground">Este pedido é para todas as semanas: escolha o novo dia dentro da mesma semana do treino.</p>
+              )}
+              <ConflictNote dates={counterConflicts} who="Você" />
               <div className="space-y-2">
                 <Label htmlFor="counter-msg">Mensagem (opcional)</Label>
                 <Textarea id="counter-msg" rows={2} value={counterMsg} onChange={(e) => setCounterMsg(e.target.value)} />
@@ -350,6 +377,42 @@ const Requests = () => {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Aceitar mudança em todas as semanas */}
+      <Dialog open={!!confirmAll} onOpenChange={(open) => !open && setConfirmAll(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mudar em todas as semanas?</DialogTitle>
+            <DialogDescription>
+              {confirmAll
+                ? `${confirmAll.workoutName} passa para ${fmtWhen(confirmAll.toDate ?? confirmAll.fromDate, confirmAll.toStart)} e se repete assim daqui para frente. O plano e a agenda são atualizados. Os treinos já feitos continuam registrados como foram.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {confirmAll && confirmAll.conflictDates.length > 0 && (
+            <p className="text-xs text-amber-700 dark:text-amber-500">
+              O horário estava ocupado nas próximas semanas em {confirmAll.conflictDates.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`).join(", ")}. Confira a agenda depois.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setConfirmAll(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="hero"
+              className="flex-1"
+              onClick={async () => {
+                const target = confirmAll;
+                if (!target) return;
+                await run(target.id, () => respondWorkoutRequest(target.id, "accept"), "Solicitação aceita: o treino foi atualizado em todas as semanas");
+                setConfirmAll(null);
+              }}
+            >
+              Aceitar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

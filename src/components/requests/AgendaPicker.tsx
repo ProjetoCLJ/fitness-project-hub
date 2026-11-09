@@ -16,9 +16,11 @@ interface AgendaPickerProps {
   value: PickedSlot | null;
   onChange: (slot: PickedSlot | null) => void;
   /** O treino que está sendo remarcado não conta como ocupando o horário dele. */
-  exclude?: { workoutId: string; date: string; requestId?: string };
+  exclude?: { workoutId: string; date?: string; requestId?: string };
   /** Quantos dias à frente mostrar (o servidor aceita até 14 para pedidos). */
   days?: number;
+  /** Mostra só os dias (de hoje em diante) da semana desta data, de segunda a domingo (mudança em todas as semanas). */
+  onlyWeekOf?: string;
   /** Agenda do próprio profissional: nos horários ocupados mostra o que ocupa (aula, treino de aluno, bloqueio). */
   detailed?: boolean;
 }
@@ -32,7 +34,7 @@ const fmtDay = (iso: string) => {
  * Agenda do profissional só com "livre" e "ocupado" (sem mostrar quem ocupa). A pessoa navega pelos dias,
  * escolhe um horário livre e o devolve em onChange.
  */
-export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, detailed = false }: AgendaPickerProps) => {
+export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, detailed = false, onlyWeekOf }: AgendaPickerProps) => {
   const { toast } = useToast();
   const [cells, setCells] = useState<AgendaCell[] | null>(null);
   const [labels, setLabels] = useState<Map<string, string>>(new Map());
@@ -40,16 +42,35 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, d
   const [day, setDay] = useState(value?.date ?? todayISO);
 
   const dayList = useMemo(() => {
-    return Array.from({ length: days + 1 }, (_, i) => {
+    const all = Array.from({ length: days + 1 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() + i);
       return toLocalISO(d);
     });
-  }, [days]);
+    if (!onlyWeekOf) return all;
+    const base = new Date(`${onlyWeekOf}T00:00:00`);
+    const monday = new Date(base);
+    monday.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const week = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return toLocalISO(d);
+    });
+    return week.filter((iso) => iso >= todayISO);
+  }, [days, onlyWeekOf, todayISO]);
+
+  // Se o dia selecionado saiu da lista (troca de escopo), volta ao primeiro dia disponível.
+  useEffect(() => {
+    if (dayList.length > 0 && !dayList.includes(day)) setDay(dayList[0]);
+  }, [dayList, day]);
 
   useEffect(() => {
     let alive = true;
     setCells(null);
+    if (dayList.length === 0) {
+      setCells([]);
+      return;
+    }
     fetchAgendaAvailability(trainerId, dayList[0], dayList[dayList.length - 1], exclude)
       .then((rows) => alive && setCells(rows))
       .catch((e: Error) => {

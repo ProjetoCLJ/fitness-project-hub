@@ -27,6 +27,10 @@ export interface WorkoutRequest {
   toStart: string | null;
   message: string | null;
   status: WorkoutRequestStatus;
+  /** 'single': só a data do pedido; 'all': todas as semanas daqui para frente. */
+  scope: "single" | "all";
+  /** Nas próximas semanas, datas em que o novo horário estava ocupado quando o pedido foi feito. */
+  conflictDates: string[];
   parentId: string | null;
   responseMessage: string | null;
   respondedAt: string | null;
@@ -46,6 +50,8 @@ type Row = {
   to_start: string | null;
   message: string | null;
   status: WorkoutRequestStatus;
+  scope?: "single" | "all" | null;
+  conflict_dates?: string[] | null;
   parent_id: string | null;
   response_message: string | null;
   responded_at: string | null;
@@ -67,6 +73,9 @@ export const ERRORS: Record<string, string> = {
   EXPIRED: "Essa solicitação já passou da data.",
   NO_TRAINER: "Esse treino não tem profissional vinculado.",
   MISSING_TARGET: "Escolha o novo dia e horário.",
+  NOT_RECURRING: "Só treinos de plano em ciclo (que se repetem) podem mudar em todas as semanas.",
+  WEEK_MISMATCH: "Para mudar em todas as semanas, escolha o novo dia dentro da mesma semana do treino.",
+  INVALID_SCOPE: "Essa opção não vale para este tipo de pedido.",
 };
 
 const fail = (error: { message?: string } | null, fallback: string): never => {
@@ -92,6 +101,8 @@ const map = (r: Row): WorkoutRequest => ({
   toStart: r.to_start ? r.to_start.slice(0, 5) : null,
   message: r.message,
   status: r.status,
+  scope: r.scope === "all" ? "all" : "single",
+  conflictDates: r.conflict_dates ?? [],
   parentId: r.parent_id,
   responseMessage: r.response_message,
   respondedAt: r.responded_at,
@@ -116,6 +127,8 @@ export interface NewRequestInput {
   toDate?: string | null;
   toStart?: string | null;
   message?: string;
+  /** 'all' = todas as semanas daqui para frente (só treinos de plano em ciclo). */
+  scope?: "single" | "all";
 }
 
 export const createWorkoutRequest = async (input: NewRequestInput): Promise<void> => {
@@ -126,6 +139,7 @@ export const createWorkoutRequest = async (input: NewRequestInput): Promise<void
     p_to: input.toDate ?? null,
     p_start: input.toStart ?? null,
     p_message: input.message ?? null,
+    p_scope: input.scope ?? "single",
   });
   if (error) fail(error, "Não foi possível enviar a solicitação.");
 };
@@ -150,6 +164,13 @@ export const withdrawWorkoutRequest = async (id: string): Promise<void> => {
   if (error) fail(error, "Não foi possível cancelar a solicitação.");
 };
 
+/** Datas das próximas repetições em que o novo horário está ocupado (aviso; não bloqueia o envio). */
+export const fetchRecurrenceConflicts = async (workoutId: string, toDate: string, toStart: string): Promise<string[]> => {
+  const { data, error } = await db.rpc("workout_recurrence_conflicts", { p_workout: workoutId, p_to: toDate, p_start: toStart });
+  if (error) return [];
+  return ((data ?? []) as string[]).map((d) => String(d).slice(0, 10));
+};
+
 export interface AgendaCell {
   date: string;
   start: string;
@@ -162,7 +183,7 @@ export const fetchAgendaAvailability = async (
   trainerId: string,
   fromISO: string,
   toISO: string,
-  exclude?: { workoutId: string; date: string; requestId?: string }
+  exclude?: { workoutId: string; date?: string; requestId?: string }
 ): Promise<AgendaCell[]> => {
   const { data, error } = await db.rpc("trainer_agenda_availability", {
     p_trainer: trainerId,

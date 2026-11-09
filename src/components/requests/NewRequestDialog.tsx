@@ -23,6 +23,7 @@ import { NO_CHANGES, PlanChanges, fetchPlanChanges, occurrencesOn } from "@/lib/
 import { WorkoutRequest, WorkoutRequestKind, createWorkoutRequest } from "@/lib/workoutRequests";
 import { AgendaPicker, PickedSlot } from "@/components/requests/AgendaPicker";
 import { PlanWeeks, PlansView, ViewToggle } from "@/components/plan/PlanWeeks";
+import { ConflictNote, RequestScope, ScopeChoice, useRecurrenceConflicts } from "@/components/requests/RecurrenceControls";
 
 /** Pessoa com quem o treino é feito: um aluno do profissional ou um professor do usuário. */
 interface Person {
@@ -82,6 +83,8 @@ export const NewRequestDialog = ({ open, onOpenChange, requests, onCreated }: Ne
   const [search, setSearch] = useState("");
   const [chosen, setChosen] = useState<Candidate | null>(null);
   const [slot, setSlot] = useState<PickedSlot | null>(null);
+  const [scope, setScope] = useState<RequestScope>("single");
+  const conflicts = useRecurrenceConflicts(chosen?.workout.id, scope === "all" ? slot : null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -93,6 +96,7 @@ export const NewRequestDialog = ({ open, onOpenChange, requests, onCreated }: Ne
     setPerson(null);
     setChosen(null);
     setSlot(null);
+    setScope("single");
     setSearch("");
     setMessage("");
     setView("weeks");
@@ -213,6 +217,7 @@ export const NewRequestDialog = ({ open, onOpenChange, requests, onCreated }: Ne
     if (!c) return;
     setChosen(c);
     setSlot(null);
+    setScope("single");
     setStep(kind === "reschedule" ? "slot" : "cancel");
   };
 
@@ -221,7 +226,7 @@ export const NewRequestDialog = ({ open, onOpenChange, requests, onCreated }: Ne
     if (kind === "reschedule" && !slot) return;
     setBusy(true);
     try {
-      await createWorkoutRequest({ workoutId: chosen.workout.id, fromDate: chosen.date, kind, toDate: slot?.date, toStart: slot?.start, message });
+      await createWorkoutRequest({ workoutId: chosen.workout.id, fromDate: chosen.date, kind, toDate: slot?.date, toStart: slot?.start, message, scope });
       toast({ title: "Solicitação enviada", description: `${chosen.person.name} vai receber o aviso.` });
       onOpenChange(false);
       onCreated();
@@ -388,21 +393,34 @@ export const NewRequestDialog = ({ open, onOpenChange, requests, onCreated }: Ne
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">{chosen.workout.name}</strong> · {chosen.person.name} · hoje marcado para {fmtWhen(chosen.date, chosen.time)}
             </p>
+            {chosen.plan.cycleWeeks ? (
+              <ScopeChoice
+                value={scope}
+                onChange={(v) => {
+                  setScope(v);
+                  setSlot(null);
+                }}
+                workoutName={chosen.workout.name}
+                fromDate={chosen.date}
+              />
+            ) : null}
             <AgendaPicker
               trainerId={chosen.person.trainerId}
               value={slot}
               onChange={setSlot}
-              exclude={{ workoutId: chosen.workout.id, date: chosen.date }}
+              exclude={{ workoutId: chosen.workout.id, date: scope === "all" ? undefined : chosen.date }}
               detailed={chosen.person.as === "trainer"}
+              onlyWeekOf={scope === "all" ? chosen.date : undefined}
             />
             {slot && (
               <p className="text-sm">
                 Novo horário: <strong>{fmtWhen(slot.date, slot.start)}</strong>
               </p>
             )}
+            <ConflictNote dates={conflicts} who={chosen.person.as === "trainer" ? "Você" : chosen.person.name} />
             {messageField}
             <Button variant="hero" className="w-full" disabled={!slot || busy} onClick={send}>
-              {busy ? "Enviando..." : "Enviar solicitação"}
+              {busy ? "Enviando..." : conflicts && conflicts.length > 0 ? "Enviar mesmo assim" : "Enviar solicitação"}
             </Button>
           </div>
         )}

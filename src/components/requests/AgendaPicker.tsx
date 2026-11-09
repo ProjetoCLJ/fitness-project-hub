@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toLocalISO } from "@/lib/agendaStore";
+import { eventTitle, fetchLinkedStudents, fetchTrainerEvents, getSlotsForDate, toLocalISO } from "@/lib/agendaStore";
+import { fetchAccompaniedEvents } from "@/lib/planAgenda";
 import { AgendaCell, fetchAgendaAvailability } from "@/lib/workoutRequests";
 import { WEEKDAY_SHORT } from "@/lib/planStore";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,8 @@ interface AgendaPickerProps {
   exclude?: { workoutId: string; date: string; requestId?: string };
   /** Quantos dias à frente mostrar (o servidor aceita até 14 para pedidos). */
   days?: number;
+  /** Agenda do próprio profissional: nos horários ocupados mostra o que ocupa (aula, treino de aluno, bloqueio). */
+  detailed?: boolean;
 }
 
 const fmtDay = (iso: string) => {
@@ -29,9 +32,10 @@ const fmtDay = (iso: string) => {
  * Agenda do profissional só com "livre" e "ocupado" (sem mostrar quem ocupa). A pessoa navega pelos dias,
  * escolhe um horário livre e o devolve em onChange.
  */
-export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14 }: AgendaPickerProps) => {
+export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, detailed = false }: AgendaPickerProps) => {
   const { toast } = useToast();
   const [cells, setCells] = useState<AgendaCell[] | null>(null);
+  const [labels, setLabels] = useState<Map<string, string>>(new Map());
   const todayISO = toLocalISO(new Date());
   const [day, setDay] = useState(value?.date ?? todayISO);
 
@@ -58,6 +62,35 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14 }:
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trainerId, dayList, exclude?.workoutId, exclude?.date, exclude?.requestId]);
+
+  // Detalhes (só na agenda do próprio profissional): o que ocupa cada hora.
+  useEffect(() => {
+    if (!detailed) return;
+    let alive = true;
+    (async () => {
+      try {
+        const students = await fetchLinkedStudents(trainerId);
+        const [events, accompanied] = await Promise.all([
+          fetchTrainerEvents(trainerId),
+          fetchAccompaniedEvents(trainerId, students, days + 1).catch(() => []),
+        ]);
+        const all = [...events, ...accompanied];
+        const map = new Map<string, string>();
+        dayList.forEach((iso) => {
+          getSlotsForDate(all, iso, 60).forEach((slot) => {
+            if (slot.status === "fora_expediente") map.set(`${iso}|${slot.start}`, "Fora do expediente");
+            else if (slot.event && slot.event.type !== "expediente") map.set(`${iso}|${slot.start}`, eventTitle(slot.event));
+          });
+        });
+        if (alive) setLabels(map);
+      } catch {
+        /* sem detalhes: segue só com livre/ocupado */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [detailed, trainerId, dayList, days]);
 
   const freeByDay = useMemo(() => {
     const map = new Map<string, number>();
@@ -98,7 +131,7 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14 }:
           Carregando a agenda...
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-2">
+        <div className={`grid gap-2 ${detailed ? "grid-cols-3" : "grid-cols-4"}`}>
           {dayCells.map((c) => {
             const selected = value?.date === c.date && value.start === c.start;
             return (
@@ -113,10 +146,13 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14 }:
                     ? "border-primary bg-primary text-primary-foreground"
                     : c.free
                       ? "border-green-500/50 bg-green-500/10 hover:bg-green-500/20"
-                      : "border-border bg-muted/40 text-muted-foreground/60 line-through cursor-not-allowed"
+                      : `border-border bg-muted/40 text-muted-foreground/70 cursor-not-allowed ${detailed ? "" : "line-through"}`
                 }`}
               >
                 {c.start}
+                {detailed && !c.free && (
+                  <span className="block text-[10px] leading-tight truncate no-underline">{labels.get(`${c.date}|${c.start}`) ?? "Ocupado"}</span>
+                )}
               </button>
             );
           })}

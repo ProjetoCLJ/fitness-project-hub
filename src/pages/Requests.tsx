@@ -325,6 +325,7 @@ const Requests = () => {
                 value={counterSlot}
                 onChange={setCounterSlot}
                 exclude={{ workoutId: counter.workoutId, date: counter.fromDate, requestId: counter.id }}
+                detailed={!!user.trainerId && counter.trainerId === user.trainerId}
               />
               <div className="space-y-2">
                 <Label htmlFor="counter-msg">Mensagem (opcional)</Label>

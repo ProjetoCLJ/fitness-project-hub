@@ -109,7 +109,9 @@ interface PlanWeeksProps {
   showTitle?: boolean;
   /** No modo de escolha, treinos não concluídos ficam clicáveis. */
   pickMode?: boolean;
-  onPick?: (workout: Workout, plan: Plan) => void;
+  onPick?: (workout: Workout, plan: Plan, dateISO: string) => void;
+  /** Com pickMode: só treinos para os quais isto devolve true ficam clicáveis. */
+  canPick?: (workout: Workout, dateISO: string) => boolean;
   /** Treinos planejados da semana (ajustes "só desta vez" do aluno). */
   slots?: SlotInfo[];
   /** Toque em um treino da semana para ajustar acompanhado/horário. */
@@ -133,6 +135,7 @@ const PlanWeeksCard = ({
   showTitle = true,
   pickMode,
   onPick,
+  canPick,
   slots,
   onAdjust,
 }: Omit<PlanWeeksProps, "plans"> & { plan: Plan }) => {
@@ -144,7 +147,7 @@ const PlanWeeksCard = ({
     const accompanied = info ? info.accompanied : workout.accompanied;
     const time = info ? info.startTime : workout.startTime;
     const adjustable = !pickMode && !!info && info.status === "pending" && !!plan.trainerId && !!onAdjust;
-    const clickable = (pickMode && state !== "done") || adjustable;
+    const clickable = (pickMode && state !== "done" && (!canPick || canPick(workout, dateISO))) || adjustable;
     return { info, accompanied, time, adjustable, clickable };
   };
 
@@ -207,7 +210,7 @@ const PlanWeeksCard = ({
                           type="button"
                           disabled={!clickable}
                           title={slot.workout.name}
-                          onClick={() => (adjustable && info ? onAdjust?.(slot.workout, plan, info) : onPick?.(slot.workout, plan))}
+                          onClick={() => (adjustable && info ? onAdjust?.(slot.workout, plan, info) : onPick?.(slot.workout, plan, day.dateISO))}
                           className={`w-full rounded border px-1 py-0.5 text-[10px] sm:text-xs leading-tight truncate text-left ${SLOT_STYLES[slot.state]} ${
                             clickable ? "cursor-pointer hover:ring-2 hover:ring-primary" : "cursor-default"
                           }`}
@@ -236,7 +239,7 @@ const PlanWeeksCard = ({
                         state={slot.state}
                         accompanied={accompanied}
                         time={time}
-                        onClick={clickable ? () => (adjustable && info ? onAdjust?.(slot.workout, plan, info) : onPick?.(slot.workout, plan)) : undefined}
+                        onClick={clickable ? () => (adjustable && info ? onAdjust?.(slot.workout, plan, info) : onPick?.(slot.workout, plan, day.dateISO)) : undefined}
                       />
                     );
                   })

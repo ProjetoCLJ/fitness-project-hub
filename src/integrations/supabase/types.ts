@@ -1921,6 +1921,7 @@ export type Database = {
       }
       workout_requests: {
         Row: {
+          conflict_dates: string[]
           created_at: string
           created_by: string
           from_date: string
@@ -1932,6 +1933,7 @@ export type Database = {
           requested_by: string
           responded_at: string | null
           response_message: string | null
+          scope: string
           status: string
           student_id: string
           to_date: string | null
@@ -1940,6 +1942,7 @@ export type Database = {
           workout_id: string
         }
         Insert: {
+          conflict_dates?: string[]
           created_at?: string
           created_by: string
           from_date: string
@@ -1951,6 +1954,7 @@ export type Database = {
           requested_by: string
           responded_at?: string | null
           response_message?: string | null
+          scope?: string
           status?: string
           student_id: string
           to_date?: string | null
@@ -1959,6 +1963,7 @@ export type Database = {
           workout_id: string
         }
         Update: {
+          conflict_dates?: string[]
           created_at?: string
           created_by?: string
           from_date?: string
@@ -1970,6 +1975,7 @@ export type Database = {
           requested_by?: string
           responded_at?: string | null
           response_message?: string | null
+          scope?: string
           status?: string
           student_id?: string
           to_date?: string | null
@@ -2125,6 +2131,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_workout_recurring_change: {
+        Args: {
+          p_from: string
+          p_start: string
+          p_to: string
+          p_workout: string
+        }
+        Returns: undefined
+      }
       award_medal: {
         Args: { p_key: string; p_meta: Json; p_on: string; p_user: string }
         Returns: boolean
@@ -2160,6 +2175,7 @@ export type Database = {
           p_from: string
           p_kind: string
           p_message: string
+          p_scope?: string
           p_start: string
           p_to: string
           p_workout: string
@@ -2267,6 +2283,10 @@ export type Database = {
       owns_execution: { Args: { _execution_id: string }; Returns: boolean }
       pause_plan: { Args: { p_plan_id: string }; Returns: string }
       post_challenge_id: { Args: { _post_id: string }; Returns: string }
+      recurrence_conflict_dates: {
+        Args: { p_start: string; p_to: string; p_workout: string }
+        Returns: string[]
+      }
       remove_plan: {
         Args: { p_plan_id: string; p_status?: string }
         Returns: string
@@ -2359,6 +2379,10 @@ export type Database = {
       user_of_student: { Args: { _student: string }; Returns: string }
       user_of_trainer: { Args: { _trainer: string }; Returns: string }
       withdraw_workout_request: { Args: { p_id: string }; Returns: undefined }
+      workout_recurrence_conflicts: {
+        Args: { p_start: string; p_to: string; p_workout: string }
+        Returns: string[]
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "rejected" | "suggested"

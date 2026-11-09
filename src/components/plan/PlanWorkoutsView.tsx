@@ -12,10 +12,12 @@ interface PlanWorkoutsViewProps {
   executions: WorkoutExecution[];
   todayISO: string;
   onStart: (workout: Workout) => void;
+  /** Professor: inicia o treino junto com o aluno e preenche cargas/repetições por ele. */
+  trainerView?: boolean;
 }
 
 /** Aba "Treinos" do plano (visão do aluno): treino de hoje, adiantar treino e semanas/lista. */
-export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart }: PlanWorkoutsViewProps) => {
+export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart, trainerView = false }: PlanWorkoutsViewProps) => {
   const [view, setView] = useState<PlansView>("weeks");
   const [advancing, setAdvancing] = useState(false);
 
@@ -58,7 +60,7 @@ export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart }: PlanWo
               ) : (
                 <Button variant="hero" size="sm" className="shrink-0" onClick={() => onStart(workout)}>
                   <Play className="h-4 w-4 mr-1" />
-                  Iniciar
+                  {trainerView ? "Iniciar com o aluno" : "Iniciar"}
                 </Button>
               )}
             </div>
@@ -67,7 +69,7 @@ export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart }: PlanWo
         {pendingToday.length === 0 && (
           <Button variant="outline" className="w-full" onClick={() => setAdvancing(true)}>
             <Shuffle className="h-4 w-4 mr-2" />
-            Adiantar treino
+            {trainerView ? "Iniciar outro treino" : "Adiantar treino"}
           </Button>
         )}
       </Card>

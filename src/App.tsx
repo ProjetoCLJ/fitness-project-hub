@@ -91,6 +91,7 @@ const App = () => (
             <Route path="/dashboard/trainer" element={<ProHome />} />
             <Route path="/dashboard/trainer/clients" element={<Clients />} />
             <Route path="/dashboard/trainer/clients/:id" element={<ClientProfilePro />} />
+            <Route path="/dashboard/trainer/clients/:studentId/session/:workoutId" element={<WorkoutSession />} />
             <Route path="/dashboard/trainer/agenda" element={<Agenda />} />
             <Route path="/dashboard/trainer/financial" element={<Financial />} />
             <Route path="/dashboard/trainer/profile" element={<Navigate to="/dashboard/student/profile" replace />} />

@@ -23,6 +23,8 @@ export interface Exercise {
   load: string;
   rest: string;
   supersetGroup?: string;
+  /** Planejado por série (carga e repetições). Vazio = usa carga/reps do exercício em todas as séries. */
+  setPlan?: { weight: string; reps: string }[];
 }
 
 export interface Workout {
@@ -76,6 +78,9 @@ export interface SetLog {
   weight: string;
   reps: string;
   effort?: number;
+  /** O que estava planejado para esta série quando foi feita. */
+  plannedWeight?: string;
+  plannedReps?: string;
 }
 
 export interface ExerciseLog {
@@ -98,6 +103,8 @@ export interface WorkoutExecution {
   isValid?: boolean;
   exerciseLogs: ExerciseLog[];
   observations?: string;
+  /** Lançado pelo professor para o aluno. */
+  byTrainer?: boolean;
 }
 
 // ---------- Ciclo ----------
@@ -154,6 +161,7 @@ type ExerciseRow = {
   load: string | null;
   rest: string | null;
   superset_group: string | null;
+  set_plan?: { weight?: string; reps?: string }[] | null;
   order_index: number | null;
 };
 
@@ -212,6 +220,7 @@ const mapWorkout = (row: WorkoutRow): Workout => ({
       load: ex.load ?? "",
       rest: ex.rest ?? "",
       supersetGroup: ex.superset_group ?? undefined,
+      setPlan: Array.isArray(ex.set_plan) && ex.set_plan.length > 0 ? ex.set_plan.map((x) => ({ weight: x.weight ?? "", reps: x.reps ?? "" })) : undefined,
     })),
 });
 
@@ -369,18 +378,20 @@ export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<
   }
 
   if (input.exercises.length > 0) {
-    const { error } = await db.from("workout_exercises").insert(
-      input.exercises.map((ex, index) => ({
-        workout_id: workoutId as string,
-        name: ex.name,
-        sets: ex.sets,
-        reps: ex.reps,
-        load: ex.load,
-        rest: ex.rest,
-        superset_group: ex.supersetGroup ?? null,
-        order_index: index,
-      }))
-    );
+    const rows = input.exercises.map((ex, index) => ({
+      workout_id: workoutId as string,
+      name: ex.name,
+      sets: ex.sets,
+      reps: ex.reps,
+      load: ex.load,
+      rest: ex.rest,
+      superset_group: ex.supersetGroup ?? null,
+      order_index: index,
+    }));
+    // Planejado por série só vai se o banco já tiver a coluna (migração 0016).
+    const withPlan = rows.map((row, i) => ({ ...row, set_plan: input.exercises[i].setPlan?.length ? input.exercises[i].setPlan : null }));
+    let { error } = await db.from("workout_exercises").insert(withPlan);
+    if (missingSchema(error)) ({ error } = await db.from("workout_exercises").insert(rows));
     if (error) throw error;
   }
 };
@@ -408,6 +419,7 @@ type ExecutionRow = {
   observations: string | null;
   duration_minutes: number | null;
   is_valid: boolean | null;
+  recorded_by_trainer?: boolean | null;
   workouts: { name: string } | null;
   exercise_logs:
     | {
@@ -417,7 +429,7 @@ type ExecutionRow = {
         performed_name: string;
         notes: string | null;
         is_pr: boolean | null;
-        set_logs: { set_number: number; weight: string | null; reps: string | null; effort: number | null }[] | null;
+        set_logs: { set_number: number; weight: string | null; reps: string | null; effort: number | null; planned_weight?: string | null; planned_reps?: string | null }[] | null;
       }[]
     | null;
 };
@@ -439,6 +451,7 @@ export const fetchExecutions = async (studentId: string): Promise<WorkoutExecuti
     durationMinutes: row.duration_minutes ?? undefined,
     isValid: row.is_valid ?? undefined,
     observations: row.observations ?? undefined,
+    byTrainer: !!row.recorded_by_trainer,
     exerciseLogs: (row.exercise_logs ?? []).map((log) => ({
       exerciseId: log.workout_exercise_id,
       plannedName: log.planned_name,
@@ -447,7 +460,14 @@ export const fetchExecutions = async (studentId: string): Promise<WorkoutExecuti
       isPR: log.is_pr ?? false,
       sets: [...(log.set_logs ?? [])]
         .sort((a, b) => a.set_number - b.set_number)
-        .map((s) => ({ setNumber: s.set_number, weight: s.weight ?? "", reps: s.reps ?? "", effort: s.effort ?? undefined })),
+        .map((s) => ({
+          setNumber: s.set_number,
+          weight: s.weight ?? "",
+          reps: s.reps ?? "",
+          effort: s.effort ?? undefined,
+          plannedWeight: s.planned_weight ?? undefined,
+          plannedReps: s.planned_reps ?? undefined,
+        })),
     })),
   }));
 };
@@ -524,15 +544,18 @@ export const recordExecution = async (
     if (logRes.error) throw logRes.error;
 
     if (log.sets.length > 0) {
-      const setsRes = await db.from("set_logs").insert(
-        log.sets.map((s) => ({
-          exercise_log_id: logRes.data.id,
-          set_number: s.setNumber,
-          weight: s.weight,
-          reps: s.reps,
-          effort: s.effort ?? null,
-        }))
+      const baseSets = log.sets.map((s) => ({
+        exercise_log_id: logRes.data.id,
+        set_number: s.setNumber,
+        weight: s.weight,
+        reps: s.reps,
+        effort: s.effort ?? null,
+      }));
+      // Planejado x feito só vai se o banco já tiver as colunas (migração 0016).
+      let setsRes = await db.from("set_logs").insert(
+        baseSets.map((row, i) => ({ ...row, planned_weight: log.sets[i].plannedWeight ?? null, planned_reps: log.sets[i].plannedReps ?? null }))
       );
+      if (missingSchema(setsRes.error)) setsRes = await db.from("set_logs").insert(baseSets);
       if (setsRes.error) throw setsRes.error;
     }
   }

@@ -29,6 +29,8 @@ import { PaymentDialog } from "@/components/finance/PaymentDialog";
 import { PaymentsList } from "@/components/finance/PaymentsList";
 import { Payment, deletePayment, fetchTrainerPayments, formatBRL } from "@/lib/financeStore";
 import { PlanDetail } from "@/components/plan/PlanDetail";
+import { PlanWorkoutsView } from "@/components/plan/PlanWorkoutsView";
+import { toLocalISO } from "@/lib/agendaStore";
 import { useQuery } from "@tanstack/react-query";
 import { Flame } from "lucide-react";
 import { fetchTrainerAdherence } from "@/lib/gamification";
@@ -312,7 +314,22 @@ const ClientProfilePro = () => {
 
           <TabsContent value="plans" className="space-y-3">
             {selectedPlan ? (
-              <PlanDetail plan={selectedPlan} onBack={() => setSelectedPlanId(null)} onChanged={loadData} />
+              <PlanDetail
+                plan={selectedPlan}
+                onBack={() => setSelectedPlanId(null)}
+                onChanged={loadData}
+                workoutsTop={
+                  client && selectedPlan.status === "active" ? (
+                    <PlanWorkoutsView
+                      plan={selectedPlan}
+                      executions={executions}
+                      todayISO={toLocalISO(new Date())}
+                      onStart={(w) => navigate(`/dashboard/trainer/clients/${client.id}/session/${w.id}`)}
+                      trainerView
+                    />
+                  ) : undefined
+                }
+              />
             ) : (
               <>
                 <div className="flex items-center justify-between">

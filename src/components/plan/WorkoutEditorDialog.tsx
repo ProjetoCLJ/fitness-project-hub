@@ -74,6 +74,28 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
     }));
   };
 
+  const planRow = (ex: Exercise, k: number) => ex.setPlan?.[k] ?? { weight: ex.load, reps: ex.reps };
+
+  /** Liga o planejamento por série (começa igual à carga/reps do exercício) ou volta ao mesmo valor em todas. */
+  const toggleSetPlan = (id: string) =>
+    setDraft((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) =>
+        ex.id !== id ? ex : { ...ex, setPlan: ex.setPlan ? undefined : Array.from({ length: Math.max(1, ex.sets) }, (_, k) => planRow(ex, k)) }
+      ),
+    }));
+
+  const updateSetPlan = (id: string, k: number, field: "weight" | "reps", value: string) =>
+    setDraft((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) => {
+        if (ex.id !== id) return ex;
+        const plan = Array.from({ length: Math.max(1, ex.sets) }, (_, i) => ({ ...planRow(ex, i) }));
+        plan[k] = { ...plan[k], [field]: value };
+        return { ...ex, setPlan: plan };
+      }),
+    }));
+
   const addExercise = () => setDraft((prev) => ({ ...prev, exercises: [...prev.exercises, emptyExercise()] }));
 
   const removeExercise = (id: string) =>
@@ -102,7 +124,10 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
   const handleSave = async () => {
     setIsBusy(true);
     try {
-      await onSave({ ...draft, name: draft.name.trim() });
+      const exercises = draft.exercises.map((ex) =>
+        ex.setPlan ? { ...ex, setPlan: Array.from({ length: Math.max(1, ex.sets) }, (_, k) => planRow(ex, k)) } : ex
+      );
+      await onSave({ ...draft, exercises, name: draft.name.trim() });
     } finally {
       setIsBusy(false);
     }
@@ -242,6 +267,25 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
                         <Label className="text-xs">Descanso</Label>
                         <Input value={ex.rest} onChange={(e) => updateExercise(ex.id, "rest", e.target.value)} className="h-9" />
                       </div>
+                    </div>
+                    <div className="pt-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">{ex.setPlan ? "Planejado por série" : "Mesma carga e reps em todas as séries"}</Label>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleSetPlan(ex.id)}>
+                          {ex.setPlan ? "Usar o mesmo em todas" : "Detalhar por série"}
+                        </Button>
+                      </div>
+                      {ex.setPlan &&
+                        Array.from({ length: Math.max(1, ex.sets) }, (_, k) => {
+                          const row = planRow(ex, k);
+                          return (
+                            <div key={k} className="grid grid-cols-[3.5rem_1fr_1fr] items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Série {k + 1}</span>
+                              <Input value={row.weight} placeholder="Carga" onChange={(e) => updateSetPlan(ex.id, k, "weight", e.target.value)} className="h-9" />
+                              <Input value={row.reps} placeholder="Reps" onChange={(e) => updateSetPlan(ex.id, k, "reps", e.target.value)} className="h-9" />
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 </div>

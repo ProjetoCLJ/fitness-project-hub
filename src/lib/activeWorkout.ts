@@ -9,6 +9,8 @@ const MAX_AGE_MS = 24 * 3600 * 1000;
 export interface ActiveWorkout {
   workoutId: string;
   workoutName: string;
+  /** Rota da tela do treino (aluno ou professor), usada para voltar a ele quando pausado. */
+  path: string;
   /** Início (ms). O tempo pausado é descontado em pausedMs. */
   startedAt: number;
   /** Quando está pausado, o momento em que pausou; senão null. */
@@ -58,8 +60,8 @@ export const useActiveWorkout = () =>
     () => current
   );
 
-export const startActiveWorkout = (workoutId: string, workoutName: string) =>
-  commit({ workoutId, workoutName, startedAt: Date.now(), pausedAt: null, pausedMs: 0 });
+export const startActiveWorkout = (workoutId: string, workoutName: string, path: string) =>
+  commit({ workoutId, workoutName, path, startedAt: Date.now(), pausedAt: null, pausedMs: 0 });
 
 export const pauseActiveWorkout = () => {
   if (current && current.pausedAt === null) commit({ ...current, pausedAt: Date.now() });

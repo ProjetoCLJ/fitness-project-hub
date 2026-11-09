@@ -24,7 +24,7 @@ export const PausedWorkoutBar = () => {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/dashboard/student/workouts/session/${active.workoutId}`)}
+      onClick={() => navigate(active.path ?? `/dashboard/student/workouts/session/${active.workoutId}`)}
       className="w-full h-9 bg-amber-500 text-white text-sm font-medium flex items-center justify-center gap-2 px-4"
     >
       <Pause className="h-4 w-4 shrink-0" />

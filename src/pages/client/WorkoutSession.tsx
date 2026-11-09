@@ -82,10 +82,14 @@ const fmtDate = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00`).toLoca
 
 const WorkoutSession = () => {
   const { user } = useAuth();
-  const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { workoutId } = useParams();
+  const { workoutId, studentId } = useParams();
+  // Professor conduzindo o treino do aluno (mesma tela, salva para os dois).
+  const trainerMode = !!studentId;
+  const clientId = trainerMode ? (studentId as string) : user?.studentId ?? "";
+  const backPath = trainerMode ? `/dashboard/trainer/clients/${studentId}` : "/dashboard/student/workouts";
+  const sessionPath = trainerMode ? `/dashboard/trainer/clients/${studentId}/session/${workoutId}` : `/dashboard/student/workouts/session/${workoutId}`;
   const active = useActiveWorkout();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [drafts, setDrafts] = useState<Drafts>({});
@@ -143,7 +147,12 @@ const WorkoutSession = () => {
         swapping: false,
         done: false,
         open: i === 0,
-        sets: Array.from({ length: ex.sets }, (_, k) => ({ setNumber: k + 1, weight: ex.load, reps: plannedReps(ex.reps) })),
+        sets: Array.from({ length: ex.sets }, (_, k) => {
+          const planned = ex.setPlan?.[k];
+          const weight = planned?.weight ?? ex.load;
+          const reps = planned ? plannedReps(planned.reps) : plannedReps(ex.reps);
+          return { setNumber: k + 1, weight, reps, plannedWeight: weight, plannedReps: reps };
+        }),
         notes: "",
       };
     });
@@ -160,7 +169,7 @@ const WorkoutSession = () => {
   useEffect(() => {
     if (countdown === null) return;
     if (countdown === 0) {
-      if (workout) startActiveWorkout(workout.id, workout.name);
+      if (workout) startActiveWorkout(workout.id, workout.name, sessionPath);
       setTick(Date.now());
       setCountdown(null);
       return;
@@ -250,13 +259,13 @@ const WorkoutSession = () => {
   const pauseWorkout = () => {
     pauseActiveWorkout();
     setExitOpen(false);
-    navigate("/dashboard/student/workouts");
+    navigate(backPath);
   };
 
   const cancelWorkout = () => {
     clearActiveWorkout();
     setExitOpen(false);
-    navigate("/dashboard/student/workouts");
+    navigate(backPath);
   };
 
   const confirmFinish = async () => {
@@ -275,6 +284,21 @@ const WorkoutSession = () => {
     };
 
     setIsSaving(true);
+    if (trainerMode) {
+      try {
+        await recordExecution(clientId, { ...payload, accompanied: true });
+      } catch {
+        toast({ title: "Não foi possível salvar o treino", description: "Tente novamente.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+      }
+      clearActiveWorkout();
+      setIsSaving(false);
+      setFinishOpen(false);
+      toast({ title: "Treino salvo para o aluno", description: `${workout.name} · ${mins} min. Fica no histórico de vocês dois.` });
+      navigate(backPath);
+      return;
+    }
     const [before, leagueBefore, medalsBefore] = await Promise.all([
       fetchGmOverview().catch(() => null),
       fetchLeagueOverview().catch(() => null),
@@ -351,7 +375,7 @@ const WorkoutSession = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (started ? setExitOpen(true) : navigate("/dashboard/student/workouts"))}
+            onClick={() => (started ? setExitOpen(true) : navigate(backPath))}
           >
             <X className="h-4 w-4 mr-1" />
             Sair
@@ -378,6 +402,7 @@ const WorkoutSession = () => {
         <Card className="p-4 mb-4 space-y-3">
           <div>
             <h1 className="text-lg sm:text-2xl font-bold">{workout.name}</h1>
+            {trainerMode && <Badge variant="secondary" className="mt-1">Você está conduzindo o treino do aluno</Badge>}
             <p className="text-sm text-muted-foreground">
               {started
                 ? `${doneCount} de ${workout.exercises.length} exercícios concluídos`
@@ -602,7 +627,7 @@ const WorkoutSession = () => {
               <Label htmlFor="duration-min">Duração (minutos)</Label>
               <Input id="duration-min" type="number" min={1} max={MAX_MINUTES} value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             </div>
-            {plan.trainerId && (
+            {plan.trainerId && !trainerMode && (
               <div className="flex items-center justify-between gap-3 rounded-md border p-3">
                 <Label htmlFor="finish-acc" className="text-sm">
                   Foi acompanhado pelo professor?
@@ -616,7 +641,9 @@ const WorkoutSession = () => {
                 Com menos de {MIN_MINUTES} minutos o treino fica no histórico, mas não vale XP nem Foco.
               </p>
             ) : (
-              <p className="text-sm text-green-600">Treino válido: vai render XP e contar no seu Foco.</p>
+              <p className="text-sm text-green-600">
+                {trainerMode ? "Treino válido: vai render XP e contar no Foco do aluno." : "Treino válido: vai render XP e contar no seu Foco."}
+              </p>
             )}
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setFinishOpen(false)} disabled={isSaving}>
@@ -711,6 +738,7 @@ const PastExecutionView = ({ execution }: { execution: WorkoutExecution }) => (
     <p className="text-sm text-muted-foreground">
       Treino de {fmtDate(execution.date)}
       {execution.durationMinutes ? ` · ${execution.durationMinutes} min` : ""}
+      {execution.byTrainer ? " · lançado pelo professor" : ""}
     </p>
     {execution.exerciseLogs.length === 0 ? (
       <Card className="p-4 text-sm text-muted-foreground">Nenhum exercício registrado neste treino.</Card>
@@ -726,7 +754,12 @@ const PastExecutionView = ({ execution }: { execution: WorkoutExecution }) => (
             {log.sets.map((s) => (
               <div key={s.setNumber} className="flex items-center justify-between px-3 py-1.5 text-sm">
                 <span className="text-muted-foreground">Série {s.setNumber}</span>
-                <span>
+                <span className="text-right">
+                  {(s.plannedWeight || s.plannedReps) && (s.plannedWeight !== s.weight || s.plannedReps !== s.reps) && (
+                    <span className="text-xs text-muted-foreground mr-2">
+                      planejado {s.plannedWeight || "—"} × {s.plannedReps || "—"} →
+                    </span>
+                  )}
                   {s.weight || "—"} × {s.reps || "—"}
                   {s.effort !== undefined ? ` · RIR ${s.effort}` : ""}
                 </span>

@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { X, CheckCircle2, AlertTriangle, Link2, Check, Play, Pause, Timer, Flame, Zap, ChevronDown, Repeat } from "lucide-react";
+import { X, CheckCircle2, AlertTriangle, Link2, Check, Play, Pause, Timer, Flame, Zap, ChevronDown, Repeat, CalendarClock } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GmOverview, fetchGmOverview, fetchLeagueOverview, fetchMedals } from "@/lib/gamification";
 import { PostWorkoutFlow, FlowData } from "@/components/celebration/PostWorkoutFlow";
@@ -23,6 +23,7 @@ import { useRefreshGamification } from "@/hooks/useGamification";
 import { isNetworkError, queueExecution } from "@/lib/offlineQueue";
 import { ExerciseLog, Plan, SetLog, WorkoutExecution, fetchExecutions, fetchPlansForStudent, recordExecution } from "@/lib/planStore";
 import { NumberStepper } from "@/components/ui/number-stepper";
+import { ChangeWorkoutDialog } from "@/components/requests/ChangeWorkoutDialog";
 import {
   activeElapsedMs,
   clearActiveWorkout,
@@ -100,6 +101,7 @@ const WorkoutSession = () => {
   const [tick, setTick] = useState(Date.now());
   const [countdown, setCountdown] = useState<number | null>(null);
   const [exitOpen, setExitOpen] = useState(false);
+  const [changeOpen, setChangeOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [minutes, setMinutes] = useState("");
   const [result, setResult] = useState<FinishResult | null>(null);
@@ -409,6 +411,12 @@ const WorkoutSession = () => {
                 : `${workout.exercises.length} ${workout.exercises.length === 1 ? "exercício" : "exercícios"}`}
             </p>
           </div>
+          {!started && plan.trainerId && (
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => setChangeOpen(true)}>
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Solicitar mudança de horário ou cancelamento
+            </Button>
+          )}
           {started && (
             <div className="flex items-center justify-between gap-3 border-t pt-3">
               <div className="flex items-center gap-2">
@@ -561,6 +569,18 @@ const WorkoutSession = () => {
           </div>
         )}
       </div>
+
+      {plan.trainerId && (
+        <ChangeWorkoutDialog
+          open={changeOpen}
+          onOpenChange={setChangeOpen}
+          workout={workout}
+          plan={plan}
+          as={trainerMode ? "trainer" : "student"}
+          trainerId={plan.trainerId}
+          counterpart={trainerMode ? "o aluno" : plan.trainerName}
+        />
+      )}
 
       {/* Barra fixa: iniciar / concluir (arrastar para a direita) */}
       <div className="fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur">

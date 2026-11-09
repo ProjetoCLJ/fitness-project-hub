@@ -120,6 +120,13 @@
       "when": 1793902039897,
       "tag": "0016_treinos_acompanhados",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794239083805,
+      "tag": "0017_treino_pelo_professor",
+      "breakpoints": true
     }
   ]
 }

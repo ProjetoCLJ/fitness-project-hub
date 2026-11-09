@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Play, Shuffle } from "lucide-react";
 import { Plan, Workout, WorkoutExecution } from "@/lib/planStore";
 import { buildPlanWeeks } from "@/lib/planSchedule";
+import { usePlanChanges } from "@/lib/planChanges";
 import { PlanWeeks, PlansView, ViewToggle } from "@/components/plan/PlanWeeks";
 import { AdvanceWorkouts } from "@/components/plan/AdvanceWorkouts";
 
@@ -20,8 +21,9 @@ interface PlanWorkoutsViewProps {
 export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart, trainerView = false }: PlanWorkoutsViewProps) => {
   const [view, setView] = useState<PlansView>("weeks");
   const [advancing, setAdvancing] = useState(false);
+  const changes = usePlanChanges([plan]);
 
-  const todaySlots = buildPlanWeeks(plan, executions, todayISO)
+  const todaySlots = buildPlanWeeks(plan, executions, todayISO, 0, changes)
     .flat()
     .filter((d) => d.dateISO === todayISO)
     .flatMap((d) => d.slots);
@@ -33,6 +35,7 @@ export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart, trainerV
         plans={[plan]}
         executions={executions}
         todayISO={todayISO}
+        changes={changes}
         onPick={(workout) => onStart(workout)}
         onCancel={() => setAdvancing(false)}
       />
@@ -78,7 +81,7 @@ export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart, trainerV
         <h3 className="font-semibold text-base sm:text-lg">Treinos do plano</h3>
         <ViewToggle value={view} onChange={setView} />
       </div>
-      <PlanWeeks plans={[plan]} executions={executions} todayISO={todayISO} view={view} showTitle={false} />
+      <PlanWeeks plans={[plan]} executions={executions} todayISO={todayISO} view={view} changes={changes} showTitle={false} />
     </div>
   );
 };

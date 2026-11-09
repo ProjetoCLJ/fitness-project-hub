@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plan, SlotInfo, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, WorkoutExecution } from "@/lib/planStore";
 import { SlotState, buildPlanWeeks, cycleWeekLabel } from "@/lib/planSchedule";
+import type { PlanChanges } from "@/lib/planChanges";
 
 const SLOT_STYLES: Record<SlotState, string> = {
   done: "bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/60",
@@ -100,6 +101,8 @@ interface PlanWeeksProps {
   plans: Plan[];
   executions: WorkoutExecution[];
   todayISO: string;
+  /** Treinos movidos/cancelados por solicitações aceitas. */
+  changes?: PlanChanges;
   /** Visão: grade por semana (padrão) ou lista de treinos. */
   view?: PlansView;
   /** Mostra o título e o profissional do plano no cartão. */
@@ -126,6 +129,7 @@ const PlanWeeksCard = ({
   executions,
   todayISO,
   view = "weeks",
+  changes,
   showTitle = true,
   pickMode,
   onPick,
@@ -133,7 +137,7 @@ const PlanWeeksCard = ({
   onAdjust,
 }: Omit<PlanWeeksProps, "plans"> & { plan: Plan }) => {
   const [offset, setOffset] = useState(0);
-  const weeks = buildPlanWeeks(plan, executions, todayISO, offset);
+  const weeks = buildPlanWeeks(plan, executions, todayISO, offset, changes);
 
   const meta = (workoutId: string, dateISO: string, workout: Workout, state: SlotState) => {
     const info = slots?.find((s) => s.workoutId === workoutId && s.date === dateISO);

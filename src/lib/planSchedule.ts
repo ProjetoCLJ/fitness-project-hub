@@ -2,7 +2,8 @@
 // Um treino "feito" é uma execução do mesmo treino próxima da data prevista (adiantar/atrasar
 // alguns dias continua valendo). Fazer outro treino no lugar NÃO marca o original como feito.
 
-import { Plan, Workout, WorkoutExecution, workoutsOnDate } from "@/lib/planStore";
+import { Plan, Workout, WorkoutExecution } from "@/lib/planStore";
+import { PlanChanges, occurrencesOn } from "@/lib/planChanges";
 import { toLocalISO } from "@/lib/agendaStore";
 
 export type SlotState = "done" | "late" | "today" | "upcoming";
@@ -57,12 +58,12 @@ const windowStarts = (plan: Plan, todayISO: string, offsetWeeks: number): string
   return [thisWeek, addDays(thisWeek, 7)];
 };
 
-export const buildPlanWeeks = (plan: Plan, executions: WorkoutExecution[], todayISO: string, offsetWeeks = 0): WeekDay[][] => {
+export const buildPlanWeeks = (plan: Plan, executions: WorkoutExecution[], todayISO: string, offsetWeeks = 0, changes?: PlanChanges): WeekDay[][] => {
   const starts = windowStarts(plan, todayISO, offsetWeeks);
   const weeks = starts.map((start) =>
     Array.from({ length: 7 }, (_, i) => {
       const dateISO = addDays(start, i);
-      return { dateISO, day: new Date(`${dateISO}T00:00:00`).getDate(), workouts: workoutsOnDate(plan, dateISO) };
+      return { dateISO, day: new Date(`${dateISO}T00:00:00`).getDate(), workouts: occurrencesOn(plan, dateISO, changes) };
     })
   );
 

@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { UserCheck } from "lucide-react";
 import { buildPlanWeeks, executionDay } from "@/lib/planSchedule";
 import { toLocalISO } from "@/lib/agendaStore";
+import { usePlanChanges } from "@/lib/planChanges";
 
 const Workouts = () => {
   const { user } = useAuth();
@@ -32,6 +33,7 @@ const Workouts = () => {
   const [adjAccompanied, setAdjAccompanied] = useState(false);
   const [adjTime, setAdjTime] = useState("");
   const [adjBusy, setAdjBusy] = useState(false);
+  const changes = usePlanChanges(plans ?? []);
 
   useEffect(() => {
     if (!clientId) return;
@@ -58,7 +60,7 @@ const Workouts = () => {
   const todayName = WEEKDAY_NAMES[new Date().getDay()];
 
   const todaySlots = plans.flatMap((plan) =>
-    buildPlanWeeks(plan, executions, todayISO)
+    buildPlanWeeks(plan, executions, todayISO, 0, changes)
       .flat()
       .filter((d) => d.dateISO === todayISO)
       .flatMap((d) => d.slots.map((slot) => ({ ...slot, plan })))
@@ -124,6 +126,7 @@ const Workouts = () => {
             executions={executions}
             todayISO={todayISO}
             slots={slots}
+            changes={changes}
             onPick={startWorkout}
             onCancel={() => setPickMode(false)}
           />
@@ -187,7 +190,7 @@ const Workouts = () => {
               <h2 className="font-semibold text-base sm:text-lg">Por planos</h2>
               <ViewToggle value={view} onChange={setView} />
             </div>
-            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} slots={slots} onAdjust={openAdjust} view={view} />
+            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} slots={slots} onAdjust={openAdjust} view={view} changes={changes} />
             <p className="text-xs text-muted-foreground mt-2">Toque em um treino para ajustar se ele é acompanhado e o horário (vale só para aquele dia).</p>
           </>
         )}

@@ -8,7 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Clock, User, Target, Play, ChevronRight, CalendarClock } from "lucide-react";
 import { Booking, fetchBookingsForStudent, toLocalISO } from "@/lib/agendaStore";
-import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent, workoutsOnDate } from "@/lib/planStore";
+import { Plan, WorkoutExecution, fetchExecutions, fetchPlansForStudent } from "@/lib/planStore";
+import { occurrencesOn, usePlanChanges } from "@/lib/planChanges";
 import { FocoCard } from "@/components/gamification/FocoCard";
 import { CelebrationHost } from "@/components/celebration/CelebrationHost";
 import { flushPending } from "@/lib/offlineQueue";
@@ -31,6 +32,7 @@ export const AthleteSummary = () => {
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const refreshGm = useRefreshGamification();
   const { data: gm } = useGmOverview();
+  const changes = usePlanChanges(plans);
 
   // Treinos feitos offline sobem quando houver internet (ao abrir o app e quando a conexão volta).
   useEffect(() => {
@@ -80,7 +82,7 @@ export const AthleteSummary = () => {
       const day = new Date();
       day.setDate(day.getDate() + i);
       const iso = toLocalISO(day);
-      const found = plans.flatMap((p) => workoutsOnDate(p, iso).map((w) => ({ workout: w, plan: p })));
+      const found = plans.flatMap((p) => occurrencesOn(p, iso, changes).map((w) => ({ workout: w, plan: p })));
       if (found.length > 0) return { ...found[0], daysAhead: i, date: day };
     }
     return null;
@@ -106,7 +108,7 @@ export const AthleteSummary = () => {
     const day = new Date(startOfWeek);
     day.setDate(day.getDate() + i);
     const iso = toLocalISO(day);
-    plannedThisWeek += plans.reduce((sum, p) => sum + workoutsOnDate(p, iso).length, 0);
+    plannedThisWeek += plans.reduce((sum, p) => sum + occurrencesOn(p, iso, changes).length, 0);
   }
   // Com a gamificação ativa, a semana vem do servidor (treinos planejados x feitos, sem contar treino extra).
   const serverWeek = gm && gm.week.planned > 0 ? gm.week : null;

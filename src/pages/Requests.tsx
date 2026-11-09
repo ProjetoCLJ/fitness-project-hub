@@ -1,14 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, CalendarClock, Check, UserPlus, X } from "lucide-react";
+import { ArrowRight, Bell, CalendarClock, Check, Plus, UserPlus, X, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppNotification, fetchNotifications, markNotificationRead } from "@/lib/eventStore";
 import { RequestItem, fetchRequestsForStudent, fetchRequestsForTrainer, respondToRequest } from "@/lib/requestsStore";
+import {
+  REQUEST_KIND_LABEL,
+  REQUEST_STATUS_LABEL,
+  RequesterRole,
+  WorkoutRequest,
+  fetchWorkoutRequests,
+  respondWorkoutRequest,
+  withdrawWorkoutRequest,
+} from "@/lib/workoutRequests";
+import { WEEKDAY_SHORT } from "@/lib/planStore";
+import { NewRequestDialog } from "@/components/requests/NewRequestDialog";
+import { AgendaPicker, PickedSlot } from "@/components/requests/AgendaPicker";
 
 const kindIcon = {
   invite: UserPlus,
@@ -17,23 +33,119 @@ const kindIcon = {
   reschedule: CalendarClock,
 } as const;
 
+const fmtWhen = (iso: string, time?: string | null) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${WEEKDAY_SHORT[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}${time ? ` às ${time}` : ""}`;
+};
+
+const statusStyle: Record<WorkoutRequest["status"], string> = {
+  pending: "border-amber-500/50 text-amber-600",
+  accepted: "border-green-500/50 text-green-600",
+  declined: "border-destructive/50 text-destructive",
+  countered: "border-primary/50 text-primary",
+  withdrawn: "border-border text-muted-foreground",
+};
+
+interface CardProps {
+  request: WorkoutRequest;
+  me: RequesterRole;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+  onCounter: () => void;
+  onWithdraw: () => void;
+}
+
+const WorkoutRequestCard = ({ request: r, me, busy, onAccept, onDecline, onCounter, onWithdraw }: CardProps) => {
+  const iRequested = r.requestedBy === me;
+  const counterpart = me === "trainer" ? r.studentName : r.trainerName;
+  const who = iRequested ? "Você pediu" : `${counterpart} pediu`;
+  const pending = r.status === "pending";
+  const Icon = r.kind === "cancel" ? XCircle : CalendarClock;
+
+  return (
+    <Card className="p-4 sm:p-5 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold">{REQUEST_KIND_LABEL[r.kind]}</p>
+            <Badge variant="outline" className={`text-xs ${statusStyle[r.status]}`}>
+              {pending && iRequested ? "Aguardando resposta" : REQUEST_STATUS_LABEL[r.status]}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {who} · {r.workoutName} · {counterpart}
+          </p>
+          <p className="text-sm flex flex-wrap items-center gap-x-2">
+            <span>{fmtWhen(r.fromDate)}</span>
+            {r.kind === "reschedule" && r.toDate && (
+              <>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                <strong>{fmtWhen(r.toDate, r.toStart)}</strong>
+              </>
+            )}
+            {r.kind === "cancel" && <span className="text-muted-foreground">(cancelar este dia)</span>}
+          </p>
+          {r.message && <p className="text-sm text-muted-foreground whitespace-pre-wrap">“{r.message}”</p>}
+          {r.responseMessage && !pending && <p className="text-sm text-muted-foreground whitespace-pre-wrap">Resposta: “{r.responseMessage}”</p>}
+        </div>
+      </div>
+
+      {pending && !iRequested && (
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button className="flex-1" size="sm" disabled={busy} onClick={onAccept}>
+            <Check className="h-4 w-4 mr-1" />
+            Aceitar
+          </Button>
+          <Button className="flex-1" size="sm" variant="outline" disabled={busy} onClick={onCounter}>
+            <CalendarClock className="h-4 w-4 mr-1" />
+            Propor outro horário
+          </Button>
+          <Button className="flex-1" size="sm" variant="outline" disabled={busy} onClick={onDecline}>
+            <X className="h-4 w-4 mr-1" />
+            Recusar
+          </Button>
+        </div>
+      )}
+      {pending && iRequested && (
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onWithdraw}>
+          Cancelar solicitação
+        </Button>
+      )}
+    </Card>
+  );
+};
+
 const Requests = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [items, setItems] = useState<RequestItem[]>([]);
+  const [requests, setRequests] = useState<WorkoutRequest[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const navigate = useNavigate();
+  const [newOpen, setNewOpen] = useState(false);
+  const [counter, setCounter] = useState<WorkoutRequest | null>(null);
+  const [counterSlot, setCounterSlot] = useState<PickedSlot | null>(null);
+  const [counterMsg, setCounterMsg] = useState("");
+  const [declining, setDeclining] = useState<WorkoutRequest | null>(null);
+  const [declineMsg, setDeclineMsg] = useState("");
+  const [tab, setTab] = useState("received");
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const [asTrainer, asStudent] = await Promise.all([
+      const [asTrainer, asStudent, workoutRequests] = await Promise.all([
         user.trainerId ? fetchRequestsForTrainer(user.trainerId) : Promise.resolve([]),
         fetchRequestsForStudent(user.studentId),
+        fetchWorkoutRequests(),
       ]);
       setItems([...asTrainer, ...asStudent].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      setRequests(workoutRequests);
     } catch {
       toast({ title: "Não foi possível carregar as solicitações", variant: "destructive" });
     } finally {
@@ -46,63 +158,92 @@ const Requests = () => {
     fetchNotifications(50).then(setNotifications).catch(() => setNotifications([]));
   }, [load]);
 
+  const myRole = useMemo(
+    () => (r: WorkoutRequest): RequesterRole => (user?.trainerId && r.trainerId === user.trainerId ? "trainer" : "student"),
+    [user]
+  );
+
   if (!user) return null;
 
-  const respond = async (item: RequestItem, accept: boolean) => {
-    setBusyId(item.id);
+  const receivedWorkout = requests.filter((r) => r.status === "pending" && r.requestedBy !== myRole(r));
+  const sent = requests.filter((r) => r.status === "pending" && r.requestedBy === myRole(r));
+  const history = requests.filter((r) => r.status !== "pending");
+  const receivedCount = receivedWorkout.length + items.length;
+
+  const run = async (id: string, action: () => Promise<void>, ok: string) => {
+    setBusyId(id);
     try {
-      await respondToRequest(item, accept);
-      toast({ title: accept ? "Solicitação aceita" : "Solicitação recusada" });
+      await action();
+      toast({ title: ok });
       await load();
-    } catch {
-      toast({ title: "Não foi possível responder", description: "Tente novamente.", variant: "destructive" });
+    } catch (e) {
+      toast({ title: "Não foi possível concluir", description: (e as Error).message, variant: "destructive" });
+      await load();
     } finally {
       setBusyId(null);
     }
   };
+
+  const respondLegacy = (item: RequestItem, accept: boolean) =>
+    run(item.id, () => respondToRequest(item, accept), accept ? "Solicitação aceita" : "Solicitação recusada");
+
+  const renderCard = (r: WorkoutRequest) => (
+    <WorkoutRequestCard
+      key={r.id}
+      request={r}
+      me={myRole(r)}
+      busy={busyId === r.id}
+      onAccept={() => run(r.id, () => respondWorkoutRequest(r.id, "accept"), "Solicitação aceita: o treino foi atualizado")}
+      onDecline={() => {
+        setDeclining(r);
+        setDeclineMsg("");
+      }}
+      onCounter={() => {
+        setCounter(r);
+        setCounterSlot(null);
+        setCounterMsg("");
+      }}
+      onWithdraw={() => run(r.id, () => withdrawWorkoutRequest(r.id), "Solicitação cancelada")}
+    />
+  );
+
+  const empty = (text: string) => (
+    <Card className="p-8 text-center text-sm text-muted-foreground">
+      <Bell className="h-8 w-8 mx-auto mb-3" />
+      {text}
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background">
       <Header onLoginClick={() => {}} />
 
       <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl">
-        <div className="mb-6">
-          <h1 className="text-xl sm:text-3xl font-bold">Solicitações</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Convites e pedidos que aguardam a sua resposta</p>
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold">Solicitações</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Pedidos de mudança de treino, convites e respostas</p>
+          </div>
+          <Button variant="hero" size="sm" onClick={() => setNewOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nova
+          </Button>
         </div>
 
-        {notifications.length > 0 && (
-          <div className="mb-8">
-            <h2 className="font-semibold text-base sm:text-lg mb-3">Notificações</h2>
-            <div className="space-y-2">
-              {notifications.map((n) => (
-                <Card
-                  key={n.id}
-                  className={`p-4 flex items-start gap-3 cursor-pointer hover:shadow-medium transition-smooth ${n.readAt ? "opacity-60" : ""}`}
-                  onClick={() => {
-                    markNotificationRead(n.id).catch(() => undefined);
-                    navigate(n.link ?? "/");
-                  }}
-                >
-                  <Bell className="h-4 w-4 mt-1 text-primary shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm">{n.title}</p>
-                    <p className="text-xs text-muted-foreground">{n.body}</p>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="received">
+              Recebidas
+              {receivedCount > 0 && <span className="ml-1.5 rounded-full bg-destructive px-1.5 text-[10px] leading-4 text-destructive-foreground">{receivedCount}</span>}
+            </TabsTrigger>
+            <TabsTrigger value="sent">Enviadas</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="notices">Avisos</TabsTrigger>
+          </TabsList>
 
-        <h2 className="font-semibold text-base sm:text-lg mb-3">Solicitações pendentes</h2>
-        {!isLoading && items.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            <Bell className="h-8 w-8 mx-auto mb-3" />
-            Nenhuma solicitação pendente.
-          </Card>
-        ) : (
-          <div className="space-y-3">
+          <TabsContent value="received" className="space-y-3">
+            {!isLoading && receivedCount === 0 && empty("Nenhuma solicitação aguardando a sua resposta.")}
+            {receivedWorkout.map(renderCard)}
             {items.map((item) => {
               const Icon = kindIcon[item.kind];
               return (
@@ -120,11 +261,11 @@ const Requests = () => {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button className="flex-1" size="sm" disabled={busyId === item.id} onClick={() => respond(item, true)}>
+                    <Button className="flex-1" size="sm" disabled={busyId === item.id} onClick={() => respondLegacy(item, true)}>
                       <Check className="h-4 w-4 mr-1" />
                       Aceitar
                     </Button>
-                    <Button className="flex-1" size="sm" variant="outline" disabled={busyId === item.id} onClick={() => respond(item, false)}>
+                    <Button className="flex-1" size="sm" variant="outline" disabled={busyId === item.id} onClick={() => respondLegacy(item, false)}>
                       <X className="h-4 w-4 mr-1" />
                       Recusar
                     </Button>
@@ -132,9 +273,109 @@ const Requests = () => {
                 </Card>
               );
             })}
-          </div>
-        )}
+          </TabsContent>
+
+          <TabsContent value="sent" className="space-y-3">
+            {!isLoading && sent.length === 0 && empty("Você não tem solicitações enviadas aguardando resposta.")}
+            {sent.map(renderCard)}
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-3">
+            {!isLoading && history.length === 0 && empty("O histórico de solicitações aparece aqui.")}
+            {history.map(renderCard)}
+          </TabsContent>
+
+          <TabsContent value="notices" className="space-y-2">
+            {notifications.length === 0 && empty("Nenhum aviso por enquanto.")}
+            {notifications.map((n) => (
+              <Card
+                key={n.id}
+                className={`p-4 flex items-start gap-3 cursor-pointer hover:shadow-medium transition-smooth ${n.readAt ? "opacity-60" : ""}`}
+                onClick={() => {
+                  markNotificationRead(n.id).catch(() => undefined);
+                  navigate(n.link ?? "/");
+                }}
+              >
+                <Bell className="h-4 w-4 mt-1 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{n.title}</p>
+                  <p className="text-xs text-muted-foreground">{n.body}</p>
+                </div>
+              </Card>
+            ))}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <NewRequestDialog open={newOpen} onOpenChange={setNewOpen} requests={requests} onCreated={load} />
+
+      {/* Propor outro horário */}
+      <Dialog open={!!counter} onOpenChange={(open) => !open && setCounter(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Propor outro horário</DialogTitle>
+            <DialogDescription>
+              {counter ? `${counter.workoutName} · treino de ${fmtWhen(counter.fromDate)}. Escolha um horário livre na agenda.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {counter && (
+            <div className="space-y-4">
+              <AgendaPicker
+                trainerId={counter.trainerId}
+                value={counterSlot}
+                onChange={setCounterSlot}
+                exclude={{ workoutId: counter.workoutId, date: counter.fromDate, requestId: counter.id }}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="counter-msg">Mensagem (opcional)</Label>
+                <Textarea id="counter-msg" rows={2} value={counterMsg} onChange={(e) => setCounterMsg(e.target.value)} />
+              </div>
+              <Button
+                variant="hero"
+                className="w-full"
+                disabled={!counterSlot || busyId === counter.id}
+                onClick={async () => {
+                  if (!counterSlot) return;
+                  const target = counter;
+                  await run(
+                    target.id,
+                    () => respondWorkoutRequest(target.id, "counter", { toDate: counterSlot.date, toStart: counterSlot.start, message: counterMsg }),
+                    "Proposta enviada"
+                  );
+                  setCounter(null);
+                }}
+              >
+                Enviar proposta
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Recusar */}
+      <Dialog open={!!declining} onOpenChange={(open) => !open && setDeclining(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recusar solicitação</DialogTitle>
+            <DialogDescription>O treino continua como está. Se quiser, explique o motivo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea rows={3} value={declineMsg} onChange={(e) => setDeclineMsg(e.target.value)} placeholder="Motivo (opcional)" />
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={async () => {
+                const target = declining;
+                if (!target) return;
+                await run(target.id, () => respondWorkoutRequest(target.id, "decline", { message: declineMsg }), "Solicitação recusada");
+                setDeclining(null);
+              }}
+            >
+              Recusar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

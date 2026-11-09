@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Sheet,
   SheetContent,
@@ -21,10 +22,13 @@ import {
   Wallet,
   CalendarHeart,
   Medal,
+  Inbox,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { FEATURES } from "@/lib/features";
+import { fetchWorkoutRequests } from "@/lib/workoutRequests";
+import { fetchRequestsForStudent, fetchRequestsForTrainer } from "@/lib/requestsStore";
 
 interface SideMenuProps {
   onLoginClick: () => void;
@@ -49,6 +53,7 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     ...(FEATURES.professionalSearch ? [{ label: "Profissionais", icon: Search, path: "/trainers" }] : []),
     { label: "Desafios", icon: Trophy, path: "/dashboard/student/challenges" },
     ...(FEATURES.events ? [{ label: "Eventos", icon: CalendarHeart, path: "/eventos" }] : []),
+    { label: "Solicitações", icon: Inbox, path: "/dashboard/student/requests" },
   ];
 
   // O profissional também é atleta: seção própria com as abas de aluno (Desafios e Eventos já estão na seção profissional).
@@ -64,10 +69,28 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
     { label: "Agenda", icon: CalendarDays, path: "/dashboard/trainer/agenda" },
     { label: "Financeiro", icon: Wallet, path: "/dashboard/trainer/financial" },
     { label: "Desafios", icon: Trophy, path: "/dashboard/trainer/challenges" },
+    { label: "Solicitações", icon: Inbox, path: "/dashboard/trainer/requests" },
     ...(FEATURES.events ? [{ label: "Eventos", icon: CalendarHeart, path: "/eventos" }] : []),
   ];
 
   const isTrainer = user?.userType === "trainer";
+
+  // Solicitações aguardando a minha resposta (só consulta quando o menu abre).
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ["requests-badge", user?.id, open],
+    enabled: !!user && open,
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!user) return 0;
+      const [workout, asTrainer, asStudent] = await Promise.all([
+        fetchWorkoutRequests().catch(() => []),
+        user.trainerId ? fetchRequestsForTrainer(user.trainerId).catch(() => []) : Promise.resolve([]),
+        fetchRequestsForStudent(user.studentId).catch(() => []),
+      ]);
+      const mine = workout.filter((r) => r.status === "pending" && r.requestedBy !== (user.trainerId && r.trainerId === user.trainerId ? "trainer" : "student"));
+      return mine.length + asTrainer.length + asStudent.length;
+    },
+  });
   const links = isTrainer ? trainerLinks : clientLinks;
 
   return (
@@ -99,6 +122,9 @@ export const SideMenu = ({ onLoginClick, triggerClassName }: SideMenuProps) => {
                 >
                   <link.icon className="h-4 w-4" />
                   {link.label}
+                  {link.label === "Solicitações" && pendingCount > 0 && (
+                    <span className="ml-auto rounded-full bg-destructive px-1.5 text-[10px] leading-4 text-destructive-foreground">{pendingCount}</span>
+                  )}
                 </Button>
               ))}
               {isTrainer && (

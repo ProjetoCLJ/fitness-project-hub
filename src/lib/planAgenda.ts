@@ -1,5 +1,6 @@
 import { LinkedStudent, ScheduleEvent, toLocalISO } from "@/lib/agendaStore";
-import { Plan, SlotInfo, fetchPlansForTrainer, fetchSlotsForPlans, workoutsOnDate } from "@/lib/planStore";
+import { Plan, SlotInfo, fetchPlansForTrainer, fetchSlotsForPlans } from "@/lib/planStore";
+import { PlanChanges, fetchPlanChanges, occurrencesOn } from "@/lib/planChanges";
 
 /** Duração padrão de um treino acompanhado na agenda. */
 export const ACCOMPANIED_MINUTES = 60;
@@ -28,14 +29,15 @@ export const buildAccompaniedEvents = (
   slots: PlanSlot[],
   studentNames: Map<string, string>,
   fromISO: string,
-  days: number
+  days: number,
+  changes?: PlanChanges
 ): ScheduleEvent[] => {
   const slotByKey = new Map(slots.map((s) => [`${s.planId}|${s.workoutId}|${s.date}`, s]));
   const events: ScheduleEvent[] = [];
   for (let i = 0; i < days; i++) {
     const date = addDaysISO(fromISO, i);
     for (const plan of plans) {
-      for (const workout of workoutsOnDate(plan, date)) {
+      for (const workout of occurrencesOn(plan, date, changes)) {
         const slot = slotByKey.get(`${plan.id}|${workout.id}|${date}`);
         const accompanied = slot ? slot.accompanied : workout.accompanied;
         const start = slot ? slot.startTime ?? workout.startTime : workout.startTime;
@@ -69,6 +71,7 @@ export const fetchAccompaniedEvents = async (trainerId: string, students: Linked
   if (plans.length === 0) return [];
   const today = toLocalISO(new Date());
   const to = addDaysISO(today, days);
-  const slots = await fetchSlotsForPlans(plans.map((p) => p.id), today, to);
-  return buildAccompaniedEvents(trainerId, plans, slots, new Map(students.map((s) => [s.studentId, s.name])), today, days);
+  const planIds = plans.map((p) => p.id);
+  const [slots, changes] = await Promise.all([fetchSlotsForPlans(planIds, today, to), fetchPlanChanges(planIds, today, to)]);
+  return buildAccompaniedEvents(trainerId, plans, slots, new Map(students.map((s) => [s.studentId, s.name])), today, days, changes);
 };

@@ -10,8 +10,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, Bell, CalendarClock, Check, Plus, UserPlus, X, XCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { AppNotification, fetchNotifications, markNotificationRead } from "@/lib/eventStore";
 import { RequestItem, fetchRequestsForStudent, fetchRequestsForTrainer, respondToRequest } from "@/lib/requestsStore";
 import {
   REQUEST_KIND_LABEL,
@@ -138,10 +136,8 @@ const WorkoutRequestCard = ({ request: r, me, busy, onAccept, onDecline, onCount
 const Requests = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [items, setItems] = useState<RequestItem[]>([]);
   const [requests, setRequests] = useState<WorkoutRequest[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
@@ -173,7 +169,6 @@ const Requests = () => {
 
   useEffect(() => {
     load();
-    fetchNotifications(50).then(setNotifications).catch(() => setNotifications([]));
   }, [load]);
 
   const myRole = useMemo(
@@ -185,7 +180,8 @@ const Requests = () => {
 
   const receivedWorkout = requests.filter((r) => r.status === "pending" && r.requestedBy !== myRole(r));
   const sent = requests.filter((r) => r.status === "pending" && r.requestedBy === myRole(r));
-  const history = requests.filter((r) => r.status !== "pending");
+  const receivedHistory = requests.filter((r) => r.status !== "pending" && r.requestedBy !== myRole(r));
+  const sentHistory = requests.filter((r) => r.status !== "pending" && r.requestedBy === myRole(r));
   const receivedCount = receivedWorkout.length + items.length;
 
   const run = async (id: string, action: () => Promise<void>, ok: string) => {
@@ -253,17 +249,26 @@ const Requests = () => {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="sent">Enviadas</TabsTrigger>
             <TabsTrigger value="received">
               Recebidas
               {receivedCount > 0 && <span className="ml-1.5 rounded-full bg-destructive px-1.5 text-[10px] leading-4 text-destructive-foreground">{receivedCount}</span>}
             </TabsTrigger>
-            <TabsTrigger value="sent">Enviadas</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-            <TabsTrigger value="notices">Avisos</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="sent" className="space-y-3">
+            <h2 className="font-semibold text-base sm:text-lg">Aguardando resposta</h2>
+            {!isLoading && sent.length === 0 && empty("Você não tem solicitações enviadas aguardando resposta.")}
+            {sent.map(renderCard)}
+
+            <h2 className="font-semibold text-base sm:text-lg pt-4">Histórico</h2>
+            {!isLoading && sentHistory.length === 0 && empty("As solicitações que você enviou e já foram respondidas aparecem aqui.")}
+            {sentHistory.map(renderCard)}
+          </TabsContent>
+
           <TabsContent value="received" className="space-y-3">
+            <h2 className="font-semibold text-base sm:text-lg">Aguardando sua resposta</h2>
             {!isLoading && receivedCount === 0 && empty("Nenhuma solicitação aguardando a sua resposta.")}
             {receivedWorkout.map(renderCard)}
             {items.map((item) => {
@@ -295,36 +300,10 @@ const Requests = () => {
                 </Card>
               );
             })}
-          </TabsContent>
 
-          <TabsContent value="sent" className="space-y-3">
-            {!isLoading && sent.length === 0 && empty("Você não tem solicitações enviadas aguardando resposta.")}
-            {sent.map(renderCard)}
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-3">
-            {!isLoading && history.length === 0 && empty("O histórico de solicitações aparece aqui.")}
-            {history.map(renderCard)}
-          </TabsContent>
-
-          <TabsContent value="notices" className="space-y-2">
-            {notifications.length === 0 && empty("Nenhum aviso por enquanto.")}
-            {notifications.map((n) => (
-              <Card
-                key={n.id}
-                className={`p-4 flex items-start gap-3 cursor-pointer hover:shadow-medium transition-smooth ${n.readAt ? "opacity-60" : ""}`}
-                onClick={() => {
-                  markNotificationRead(n.id).catch(() => undefined);
-                  navigate(n.link ?? "/");
-                }}
-              >
-                <Bell className="h-4 w-4 mt-1 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-medium text-sm">{n.title}</p>
-                  <p className="text-xs text-muted-foreground">{n.body}</p>
-                </div>
-              </Card>
-            ))}
+            <h2 className="font-semibold text-base sm:text-lg pt-4">Histórico</h2>
+            {!isLoading && receivedHistory.length === 0 && empty("As solicitações que você recebeu e já respondeu aparecem aqui.")}
+            {receivedHistory.map(renderCard)}
           </TabsContent>
         </Tabs>
       </div>

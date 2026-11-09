@@ -119,7 +119,8 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
     });
   };
 
-  const canSave = draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0);
+  const needsTime = canAccompany && draft.accompanied && !draft.startTime;
+  const canSave = draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0) && !needsTime;
 
   const handleSave = async () => {
     setIsBusy(true);
@@ -180,7 +181,7 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
                   <Label htmlFor="workout-accompanied" className="font-medium">
                     Acompanhado por mim
                   </Label>
-                  <p className="text-xs text-muted-foreground">Marque os treinos do ciclo em que você acompanha o aluno.</p>
+                  <p className="text-xs text-muted-foreground">Marque os treinos em que você acompanha o aluno. Eles aparecem na sua agenda no horário abaixo.</p>
                 </div>
                 <Switch id="workout-accompanied" checked={draft.accompanied} onCheckedChange={(v) => setDraft((prev) => ({ ...prev, accompanied: v }))} />
               </div>
@@ -197,6 +198,7 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
                 onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value }))}
               />
             </div>
+            {needsTime && <p className="text-xs text-destructive">Informe o horário para o treino aparecer na sua agenda.</p>}
           </div>
 
           <datalist id="exercise-suggestions">

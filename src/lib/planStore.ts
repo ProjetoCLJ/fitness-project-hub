@@ -267,6 +267,15 @@ export const fetchPlansForStudent = async (studentId: string): Promise<Plan[]> =
   return ((data ?? []) as unknown as PlanRow[]).map(mapPlan);
 };
 
+/** Planos ativos criados por um profissional (para a agenda dele). */
+export const fetchPlansForTrainer = async (trainerId: string): Promise<Plan[]> => {
+  const query = (select: string) => db.from("plans").select(select).eq("trainer_id", trainerId).order("created_at", { ascending: false });
+  let { data, error } = await query(PLAN_SELECT);
+  if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT_LEGACY));
+  if (error) throw error;
+  return ((data ?? []) as unknown as PlanRow[]).map(mapPlan).filter((p) => p.status === "active");
+};
+
 // ---------- Escrita de planos ----------
 
 export interface PlanInput {
@@ -655,6 +664,30 @@ export const fetchSlots = async (studentId: string, fromISO: string, toISO: stri
     .filter((r) => r.workout_id)
     .map((r) => ({
       id: r.id,
+      workoutId: r.workout_id as string,
+      date: r.planned_date,
+      accompanied: !!r.accompanied,
+      startTime: r.start_time ? r.start_time.slice(0, 5) : null,
+      status: r.status,
+    }));
+};
+
+/** Treinos planejados de vários planos (agenda do profissional). Vazio se o banco ainda não permite a leitura. */
+export const fetchSlotsForPlans = async (planIds: string[], fromISO: string, toISO: string): Promise<(SlotInfo & { planId: string; studentId: string })[]> => {
+  if (planIds.length === 0) return [];
+  const { data, error } = await db
+    .from("planned_slots")
+    .select("id, plan_id, student_id, workout_id, planned_date, accompanied, start_time, status")
+    .in("plan_id", planIds)
+    .gte("planned_date", fromISO)
+    .lte("planned_date", toISO);
+  if (error) return [];
+  return ((data ?? []) as { id: string; plan_id: string; student_id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; status: SlotInfo["status"] }[])
+    .filter((r) => r.workout_id)
+    .map((r) => ({
+      id: r.id,
+      planId: r.plan_id,
+      studentId: r.student_id,
       workoutId: r.workout_id as string,
       date: r.planned_date,
       accompanied: !!r.accompanied,

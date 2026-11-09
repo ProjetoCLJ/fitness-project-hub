@@ -17,6 +17,7 @@ import { ScheduleEvent, countAvailableSlots, eventTitle, fetchLinkedStudents, fe
 import { fetchRequestsForTrainer } from "@/lib/requestsStore";
 import { computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
 import { AdherencePanel } from "@/components/gamification/AdherencePanel";
+import { fetchAccompaniedEvents } from "@/lib/planAgenda";
 import { AthleteSummary } from "@/components/athlete/AthleteSummary";
 
 const formatDate = (dateISO: string) =>
@@ -57,6 +58,7 @@ const ProHome = () => {
           fetchRequestsForTrainer(user.id),
           fetchBasePrice(user.id),
         ]);
+        const accompanied = await fetchAccompaniedEvents(user.id, students, 30).catch(() => []);
         const revenue = computeMonthRevenue(events, students, basePrice);
         setSummary({
           activeClients: students.length,
@@ -64,7 +66,7 @@ const ProHome = () => {
           availableSlotsWeek: countAvailableSlots(events, 7),
           previsto: revenue.previsto,
           possivel: revenue.possivel,
-          upcoming: upcomingOccurrences(events, 30),
+          upcoming: upcomingOccurrences([...events, ...accompanied], 30),
         });
       } catch {
         setSummary(emptySummary);

@@ -33,6 +33,8 @@ export interface ScheduleEvent {
   bookingId?: string;
   /** Só expediente: aparece na busca/agendamento de novos alunos. */
   publicVisible: boolean;
+  /** Treino acompanhado vindo de um plano (não é editado na agenda: abre o aluno). */
+  fromPlan?: { studentId: string; planId: string; workoutName: string };
 }
 
 export interface ScheduleEventInput {
@@ -103,7 +105,11 @@ const addDaysISO = (dateISO: string, days: number) => {
 export const toLocalISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export const eventTitle = (event: Pick<ScheduleEvent, "type" | "title" | "studentNames">): string => {
+export const eventTitle = (event: Pick<ScheduleEvent, "type" | "title" | "studentNames"> & { fromPlan?: ScheduleEvent["fromPlan"] }): string => {
+  if ("fromPlan" in event && event.fromPlan) {
+    const name = event.studentNames.filter(Boolean)[0] ?? "Aluno";
+    return `${event.fromPlan.workoutName} - ${name}`;
+  }
   if (event.type === "aula") {
     const names = event.studentNames.filter(Boolean);
     if (names.length === 0) return "Aula";

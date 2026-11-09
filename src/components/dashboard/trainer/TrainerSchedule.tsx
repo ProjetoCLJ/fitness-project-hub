@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchAccompaniedEvents } from "@/lib/planAgenda";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -73,6 +75,7 @@ interface SlotContext {
 
 const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: TrainerScheduleProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [students, setStudents] = useState<LinkedStudent[]>([]);
@@ -92,7 +95,9 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
         fetchLinkedStudents(trainerId),
         fetchHiddenSlots(trainerId).catch(() => new Set<string>()),
       ]);
-      setEvents(loadedEvents);
+      // Treinos acompanhados dos planos entram na agenda (somente leitura).
+      const accompanied = await fetchAccompaniedEvents(trainerId, loadedStudents).catch(() => []);
+      setEvents([...loadedEvents, ...accompanied]);
       setStudents(loadedStudents);
       setHidden(loadedHidden);
     } catch {
@@ -112,6 +117,10 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
   };
 
   const openSlot = (slot: ScheduleSlot) => {
+    if (slot.event?.fromPlan) {
+      navigate(`/dashboard/trainer/clients/${slot.event.fromPlan.studentId}`);
+      return;
+    }
     if (slot.event?.type === "expediente") {
       setContext({ date: dateISO, start: slot.start, end: slot.end, expedienteEvent: slot.event, defaultType: "aula" });
     } else {

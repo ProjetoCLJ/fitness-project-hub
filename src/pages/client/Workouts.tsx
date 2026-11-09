@@ -3,11 +3,12 @@ import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PlanWeeks } from "@/components/plan/PlanWeeks";
+import { PlanWeeks, PlansView, ViewToggle } from "@/components/plan/PlanWeeks";
+import { AdvanceWorkouts } from "@/components/plan/AdvanceWorkouts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, History, Flame, ListChecks, Plus, Shuffle, X } from "lucide-react";
+import { CheckCircle2, History, Flame, ListChecks, Plus, Shuffle } from "lucide-react";
 import { Plan, SlotInfo, Workout, WorkoutExecution, WEEKDAY_NAMES, fetchExecutions, fetchPlansForStudent, fetchSlots, setSlotOptions } from "@/lib/planStore";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +26,7 @@ const Workouts = () => {
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
   const [pickMode, setPickMode] = useState(false);
+  const [view, setView] = useState<PlansView>("weeks");
   const [slots, setSlots] = useState<SlotInfo[]>([]);
   const [adjust, setAdjust] = useState<{ workout: Workout; plan: Plan; slot: SlotInfo } | null>(null);
   const [adjAccompanied, setAdjAccompanied] = useState(false);
@@ -117,16 +119,14 @@ const Workouts = () => {
             </Button>
           </Card>
         ) : pickMode ? (
-          <>
-            <Card className="p-4 mb-4 flex items-center justify-between gap-3 border-primary/40">
-              <p className="text-sm">Escolha o treino que você quer fazer hoje.</p>
-              <Button variant="ghost" size="sm" onClick={() => setPickMode(false)}>
-                <X className="h-4 w-4 mr-1" />
-                Cancelar
-              </Button>
-            </Card>
-            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} pickMode onPick={startWorkout} />
-          </>
+          <AdvanceWorkouts
+            plans={plans}
+            executions={executions}
+            todayISO={todayISO}
+            slots={slots}
+            onPick={startWorkout}
+            onCancel={() => setPickMode(false)}
+          />
         ) : (
           <>
             <h2 className="font-semibold text-base sm:text-lg mb-3">Treino de hoje</h2>
@@ -183,9 +183,12 @@ const Workouts = () => {
               Adiantar ou trocar treino
             </Button>
 
-            <h2 className="font-semibold text-base sm:text-lg mb-3">Seus planos</h2>
-            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} slots={slots} onAdjust={openAdjust} />
-            <p className="text-xs text-muted-foreground mt-2">Toque em um treino da semana para ajustar se ele é acompanhado e o horário (vale só para aquele dia).</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="font-semibold text-base sm:text-lg">Por planos</h2>
+              <ViewToggle value={view} onChange={setView} />
+            </div>
+            <PlanWeeks plans={plans} executions={executions} todayISO={todayISO} slots={slots} onAdjust={openAdjust} view={view} />
+            <p className="text-xs text-muted-foreground mt-2">Toque em um treino para ajustar se ele é acompanhado e o horário (vale só para aquele dia).</p>
           </>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,10 @@ interface PlanDetailProps {
   onChanged: () => void | Promise<void>;
   /** Quem pode editar a estrutura: o profissional do plano ou o próprio atleta (plano próprio). */
   canEdit?: boolean;
+  /** Conteúdo extra no fim da aba Descrição (ex.: ações do plano do aluno). */
+  descriptionExtra?: ReactNode;
+  /** Visão do aluno no topo da aba Treinos (treino de hoje, semanas/lista). */
+  workoutsTop?: ReactNode;
 }
 
 const formatDate = (iso: string) =>
@@ -40,7 +44,7 @@ interface EditorTarget {
   workoutDate: string | null;
 }
 
-export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDetailProps) => {
+export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptionExtra, workoutsTop }: PlanDetailProps) => {
   const { toast } = useToast();
   const readOnly = plan.status !== "active" || !canEdit;
   const [editor, setEditor] = useState<EditorTarget | null>(null);
@@ -159,7 +163,7 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
           <TabsTrigger value="workouts">Treinos</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="description">
+        <TabsContent value="description" className="space-y-4">
           <Card className="p-4 sm:p-6 space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Título</p>
@@ -212,10 +216,13 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
               </div>
             )}
           </Card>
+          {descriptionExtra}
         </TabsContent>
 
         <TabsContent value="workouts" className="space-y-3">
-          {plan.cycleWeeks ? (
+          {workoutsTop}
+          {workoutsTop && !readOnly && <h3 className="font-semibold text-base sm:text-lg pt-2">Editar treinos</h3>}
+          {(!workoutsTop || !readOnly) && (plan.cycleWeeks ? (
             <>
               <p className="text-xs text-muted-foreground">
                 Ciclo de {plan.cycleWeeks} {plan.cycleWeeks === 1 ? "semana" : "semanas"}: a rotina abaixo se repete a cada ciclo. Clique num dia para criar ou editar o treino.
@@ -272,7 +279,7 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true }: PlanDeta
                 )}
               </div>
             </>
-          )}
+          ))}
         </TabsContent>
       </Tabs>
 

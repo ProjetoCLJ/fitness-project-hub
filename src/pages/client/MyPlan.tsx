@@ -8,9 +8,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRight, History, Plus, Copy, Pause, Play, Dumbbell } from "lucide-react";
-import { Plan, PlanInput, copyPlanAsOwn, createPlan, fetchPlansForStudent, pausePlan, resumePlan } from "@/lib/planStore";
+import { Plan, PlanInput, WorkoutExecution, copyPlanAsOwn, createPlan, fetchExecutions, fetchPlansForStudent, pausePlan, resumePlan } from "@/lib/planStore";
 import { NewPlanDialog } from "@/components/plan/NewPlanDialog";
 import { PlanDetail } from "@/components/plan/PlanDetail";
+import { PlanWorkoutsView } from "@/components/plan/PlanWorkoutsView";
 import { sportLabel } from "@/lib/sports";
 import { toLocalISO } from "@/lib/agendaStore";
 
@@ -38,12 +39,14 @@ const MyPlan = () => {
   const [newOpen, setNewOpen] = useState(false);
   const [pauseTarget, setPauseTarget] = useState<Plan | null>(null);
   const [busy, setBusy] = useState(false);
+  const [executions, setExecutions] = useState<WorkoutExecution[]>([]);
 
   const load = useCallback(async () => {
     if (!clientId) return;
     try {
       const all = await fetchPlansForStudent(clientId);
       setPlans(all.filter((p) => p.status === "active"));
+      fetchExecutions(clientId).then(setExecutions).catch(() => setExecutions([]));
     } catch {
       setPlans([]);
       toast({ title: "Não foi possível carregar seus planos", variant: "destructive" });
@@ -125,49 +128,61 @@ const MyPlan = () => {
 
       <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-4">
         {selected ? (
-          <>
-            <PlanDetail plan={selected} canEdit={!selected.trainerId} onBack={() => setParams({}, { replace: true })} onChanged={load} />
-
-            {/* Ações do plano (antes ficavam na lista) */}
-            {(() => {
-              const pause = openPause(selected);
-              const pausedNow = !!pause && pause.startsOn <= today;
-              const own = !selected.trainerId;
-              return (
-                <Card className="p-4 sm:p-6 space-y-3">
-                  <h3 className="font-semibold">Ações do plano</h3>
-                  {pause && (
-                    <p className="text-sm text-muted-foreground">
-                      {pausedNow ? "Este plano está pausado." : `Pausa agendada para ${formatDate(pause.startsOn)}.`}
-                    </p>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <Button variant="hero" onClick={() => navigate("/dashboard/student/workouts")}>
-                      <Dumbbell className="h-4 w-4 mr-1" />
-                      Treinar
+          (() => {
+            const pause = openPause(selected);
+            const pausedNow = !!pause && pause.startsOn <= today;
+            const own = !selected.trainerId;
+            const actions = (
+              <Card className="p-4 sm:p-6 space-y-3">
+                <h3 className="font-semibold">Ações do plano</h3>
+                {pause && (
+                  <p className="text-sm text-muted-foreground">
+                    {pausedNow ? "Este plano está pausado." : `Pausa agendada para ${formatDate(pause.startsOn)}.`}
+                  </p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button variant="hero" onClick={() => navigate("/dashboard/student/workouts")}>
+                    <Dumbbell className="h-4 w-4 mr-1" />
+                    Treinar
+                  </Button>
+                  {pause ? (
+                    <Button variant="outline" disabled={busy} onClick={() => resume(selected)}>
+                      <Play className="h-4 w-4 mr-1" />
+                      {pausedNow ? "Retomar plano" : "Cancelar pausa"}
                     </Button>
-                    {pause ? (
-                      <Button variant="outline" disabled={busy} onClick={() => resume(selected)}>
-                        <Play className="h-4 w-4 mr-1" />
-                        {pausedNow ? "Retomar plano" : "Cancelar pausa"}
-                      </Button>
-                    ) : (
-                      <Button variant="outline" disabled={busy} onClick={() => setPauseTarget(selected)}>
-                        <Pause className="h-4 w-4 mr-1" />
-                        Pausar plano
-                      </Button>
-                    )}
-                    {!own && (
-                      <Button variant="outline" disabled={busy} onClick={() => handleCopy(selected)} className="sm:col-span-2">
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copiar como meu plano
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              );
-            })()}
-          </>
+                  ) : (
+                    <Button variant="outline" disabled={busy} onClick={() => setPauseTarget(selected)}>
+                      <Pause className="h-4 w-4 mr-1" />
+                      Pausar plano
+                    </Button>
+                  )}
+                  {!own && (
+                    <Button variant="outline" disabled={busy} onClick={() => handleCopy(selected)} className="sm:col-span-2">
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copiar como meu plano
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            );
+            return (
+              <PlanDetail
+                plan={selected}
+                canEdit={own}
+                onBack={() => setParams({}, { replace: true })}
+                onChanged={load}
+                descriptionExtra={actions}
+                workoutsTop={
+                  <PlanWorkoutsView
+                    plan={selected}
+                    executions={executions}
+                    todayISO={today}
+                    onStart={(w) => navigate(`/dashboard/student/workouts/session/${w.id}`)}
+                  />
+                }
+              />
+            );
+          })()
         ) : (
           <>
             <div className="flex items-center justify-between gap-2">

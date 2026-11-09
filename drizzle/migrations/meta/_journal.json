@@ -134,6 +134,13 @@
       "when": 1794250005698,
       "tag": "0018_agenda_treinos_acompanhados",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794250085629,
+      "tag": "0019_solicitacoes_treinos",
+      "breakpoints": true
     }
   ]
 }

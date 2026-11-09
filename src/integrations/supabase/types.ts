@@ -1403,6 +1403,8 @@ export type Database = {
           effort: number | null
           exercise_log_id: string
           id: string
+          planned_reps: string | null
+          planned_weight: string | null
           reps: string | null
           set_number: number
           weight: string | null
@@ -1411,6 +1413,8 @@ export type Database = {
           effort?: number | null
           exercise_log_id: string
           id?: string
+          planned_reps?: string | null
+          planned_weight?: string | null
           reps?: string | null
           set_number: number
           weight?: string | null
@@ -1419,6 +1423,8 @@ export type Database = {
           effort?: number | null
           exercise_log_id?: string
           id?: string
+          planned_reps?: string | null
+          planned_weight?: string | null
           reps?: string | null
           set_number?: number
           weight?: string | null
@@ -1763,6 +1769,7 @@ export type Database = {
           is_valid: boolean
           observations: string | null
           plan_id: string | null
+          recorded_by_trainer: boolean
           slot_id: string | null
           source: string
           sport: string | null
@@ -1781,6 +1788,7 @@ export type Database = {
           is_valid?: boolean
           observations?: string | null
           plan_id?: string | null
+          recorded_by_trainer?: boolean
           slot_id?: string | null
           source?: string
           sport?: string | null
@@ -1799,6 +1807,7 @@ export type Database = {
           is_valid?: boolean
           observations?: string | null
           plan_id?: string | null
+          recorded_by_trainer?: boolean
           slot_id?: string | null
           source?: string
           sport?: string | null
@@ -1839,6 +1848,7 @@ export type Database = {
           order_index: number | null
           reps: string | null
           rest: string | null
+          set_plan: Json | null
           sets: number | null
           superset_group: string | null
           workout_id: string
@@ -1850,6 +1860,7 @@ export type Database = {
           order_index?: number | null
           reps?: string | null
           rest?: string | null
+          set_plan?: Json | null
           sets?: number | null
           superset_group?: string | null
           workout_id: string
@@ -1861,6 +1872,7 @@ export type Database = {
           order_index?: number | null
           reps?: string | null
           rest?: string | null
+          set_plan?: Json | null
           sets?: number | null
           superset_group?: string | null
           workout_id?: string
@@ -2144,6 +2156,10 @@ export type Database = {
       }
       today_brt: { Args: never; Returns: string }
       trainer_adherence: { Args: never; Returns: Json }
+      trainer_can_record: {
+        Args: { _student: string; _workout: string }
+        Returns: boolean
+      }
       trainer_has_relation_with_profile: {
         Args: { p_profile_id: string }
         Returns: boolean
@@ -2152,6 +2168,7 @@ export type Database = {
         Args: { p_student_id: string }
         Returns: boolean
       }
+      trainer_owns_execution: { Args: { _execution: string }; Returns: boolean }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "rejected" | "suggested"

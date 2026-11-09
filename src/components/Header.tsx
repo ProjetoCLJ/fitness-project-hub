@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { SideMenu } from "@/components/SideMenu";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PausedWorkoutBar } from "@/components/plan/PausedWorkoutBar";
+import { useActiveWorkout } from "@/lib/activeWorkout";
 import logo from "@/assets/logo/logo-header.png";
 
 interface HeaderProps {
@@ -18,6 +20,9 @@ interface HeaderProps {
 
 export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false, hideLogin = false }: HeaderProps) => {
   const { isAuthenticated } = useAuth();
+  const active = useActiveWorkout();
+  // Durante o treino em andamento, menu e notificações ficam ocultos (pausado, volta ao normal).
+  const training = !!active && active.pausedAt === null;
   const [scrolled, setScrolled] = useState(!transparentOnTop);
 
   useEffect(() => {
@@ -41,7 +46,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">
-            {!minimal && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
+            {!minimal && !training && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
           </div>
 
           {minimal ? (
@@ -59,7 +64,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
           )}
 
           <div className="justify-self-end">
-            {isAuthenticated && !minimal && !transparentOnTop && <NotificationBell className="text-white hover:bg-white/10 hover:text-white" />}
+            {isAuthenticated && !minimal && !training && !transparentOnTop && <NotificationBell className="text-white hover:bg-white/10 hover:text-white" />}
             {!isAuthenticated && !minimal && !hideLogin && (
               <Button
                 onClick={onLoginClick}
@@ -72,6 +77,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
           </div>
         </div>
       </div>
+      {isAuthenticated && !minimal && <PausedWorkoutBar />}
     </header>
   );
 };

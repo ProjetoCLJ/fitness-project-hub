@@ -233,7 +233,7 @@ const Index = () => {
       </section>
 
       {/* 3. BLOCO SÓLIDO — GAMIFICAÇÃO */}
-      <section className="py-16 sm:py-24 bg-primary text-primary-foreground">
+      <section className="py-16 sm:py-24 bg-[hsl(142_76%_22%)] text-white">
         <div className="container mx-auto px-4">
           <div className="text-center">
             <h2 className="text-3xl sm:text-5xl font-bold mb-4 max-w-2xl mx-auto">

@@ -11,70 +11,90 @@ import {
   ArrowRight,
   ArrowUpRight,
   Flame,
-  TrendingUp,
-  Link2,
+  Zap,
+  Trophy,
+  Medal,
   Smartphone,
   Wallet,
   CalendarCheck,
-  CalendarHeart,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Youtube,
 } from "lucide-react";
 
+// Seções 2 a 7 iguais às da landing de interesse (projeto interesse-myjourn). Os botões seguem levando ao app.
 const carouselCards = [
   {
-    title: "Treinos",
-    description: "O treino do dia, as semanas do plano e o registro de cada série.",
-    icon: Dumbbell,
-    to: "/cadastro",
+    title: "Agenda",
+    description: "Organize seus horários. Seus alunos solicitam agenda direto pelo app.",
+    icon: CalendarCheck,
+    to: "/register/trainer",
   },
   {
-    title: "Evolução",
-    description: "Peso, cargas e histórico para ver o seu avanço de verdade.",
-    icon: TrendingUp,
-    to: "/cadastro",
-  },
-  {
-    title: "Desafios",
-    description: "Entre em desafios com os amigos e registre seus treinos.",
-    icon: Flame,
-    to: "/cadastro",
-  },
-  {
-    title: "Eventos",
-    description: "Corridas, aulas em grupo e encontros para treinar junto.",
-    icon: CalendarHeart,
-    to: "/cadastro",
-  },
-  {
-    title: "Profissionais",
-    description: "Encontre, agende e treine com quem acompanha a sua evolução.",
+    title: "Alunos",
+    description: "Carteira de clientes com o histórico de cada aluno, tudo num só lugar.",
     icon: Users,
-    to: "/trainers",
+    to: "/register/trainer",
+  },
+  {
+    title: "Treinos",
+    description: "Monte os planos e acompanhe a execução de cada aluno, semana a semana.",
+    icon: Dumbbell,
+    to: "/register/trainer",
+  },
+  {
+    title: "Financeiro",
+    description: "Acompanhe o financeiro dos seus alunos sem planilhas e sem confusão.",
+    icon: Wallet,
+    to: "/register/trainer",
+  },
+  {
+    title: "Engajamento",
+    description: "Gamificação nativa do app para o aluno querer voltar a treinar.",
+    icon: Flame,
+    to: "/register/trainer",
+  },
+];
+
+const gamificationItems = [
+  {
+    icon: Flame,
+    title: "Foco",
+    description: "A chama que reconhece quem treina toda semana. Seu aluno não quer quebrar a sequência.",
+  },
+  {
+    icon: Zap,
+    title: "XP por treino",
+    description: "Cada treino concluído vira XP, e cumprir a semana inteira rende bônus.",
+  },
+  {
+    icon: Trophy,
+    title: "Ligas mensais",
+    description: "10 ligas, de Estreante a Lenda. Todo mês o aluno compete para subir de liga.",
+  },
+  {
+    icon: Medal,
+    title: "Medalhas",
+    description: "Conquistas em bronze, prata e ouro por constância, evolução e metas batidas.",
   },
 ];
 
 const pinnedFeatures = [
   {
-    title: "Treinos",
-    description: "Acompanhe o treino do dia, registre cada série e veja sua progressão de carga ao longo do tempo.",
+    title: "Agenda sem vai e vem",
+    description: "Seu aluno solicita o horário pelo app e você organiza tudo na agenda. Chega de combinar por mensagem.",
   },
   {
-    title: "Evolução",
-    description: "Seu peso, seu histórico de treinos e o avanço em cada plano, à vista de você e do seu profissional.",
+    title: "Treinos sob controle",
+    description: "Monte o plano, veja o que cada aluno executou e ajuste conforme ele evolui.",
   },
   {
-    title: "Acompanhamento",
-    description: "Seu profissional monta o plano, acompanha a execução e ajusta conforme você evolui.",
+    title: "Financeiro em dia",
+    description: "Acompanhe o financeiro dos seus alunos no mesmo painel em que você cuida do resto.",
   },
 ];
 
 const statTiles = [
-  { value: "1", label: "Plano organizado para toda a sua jornada" },
-  { value: "3", label: "Jeitos de evoluir: treinos, desafios e eventos" },
-  { value: "1:1", label: "Acompanhamento direto do seu profissional" },
+  { value: "1", label: "Painel para toda a sua operação" },
+  { value: "4", label: "Frentes organizadas: agenda, alunos, treinos e financeiro" },
+  { value: "10", label: "Ligas mensais para manter seus alunos motivados" },
 ];
 
 type FeatureCardData = (typeof carouselCards)[number];
@@ -173,7 +193,7 @@ const Index = () => {
       {/* 2. CARROSSEL DE RECURSOS */}
       <section className="py-16 sm:py-20 bg-background">
         <div className="container mx-auto px-4 mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold">Tudo que faz parte da sua jornada.</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold">Tudo que você precisa para tocar o seu trabalho.</h2>
         </div>
         <div className="container mx-auto px-4">
           {/* Celular: um cartão por vez, com a largura exata do conteúdo (mesma margem do título). */}
@@ -214,27 +234,31 @@ const Index = () => {
 
       {/* 3. BLOCO SÓLIDO — GAMIFICAÇÃO */}
       <section className="py-16 sm:py-24 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-5xl font-bold mb-4 max-w-2xl mx-auto">
-            Treinar junto motiva mais.
-          </h2>
-          <p className="opacity-90 max-w-xl mx-auto mb-8">
-            Crie desafios com os amigos, participe de eventos e convide quem você quiser por link.
-          </p>
-          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-            {[
-              { icon: Flame, label: "Desafios" },
-              { icon: CalendarHeart, label: "Eventos" },
-              { icon: Link2, label: "Convite por link" },
-            ].map((item) => (
-              <div key={item.label} className="flex flex-col items-center gap-2 text-center">
-                <div className="h-14 w-14 rounded-full bg-primary-foreground/15 flex items-center justify-center">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h2 className="text-3xl sm:text-5xl font-bold mb-4 max-w-2xl mx-auto">
+              Aluno engajado não abandona o treino.
+            </h2>
+            <p className="opacity-90 max-w-2xl mx-auto mb-12">
+              O MyJourn tem gamificação nativa: seus alunos ganham XP, mantêm o Foco, sobem de liga e colecionam
+              medalhas. Você não precisa montar nada, o app já motiva por você.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+            {gamificationItems.map((item) => (
+              <div key={item.title} className="rounded-2xl bg-primary-foreground/10 p-6 text-left">
+                <div className="h-12 w-12 rounded-full bg-primary-foreground/15 flex items-center justify-center mb-4">
                   <item.icon className="h-6 w-6" />
                 </div>
-                <span className="text-sm font-medium leading-tight">{item.label}</span>
+                <p className="text-lg font-bold mb-1">{item.title}</p>
+                <p className="text-sm opacity-90">{item.description}</p>
               </div>
             ))}
           </div>
+          <p className="text-center opacity-90 max-w-2xl mx-auto mt-10 font-medium">
+            E você acompanha tudo de perto: veja o Foco e os treinos da semana de cada aluno e saiba quem precisa de um
+            incentivo. Crie também desafios e eventos para movimentar sua turma.
+          </p>
         </div>
       </section>
 
@@ -256,7 +280,7 @@ const Index = () => {
       <section className="py-16 sm:py-24 bg-background">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold max-w-2xl mx-auto mb-12">
-            Sua jornada não precisa estar espalhada.
+            Sua operação não precisa estar espalhada.
           </h2>
           <div className="grid sm:grid-cols-3 gap-8 max-w-3xl mx-auto">
             {statTiles.map((stat) => (
@@ -283,7 +307,7 @@ const Index = () => {
               <p className="text-sm font-semibold uppercase tracking-widest text-primary mb-3">Para profissionais</p>
               <h2 className="text-3xl sm:text-5xl font-bold mb-4">Mais do que uma agenda. Sua operação fitness.</h2>
               <p className="opacity-80 mb-8 max-w-md">
-                Carteira de clientes, agenda, planos de treino, eventos e financeiro — organizados em um só painel.
+                Agenda, alunos, treinos, financeiro e engajamento com gamificação — organizados em um só painel.
               </p>
               <Button variant="hero" size="lg" onClick={() => navigate("/register/trainer")}>
                 Quero ser profissional no MyJourn
@@ -292,9 +316,9 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { icon: Users, label: "Carteira de clientes" },
+                { icon: Users, label: "Alunos" },
                 { icon: CalendarCheck, label: "Agenda" },
-                { icon: CalendarHeart, label: "Eventos" },
+                { icon: Dumbbell, label: "Treinos" },
                 { icon: Wallet, label: "Financeiro" },
               ].map((item) => (
                 <div key={item.label} className="flex flex-col items-center gap-2 text-center bg-secondary-foreground/5 rounded-xl p-6">
@@ -313,8 +337,8 @@ const Index = () => {
           MyJourn
         </span>
         <div className="container mx-auto px-4 relative">
-          <h2 className="text-3xl sm:text-5xl font-bold mb-4">É mais que treino.<br />É a sua jornada.</h2>
-          <p className="text-muted-foreground mb-8">Comece a organizar sua jornada hoje.</p>
+          <h2 className="text-3xl sm:text-5xl font-bold mb-4">Organize sua operação.<br />Engaje seus alunos.</h2>
+          <p className="text-muted-foreground mb-8">Comece a organizar sua operação hoje.</p>
           <div className="flex flex-col items-center sm:flex-row gap-3 justify-center">
             <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/cadastro")}>
               Fazer cadastro
@@ -327,28 +351,11 @@ const Index = () => {
       </section>
 
       {/* 8. FOOTER */}
-      <footer className="bg-secondary text-secondary-foreground pt-12 pb-8">
+      <footer className="bg-secondary text-secondary-foreground py-8">
         <div className="container mx-auto px-4">
-          <div className="flex flex-wrap justify-center gap-4 mb-10">
-            {[Facebook, Instagram, Linkedin, Youtube].map((Icon, i) => (
-              <div key={i} className="h-10 w-10 rounded-full border border-secondary-foreground/20 flex items-center justify-center hover:bg-secondary-foreground/10 transition-smooth cursor-pointer">
-                <Icon className="h-4 w-4" />
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col sm:flex-row justify-between gap-6 border-t border-secondary-foreground/10 pt-8 text-sm opacity-70">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="MyJourn" className="h-6 w-auto object-contain" />
-              <span className="hidden sm:inline">— Treine com quem importa.</span>
-            </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <span>Sobre</span>
-              <span>Para clientes</span>
-              <span>Para profissionais</span>
-              <span>Privacidade</span>
-              <span>Termos de uso</span>
-              <span>Contato</span>
-            </div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm opacity-70">
+            <img src={logo} alt="MyJourn" className="h-6 w-auto object-contain" />
+            <span>© {new Date().getFullYear()} MyJourn. Todos os direitos reservados.</span>
           </div>
         </div>
       </footer>

@@ -46,7 +46,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">
-            {!minimal && !training && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
+            {isAuthenticated && !minimal && !training && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
           </div>
 
           {minimal ? (

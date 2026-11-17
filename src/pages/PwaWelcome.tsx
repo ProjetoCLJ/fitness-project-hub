@@ -1,6 +1,8 @@
-import { Navigate, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoginDialog } from "@/components/LoginDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo/logo-header.png";
 
@@ -10,7 +12,7 @@ import logo from "@/assets/logo/logo-header.png";
  */
 const PwaWelcome = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const [loginOpen, setLoginOpen] = useState(false);
 
   if (isAuthenticated && user) {
     return <Navigate to={user.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"} replace />;
@@ -47,7 +49,7 @@ const PwaWelcome = () => {
               <span className="text-primary">Evolua com quem acompanha.</span>
             </h1>
             <div className="flex flex-col items-start sm:flex-row gap-3 mt-8">
-              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/login")}>
+              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => setLoginOpen(true)}>
                 Fazer Login
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
@@ -55,6 +57,9 @@ const PwaWelcome = () => {
           </div>
         </div>
       )}
+
+      {/* O login abre em modal sobre o vídeo; fecha ao entrar e leva ao painel. */}
+      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
     </div>
   );
 };

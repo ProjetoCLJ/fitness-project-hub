@@ -233,8 +233,10 @@ const Index = () => {
       </section>
 
       {/* 3. BLOCO SÓLIDO — GAMIFICAÇÃO */}
-      <section className="py-16 sm:py-24 bg-[hsl(142_76%_22%)] text-white">
-        <div className="container mx-auto px-4">
+      <section className="relative overflow-hidden py-16 sm:py-24 bg-primary text-primary-foreground">
+        {/* Verde da plataforma com uma sombra leve em degradê (o mesmo gradiente dos cartões verdes). */}
+        <div aria-hidden className="absolute inset-0 bg-gradient-hero opacity-50 pointer-events-none" />
+        <div className="container mx-auto px-4 relative">
           <div className="text-center">
             <h2 className="text-3xl sm:text-5xl font-bold mb-4 max-w-2xl mx-auto">
               Aluno engajado não abandona o treino.

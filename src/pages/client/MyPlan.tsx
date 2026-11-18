@@ -126,7 +126,7 @@ const MyPlan = () => {
     <div className="min-h-screen bg-background">
       <Header onLoginClick={() => {}} />
 
-      <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-4">
+      <div className="container mx-auto px-4 pt-20 pb-28 sm:pt-24 sm:pb-28 max-w-3xl space-y-4">
         {selected ? (
           (() => {
             const pause = openPause(selected);

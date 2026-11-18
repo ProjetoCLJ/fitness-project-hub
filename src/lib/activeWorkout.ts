@@ -57,7 +57,8 @@ export const useActiveWorkout = () =>
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => current
+    () => current,
+    () => null
   );
 
 export const startActiveWorkout = (workoutId: string, workoutName: string, path: string) =>

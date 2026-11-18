@@ -8,6 +8,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Home from "./pages/Home";
 import SocialOnboarding from "./pages/SocialOnboarding";
+import { BottomNav } from "@/components/nav/BottomNav";
 import { FEATURES } from "@/lib/features";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
@@ -101,6 +102,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <BottomNav />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

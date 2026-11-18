@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Settings, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, LogOut, Settings, ShieldAlert, Trash2 } from "lucide-react";
 import { XpBolt } from "@/components/gamification/FocoFlame";
 import { SportIcon } from "@/components/gamification/SportIcon";
 import { LeagueTrophy } from "@/components/gamification/LeagueTrophy";
@@ -30,7 +30,7 @@ import { Payment, fetchStudentPayments } from "@/lib/financeStore";
 const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR");
 
 const ClientProfilePage = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -73,7 +73,7 @@ const ClientProfilePage = () => {
     <div className="min-h-screen bg-background">
       <Header onLoginClick={() => {}} />
 
-      <div className="container mx-auto px-4 pt-20 pb-24 sm:pt-24 sm:pb-12 max-w-3xl space-y-6">
+      <div className="container mx-auto px-4 pt-20 pb-28 sm:pt-24 sm:pb-28 max-w-3xl space-y-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold">Perfil</h1>
@@ -163,6 +163,10 @@ const ClientProfilePage = () => {
             <ThemeToggle />
             <RankingPrivacySetting />
             {isTrainer && FEATURES.professionalSearch && user && <SearchVisibilityCard trainerId={user.id} />}
+            <Button variant="outline" className="w-full justify-start gap-3 text-destructive hover:text-destructive" onClick={logout}>
+              <LogOut className="h-4 w-4" />
+              Sair da conta
+            </Button>
           </TabsContent>
 
           <TabsContent value="dados" className="space-y-6">

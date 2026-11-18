@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { SideMenu } from "@/components/SideMenu";
 import { NotificationBell } from "@/components/NotificationBell";
 import { PausedWorkoutBar } from "@/components/plan/PausedWorkoutBar";
 import { useActiveWorkout } from "@/lib/activeWorkout";
@@ -19,7 +18,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false, hideLogin = false }: HeaderProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const active = useActiveWorkout();
   // Durante o treino em andamento, menu e notificações ficam ocultos (pausado, volta ao normal).
   const training = !!active && active.pausedAt === null;
@@ -46,7 +45,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
       <div className="container mx-auto px-4 py-4">
         <div className="grid grid-cols-3 items-center gap-2">
           <div className="justify-self-start">
-            {isAuthenticated && !minimal && !training && <SideMenu onLoginClick={onLoginClick} triggerClassName="text-white hover:bg-white/10" />}
+
           </div>
 
           {minimal ? (
@@ -54,7 +53,7 @@ export const Header = ({ onLoginClick, transparentOnTop = false, minimal = false
               <img src={logo} alt="MyJourn" className="h-7 sm:h-8 w-auto object-contain" />
             </div>
           ) : (
-            <Link to="/" className="flex items-center group justify-self-center">
+            <Link to={isAuthenticated && user ? (user.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student") : "/"} className="flex items-center group justify-self-center">
               <img
                 src={logo}
                 alt="MyJourn"

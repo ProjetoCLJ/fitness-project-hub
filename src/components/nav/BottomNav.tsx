@@ -4,6 +4,7 @@ import { CalendarDays, Dumbbell, Home, Inbox, Medal, Menu, Trophy, User, Users, 
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveWorkout } from "@/lib/activeWorkout";
 import { useRequestsBadge } from "@/lib/useRequestsBadge";
+import { isStandalone } from "@/lib/pwa";
 
 interface NavItem {
   key: string;
@@ -68,6 +69,8 @@ export const BottomNav = () => {
   const navigate = useNavigate();
   const active = useActiveWorkout();
   const pending = useRequestsBadge();
+  // O menu inferior é só do app instalado (PWA); no site fica o menu lateral.
+  const [standalone] = useState(isStandalone);
   const [compact, setCompact] = useScrollCompact(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -82,7 +85,16 @@ export const BottomNav = () => {
 
   const training = !!active && active.pausedAt === null;
   const inSession = pathname.includes("/session/");
-  const visible = isAuthenticated && !!user && !user.needsSetup && pathname.startsWith("/dashboard") && !inSession && !training;
+  const visible = standalone && isAuthenticated && !!user && !user.needsSetup && pathname.startsWith("/dashboard") && !inSession && !training;
+  // Espaço no fim das telas para o conteúdo não ficar atrás do menu.
+  useEffect(() => {
+    if (!visible) return;
+    document.body.style.paddingBottom = "calc(3rem + env(safe-area-inset-bottom))";
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, [visible]);
+
   if (!visible || !user) return null;
 
   const isTrainer = user.userType === "trainer";

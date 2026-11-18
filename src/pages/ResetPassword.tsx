@@ -49,7 +49,7 @@ const ResetPassword = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => navigate("/")} />
+      <Header onLoginClick={() => navigate("/?login=1")} />
       <div className="container mx-auto px-4 pt-24 pb-12 max-w-md">
         <Card className="p-6 sm:p-8 space-y-4">
           {ready === null ? null : !ready ? (

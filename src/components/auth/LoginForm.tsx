@@ -5,21 +5,24 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { SocialButtons } from "@/components/auth/SocialButtons";
 
 interface LoginFormProps {
   /** Chamado depois de entrar com sucesso. */
   onSuccess?: () => void;
   /** Chamado ao tocar em "Cadastre-se aqui". */
   onSignup: () => void;
+  /** Mostrando a recuperação de senha (controlado pelo modal, que troca o título). */
+  forgot: boolean;
+  onForgotChange: (forgot: boolean) => void;
 }
 
 /** Login único para aluno e profissional (o papel vem do perfil), com recuperação de senha e link de cadastro. */
-export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
+export const LoginForm = ({ onSuccess, onSignup, forgot, onForgotChange }: LoginFormProps) => {
   const { login } = useAuth();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [forgot, setForgot] = useState(false);
   const [sending, setSending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,7 +34,7 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
     setSending(false);
     // Resposta neutra: não revela se o e-mail tem conta.
     toast({ title: "Verifique seu e-mail", description: "Se houver uma conta com esse e-mail, enviamos um link para redefinir a senha." });
-    setForgot(false);
+    onForgotChange(false);
   };
 
   const resendConfirmation = async () => {
@@ -84,8 +87,8 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
         <Button type="submit" className="w-full" variant="hero" size="lg" disabled={sending}>
           {sending ? "Enviando..." : "Enviar link"}
         </Button>
-        <Button type="button" variant="ghost" className="w-full" onClick={() => setForgot(false)}>
-          Voltar
+        <Button type="button" variant="ghost" className="w-full bg-muted text-foreground hover:bg-muted/70" onClick={() => onForgotChange(false)}>
+          Ir para Login
         </Button>
       </form>
     );
@@ -105,10 +108,11 @@ export const LoginForm = ({ onSuccess, onSignup }: LoginFormProps) => {
         <Button type="submit" className="w-full" variant="hero" size="lg" disabled={submitting}>
           {submitting ? "Entrando..." : "Entrar"}
         </Button>
-        <Button type="button" variant="link" className="w-full" onClick={() => setForgot(true)}>
+        <Button type="button" variant="link" className="w-full" onClick={() => onForgotChange(true)}>
           Esqueci minha senha
         </Button>
       </form>
+      <SocialButtons dividerText="ou entre com" action="Entrar com" />
       <p className="text-center text-sm text-muted-foreground">
         Não tem conta?{" "}
         <button type="button" onClick={onSignup} className="font-semibold text-primary hover:underline">

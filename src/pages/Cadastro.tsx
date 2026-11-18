@@ -25,9 +25,9 @@ const Cadastro = () => {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => navigate("/login")} />
+      <Header onLoginClick={() => undefined} minimal />
       <div className="container mx-auto px-4 pt-24 pb-12">
-        <Button variant="ghost" onClick={() => navigate("/login")} className="mb-6">
+        <Button variant="ghost" onClick={() => navigate("/?login=1")} className="mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
@@ -52,7 +52,7 @@ const Cadastro = () => {
           </div>
           <p className="text-center text-sm text-muted-foreground">
             Já tem conta?{" "}
-            <button type="button" onClick={() => navigate("/login")} className="font-semibold text-primary hover:underline">
+            <button type="button" onClick={() => navigate("/?login=1")} className="font-semibold text-primary hover:underline">
               Entrar
             </button>
           </p>

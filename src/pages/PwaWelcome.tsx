@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoginDialog } from "@/components/LoginDialog";
@@ -12,7 +12,20 @@ import logo from "@/assets/logo/logo-header.png";
  */
 const PwaWelcome = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // "/?login=1" abre o login em modal (é para onde "voltar" e os links de "Entrar" levam).
+  const [loginOpen, setLoginOpen] = useState(searchParams.get("login") === "1");
+  useEffect(() => {
+    if (searchParams.get("login") === "1") setLoginOpen(true);
+  }, [searchParams]);
+  const handleLoginOpenChange = (open: boolean) => {
+    setLoginOpen(open);
+    if (!open && searchParams.has("login")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("login");
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   if (isAuthenticated && user) {
     return <Navigate to={user.userType === "trainer" ? "/dashboard/trainer" : "/dashboard/student"} replace />;
@@ -59,7 +72,7 @@ const PwaWelcome = () => {
       )}
 
       {/* O login abre em modal sobre o vídeo; fecha ao entrar e leva ao painel. */}
-      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <LoginDialog open={loginOpen} onOpenChange={handleLoginOpenChange} />
     </div>
   );
 };

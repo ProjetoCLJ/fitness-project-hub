@@ -7,7 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Home from "./pages/Home";
-import Login from "./pages/Login";
+import SocialOnboarding from "./pages/SocialOnboarding";
 import { FEATURES } from "@/lib/features";
 import Cadastro from "./pages/Cadastro";
 import NotFound from "./pages/NotFound";
@@ -56,7 +56,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/login" element={<Navigate to="/?login=1" replace />} />
+            <Route path="/auth/social" element={<SocialOnboarding />} />
             <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/register/trainer" element={<RegisterTrainer />} />
             <Route path="/register/student" element={<RegisterStudent />} />

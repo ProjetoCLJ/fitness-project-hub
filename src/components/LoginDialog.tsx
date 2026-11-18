@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -5,28 +6,37 @@ import { LoginForm } from "@/components/auth/LoginForm";
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Sem como fechar (tela de login do app instalado): esconde o X e ignora clique fora e Esc. */
-  locked?: boolean;
 }
 
-export const LoginDialog = ({ open, onOpenChange, locked = false }: LoginDialogProps) => {
+/** Login em modal (única forma de entrar). Recuperação de senha e atalho para o cadastro ficam aqui; o cadastro é uma tela à parte. */
+export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const navigate = useNavigate();
+  const [forgot, setForgot] = useState(false);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setForgot(false);
+    onOpenChange(next);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={`sm:max-w-md ${locked ? "[&>button]:hidden" : ""}`}
-        onInteractOutside={locked ? (e) => e.preventDefault() : undefined}
-        onEscapeKeyDown={locked ? (e) => e.preventDefault() : undefined}
-      >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">Bem-vindo ao MyJourn</DialogTitle>
-          <DialogDescription>Entre com sua conta para continuar</DialogDescription>
+          <DialogTitle className="text-2xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+            {forgot ? "Recuperação de senha" : "Bem-vindo ao MyJourn"}
+          </DialogTitle>
+          {forgot ? (
+            <DialogDescription className="sr-only">Informe seu e-mail para receber o link de recuperação de senha.</DialogDescription>
+          ) : (
+            <DialogDescription>Entre com sua conta para continuar</DialogDescription>
+          )}
         </DialogHeader>
         <LoginForm
-          onSuccess={() => onOpenChange(false)}
+          forgot={forgot}
+          onForgotChange={setForgot}
+          onSuccess={() => handleOpenChange(false)}
           onSignup={() => {
-            onOpenChange(false);
+            handleOpenChange(false);
             navigate("/cadastro");
           }}
         />

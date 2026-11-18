@@ -10,6 +10,7 @@ import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignupProgress } from "@/components/auth/SignupProgress";
+import { SocialButtons } from "@/components/auth/SocialButtons";
 
 interface BasicSignupProps {
   userType: "student" | "trainer";
@@ -50,7 +51,7 @@ export const BasicSignup = ({ userType, roleLabel, subtitle }: BasicSignupProps)
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onLoginClick={() => navigate("/login")} />
+      <Header onLoginClick={() => undefined} minimal />
 
       <div className="container mx-auto px-4 pt-24 pb-12">
         <Button variant="ghost" onClick={() => navigate("/cadastro")} className="mb-6">
@@ -69,7 +70,8 @@ export const BasicSignup = ({ userType, roleLabel, subtitle }: BasicSignupProps)
             <p className="text-muted-foreground">{subtitle}</p>
           </div>
 
-          <Card className="p-8 shadow-medium">
+          <Card className="p-8 shadow-medium space-y-6">
+            <SocialButtons role={userType} dividerFirst dividerText="ou preencha seus dados" action="Cadastrar com" />
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="fullName">Nome Completo *</Label>

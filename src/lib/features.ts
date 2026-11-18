@@ -4,4 +4,6 @@ export const FEATURES = {
   professionalSearch: false,
   /** Eventos (lista, detalhe e convite por link). */
   events: false,
+  /** Login/cadastro com conta social. Ligue só os provedores já configurados no Supabase/Lovable Cloud. */
+  socialLogin: { google: true, apple: true, facebook: false },
 };

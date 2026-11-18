@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { LoginDialog } from "@/components/LoginDialog";
 import { WaveDivider } from "@/components/landing/WaveDivider";
@@ -117,7 +117,20 @@ const FeatureCard = ({ card, onClick, className = "" }: { card: FeatureCardData;
 );
 
 const Index = () => {
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // "/?login=1" abre o login em modal (é para onde "voltar" e os links de "Entrar" levam).
+  const [loginOpen, setLoginOpen] = useState(searchParams.get("login") === "1");
+  useEffect(() => {
+    if (searchParams.get("login") === "1") setLoginOpen(true);
+  }, [searchParams]);
+  const handleLoginOpenChange = (open: boolean) => {
+    setLoginOpen(open);
+    if (!open && searchParams.has("login")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("login");
+      setSearchParams(next, { replace: true });
+    }
+  };
   const navigate = useNavigate();
   const [slide, setSlide] = useState(0);
   const pausedUntil = useRef(0);
@@ -174,7 +187,7 @@ const Index = () => {
               <span className="text-primary">Evolua com quem acompanha.</span>
             </h1>
             <div className="flex flex-col items-start sm:flex-row gap-3 mt-8">
-              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => navigate("/login")}>
+              <Button variant="hero" className="h-10 px-5 text-sm" onClick={() => setLoginOpen(true)}>
                 Fazer Login
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
@@ -362,7 +375,7 @@ const Index = () => {
         </div>
       </footer>
 
-      <LoginDialog open={loginOpen} onOpenChange={setLoginOpen} />
+      <LoginDialog open={loginOpen} onOpenChange={handleLoginOpenChange} />
     </div>
   );
 };

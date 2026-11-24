@@ -155,6 +155,13 @@
       "when": 1794942186945,
       "tag": "0021_event_covers_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795519914494,
+      "tag": "0022_excluir_plano_na_hora",
+      "breakpoints": true
     }
   ]
 }

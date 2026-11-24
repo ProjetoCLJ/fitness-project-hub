@@ -13,9 +13,9 @@ import logo from "@/assets/logo/logo-header.png";
 const PwaWelcome = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  // O login em modal já abre com a tela (e "/?login=1" também leva até ele). Fica visível inclusive enquanto a sessão é
-  // conferida ou o login é feito; quem fecha pode reabrir pelo botão "Fazer Login".
-  const [loginOpen, setLoginOpen] = useState(true);
+  // O login em modal abre pelo botão "Fazer Login" (ou por "/?login=1"). Depois de aberto, fica visível inclusive enquanto
+  // o login é feito; a conferência automática da sessão só mostra o carregamento por cima.
+  const [loginOpen, setLoginOpen] = useState(searchParams.get("login") === "1");
   useEffect(() => {
     if (searchParams.get("login") === "1") setLoginOpen(true);
   }, [searchParams]);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CalendarDays, Dumbbell, Home, Inbox, Medal, Menu, Trophy, User, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, Dumbbell, Home, Inbox, Medal, Menu, Settings, Trophy, User, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveWorkout } from "@/lib/activeWorkout";
 import { useRequestsBadge } from "@/lib/useRequestsBadge";
@@ -133,10 +133,12 @@ export const BottomNav = () => {
         { label: "Meu Treino", icon: Dumbbell, path: "/dashboard/student/workouts" },
         { label: "Minha Liga", icon: Medal, path: "/dashboard/student/leagues" },
         { label: "Desafios", icon: Trophy, path: "/dashboard/trainer/challenges" },
+        { label: "Configurações", icon: Settings, path: "/dashboard/student/profile?tab=ajustes" },
         { label: "Perfil", icon: User, path: "/dashboard/student/profile" },
       ]
     : [
         { label: "Solicitações", icon: Inbox, path: "/dashboard/student/requests", badge: pending },
+        { label: "Configurações", icon: Settings, path: "/dashboard/student/profile?tab=ajustes" },
         { label: "Perfil", icon: User, path: "/dashboard/student/profile" },
       ];
 

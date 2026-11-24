@@ -18,6 +18,7 @@ import { useGmOverview, useLeagueOverview } from "@/hooks/useGamification";
 import { leagueName } from "@/lib/gamification";
 import { sportLabel } from "@/lib/sports";
 import { FEATURES } from "@/lib/features";
+import { isStandalone } from "@/lib/pwa";
 import { RankingPrivacySetting } from "@/components/gamification/RankingPrivacySetting";
 import TrainerProfile from "@/components/dashboard/trainer/TrainerProfile";
 import { SearchVisibilityCard } from "@/components/agenda/SearchVisibilityCard";
@@ -31,6 +32,7 @@ const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("pt-
 
 const ClientProfilePage = () => {
   const { user, logout } = useAuth();
+  const [standalone] = useState(isStandalone);
   const clientId = user?.studentId ?? "";
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -79,15 +81,17 @@ const ClientProfilePage = () => {
             <h1 className="text-xl sm:text-3xl font-bold">Perfil</h1>
             <p className="text-sm sm:text-base text-muted-foreground">Suas informações e preferências</p>
           </div>
-          <Button
-            variant={tab === "ajustes" ? "secondary" : "ghost"}
-            size="icon"
-            aria-label="Ajustes"
-            title="Ajustes"
-            onClick={() => setParams(tab === "ajustes" ? {} : { tab: "ajustes" }, { replace: true })}
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
+          {!standalone && (
+            <Button
+              variant={tab === "ajustes" ? "secondary" : "ghost"}
+              size="icon"
+              aria-label="Ajustes"
+              title="Ajustes"
+              onClick={() => setParams(tab === "ajustes" ? {} : { tab: "ajustes" }, { replace: true })}
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={(value) => setParams({ tab: value }, { replace: true })}>

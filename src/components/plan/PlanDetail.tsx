@@ -303,7 +303,9 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
             <DialogDescription>
               {confirm === "completed"
                 ? "O plano será encerrado e movido para o histórico. Vale a partir da próxima segunda-feira: os treinos da semana atual ainda contam."
-                : "O plano será movido para o histórico como excluído. Vale a partir da próxima segunda-feira: os treinos da semana atual ainda contam, e os já realizados continuam registrados."}
+                : plan.trainerId
+                  ? "O plano será movido para o histórico como excluído, na hora. Os treinos que o aluno já realizou continuam registrados."
+                  : "O plano será movido para o histórico como excluído. Vale a partir da próxima segunda-feira: os treinos da semana atual ainda contam, e os já realizados continuam registrados."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">

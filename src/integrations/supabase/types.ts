@@ -911,6 +911,7 @@ export type Database = {
       }
       plan_pauses: {
         Row: {
+          by_trainer: boolean
           created_at: string
           ends_on: string | null
           id: string
@@ -919,6 +920,7 @@ export type Database = {
           student_id: string
         }
         Insert: {
+          by_trainer?: boolean
           created_at?: string
           ends_on?: string | null
           id?: string
@@ -927,6 +929,7 @@ export type Database = {
           student_id: string
         }
         Update: {
+          by_trainer?: boolean
           created_at?: string
           ends_on?: string | null
           id?: string
@@ -983,6 +986,7 @@ export type Database = {
       planned_slots: {
         Row: {
           accompanied: boolean
+          duration_minutes: number
           execution_id: string | null
           id: string
           moved_from: string | null
@@ -999,6 +1003,7 @@ export type Database = {
         }
         Insert: {
           accompanied?: boolean
+          duration_minutes?: number
           execution_id?: string | null
           id?: string
           moved_from?: string | null
@@ -1015,6 +1020,7 @@ export type Database = {
         }
         Update: {
           accompanied?: boolean
+          duration_minutes?: number
           execution_id?: string | null
           id?: string
           moved_from?: string | null
@@ -2026,6 +2032,7 @@ export type Database = {
           accompanied: boolean
           created_at: string | null
           day: string | null
+          duration_minutes: number
           id: string
           name: string
           observations: string | null
@@ -2042,6 +2049,7 @@ export type Database = {
           accompanied?: boolean
           created_at?: string | null
           day?: string | null
+          duration_minutes?: number
           id?: string
           name: string
           observations?: string | null
@@ -2058,6 +2066,7 @@ export type Database = {
           accompanied?: boolean
           created_at?: string | null
           day?: string | null
+          duration_minutes?: number
           id?: string
           name?: string
           observations?: string | null
@@ -2333,6 +2342,7 @@ export type Database = {
       slot_is_free: {
         Args: {
           p_date: string
+          p_duration?: number
           p_exclude_date: string
           p_exclude_request: string
           p_exclude_workout: string
@@ -2366,6 +2376,17 @@ export type Database = {
       trainer_can_record: {
         Args: { _student: string; _workout: string }
         Returns: boolean
+      }
+      trainer_change_workout: {
+        Args: {
+          p_duration?: number
+          p_from: string
+          p_scope?: string
+          p_start: string
+          p_to: string
+          p_workout: string
+        }
+        Returns: undefined
       }
       trainer_has_relation_with_profile: {
         Args: { p_profile_id: string }

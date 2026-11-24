@@ -162,6 +162,20 @@
       "when": 1795519914494,
       "tag": "0022_excluir_plano_na_hora",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795524972079,
+      "tag": "0023_professor_muda_treino_e_pausa",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795525045614,
+      "tag": "0024_duracao_e_expediente",
+      "breakpoints": true
     }
   ]
 }

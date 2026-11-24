@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ScheduleEvent, toLocalISO } from "@/lib/agendaStore";
 import { DayBand, DayBlock, HOUR_PX, TIMELINE_END, TIMELINE_START, fmtMin, layoutDay, minToPx } from "@/lib/dayLayout";
 
@@ -20,6 +20,8 @@ const KIND_STYLE: Record<DayBlock["kind"], string> = {
 };
 
 const HOURS = Array.from({ length: (TIMELINE_END - TIMELINE_START) / 60 + 1 }, (_, i) => TIMELINE_START / 60 + i);
+/** Hora em que a tela abre rolada quando o dia não tem nada marcado. */
+const DEFAULT_ANCHOR = 7 * 60;
 const GUTTER = 44;
 
 /**
@@ -29,6 +31,16 @@ const GUTTER = 44;
  */
 export const DayTimeline = ({ dateISO, events, onBlockClick, onFreeClick, onOffClick }: DayTimelineProps) => {
   const { blocks, bands } = useMemo(() => layoutDay(events, dateISO), [events, dateISO]);
+  const scroller = useRef<HTMLDivElement>(null);
+
+  // O dia tem 24 h: abre rolado no primeiro compromisso (ou no expediente; sem nada, às 07:00).
+  const anchor = useMemo(() => {
+    const starts = [...blocks.map((b) => b.start), ...bands.filter((b) => b.kind === "expediente").map((b) => b.start)];
+    return starts.length > 0 ? Math.min(...starts) : DEFAULT_ANCHOR;
+  }, [blocks, bands]);
+  useEffect(() => {
+    if (scroller.current) scroller.current.scrollTop = Math.max(0, minToPx(anchor) - 24);
+  }, [dateISO, anchor]);
 
   const now = new Date();
   const todayISO = toLocalISO(now);
@@ -48,13 +60,13 @@ export const DayTimeline = ({ dateISO, events, onBlockClick, onFreeClick, onOffC
   };
 
   return (
-    <div className="pt-3 pb-3 select-none">
+    <div ref={scroller} className="max-h-[70vh] overflow-y-auto overscroll-contain pt-3 pb-3 select-none">
       <div className="relative" style={{ height: total }}>
         {/* Escala de horas */}
         {HOURS.map((h) => (
           <div key={h} className="absolute inset-x-0 flex items-start pointer-events-none" style={{ top: (h - TIMELINE_START / 60) * HOUR_PX }}>
             <span className="text-[10px] leading-none text-muted-foreground text-right pr-2 -translate-y-1/2" style={{ width: GUTTER }}>
-              {String(h).padStart(2, "0")}:00
+              {h === TIMELINE_END / 60 ? "23:59" : `${String(h).padStart(2, "0")}:00`}
             </span>
             <div className="flex-1 border-t border-border" />
           </div>
@@ -106,22 +118,23 @@ export const DayTimeline = ({ dateISO, events, onBlockClick, onFreeClick, onOffC
                   width: `calc(${100 / b.cols}% - 4px)`,
                 }}
               >
-                {roomy ? (
-                  <>
-                    <span className="block text-[11px] font-semibold leading-tight">
-                      {b.startLabel} – {b.endLabel}
-                    </span>
-                    <span className="block text-xs leading-tight truncate">{b.title}</span>
-                    {b.subtitle && height >= 62 && <span className="block text-[10px] leading-tight opacity-85 truncate">{b.subtitle}</span>}
-                  </>
-                ) : (
-                  <span className="block text-[11px] leading-tight truncate">
-                    <span className="font-semibold">
-                      {b.startLabel}–{b.endLabel}
-                    </span>{" "}
-                    {b.title}
+                <span className="flex h-full items-start gap-2">
+                  <span className="shrink-0 text-[11px] font-semibold leading-tight">
+                    {roomy ? (
+                      <>
+                        {b.startLabel}
+                        <br />
+                        {b.endLabel}
+                      </>
+                    ) : (
+                      `${b.startLabel}–${b.endLabel}`
+                    )}
                   </span>
-                )}
+                  <span className="min-w-0 flex-1 text-right">
+                    <span className="block text-xs leading-tight truncate">{b.title}</span>
+                    {b.subtitle && roomy && <span className="block text-[10px] leading-tight opacity-85 truncate">{b.subtitle}</span>}
+                  </span>
+                </span>
               </button>
             );
           })}

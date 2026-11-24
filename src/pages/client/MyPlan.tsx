@@ -137,7 +137,7 @@ const MyPlan = () => {
                 <h3 className="font-semibold">Ações do plano</h3>
                 {pause && (
                   <p className="text-sm text-muted-foreground">
-                    {pausedNow ? "Este plano está pausado." : `Pausa agendada para ${formatDate(pause.startsOn)}.`}
+                    {pausedNow ? (pause.byTrainer ? "Este plano foi pausado pelo seu professor." : "Este plano está pausado.") : `Pausa agendada para ${formatDate(pause.startsOn)}.`}
                   </p>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -146,10 +146,12 @@ const MyPlan = () => {
                     Treinar
                   </Button>
                   {pause ? (
-                    <Button variant="outline" disabled={busy} onClick={() => resume(selected)}>
-                      <Play className="h-4 w-4 mr-1" />
-                      {pausedNow ? "Retomar plano" : "Cancelar pausa"}
-                    </Button>
+                    pause.byTrainer ? null : (
+                      <Button variant="outline" disabled={busy} onClick={() => resume(selected)}>
+                        <Play className="h-4 w-4 mr-1" />
+                        {pausedNow ? "Retomar plano" : "Cancelar pausa"}
+                      </Button>
+                    )
                   ) : (
                     <Button variant="outline" disabled={busy} onClick={() => setPauseTarget(selected)}>
                       <Pause className="h-4 w-4 mr-1" />

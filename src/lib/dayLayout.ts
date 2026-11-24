@@ -3,8 +3,9 @@ import { ScheduleEvent, eventTitle, getEventsForDate } from "@/lib/agendaStore";
 // Layout do dia no estilo de uma agenda de calendário: escala de horas na lateral, blocos com altura proporcional à duração,
 // blocos no mesmo horário lado a lado e blocos que se encostam (um termina quando o outro começa) em sequência.
 
-export const TIMELINE_START = 6 * 60;
-export const TIMELINE_END = 22 * 60;
+/** O dia inteiro: de meia-noite até 23:59 (1440 = fim do dia). */
+export const TIMELINE_START = 0;
+export const TIMELINE_END = 24 * 60;
 /** Altura de uma hora na escala, em pixels. */
 export const HOUR_PX = 64;
 
@@ -13,7 +14,11 @@ export const toMin = (time: string) => {
   return h * 60 + (m || 0);
 };
 
-export const fmtMin = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+/** HH:MM; o fim do dia (24:00) aparece como 23:59. */
+export const fmtMin = (min: number) => {
+  const m = Math.min(1439, Math.max(0, min));
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
 
 export const minToPx = (min: number) => ((min - TIMELINE_START) / 60) * HOUR_PX;
 

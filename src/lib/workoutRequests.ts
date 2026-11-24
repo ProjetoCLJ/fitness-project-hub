@@ -73,6 +73,7 @@ export const ERRORS: Record<string, string> = {
   EXPIRED: "Essa solicitação já passou da data.",
   NO_TRAINER: "Esse treino não tem profissional vinculado.",
   MISSING_TARGET: "Escolha o novo dia e horário.",
+  PLAN_ENDED: "Esse plano já foi encerrado.",
   NOT_RECURRING: "Só treinos de plano em ciclo (que se repetem) podem mudar em todas as semanas.",
   WEEK_MISMATCH: "Para mudar em todas as semanas, escolha o novo dia dentro da mesma semana do treino.",
   INVALID_SCOPE: "Essa opção não vale para este tipo de pedido.",
@@ -157,6 +158,24 @@ export const respondWorkoutRequest = async (
     p_message: opts.message ?? null,
   });
   if (error) fail(error, "Não foi possível responder.");
+};
+
+/** O profissional muda o dia/horário de um treino do aluno direto da agenda (vale no plano e na agenda do aluno). */
+export const trainerChangeWorkout = async (input: {
+  workoutId: string;
+  fromDate: string;
+  toDate: string;
+  start: string;
+  scope: "single" | "all";
+}): Promise<void> => {
+  const { error } = await db.rpc("trainer_change_workout", {
+    p_workout: input.workoutId,
+    p_from: input.fromDate,
+    p_to: input.toDate,
+    p_start: input.start,
+    p_scope: input.scope,
+  });
+  if (error) fail(error, "Não foi possível alterar o treino.");
 };
 
 export const withdrawWorkoutRequest = async (id: string): Promise<void> => {

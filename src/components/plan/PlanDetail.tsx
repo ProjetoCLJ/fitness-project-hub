@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Pencil, Plus, UserCheck } from "lucide-react";
+import { ArrowLeft, Pause, Pencil, Play, Plus, UserCheck } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, deleteWorkout, saveWorkout, setPlanStatus, updatePlan, workoutPositionLabel } from "@/lib/planStore";
+import { Plan, Workout, WEEKDAY_SHORT, WEEK_COLUMNS, deleteWorkout, pausePlan, resumePlan, saveWorkout, setPlanStatus, updatePlan, workoutPositionLabel } from "@/lib/planStore";
 import { toLocalISO } from "@/lib/agendaStore";
 import { sportLabel } from "@/lib/sports";
 import { WorkoutDraft, WorkoutEditorDialog } from "@/components/plan/WorkoutEditorDialog";
@@ -50,6 +50,9 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
   const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [confirm, setConfirm] = useState<"completed" | "cancelled" | null>(null);
+  const [pauseConfirm, setPauseConfirm] = useState<"pause" | "resume" | null>(null);
+  const openPause = plan.pauses.find((p) => !p.endsOn);
+  const pausedNow = !!openPause && openPause.startsOn <= toLocalISO(new Date());
   const [selectedDay, setSelectedDay] = useState<Date>(new Date(`${plan.startDate}T00:00:00`));
   const [isBusy, setIsBusy] = useState(false);
 
@@ -143,9 +146,15 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg sm:text-2xl font-bold truncate">{plan.title}</h2>
-          <Badge variant={statusBadge[plan.status].variant} className="mt-1">
-            {statusBadge[plan.status].label}
-          </Badge>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Badge variant={statusBadge[plan.status].variant}>{statusBadge[plan.status].label}</Badge>
+            {pausedNow && plan.status === "active" && (
+              <Badge variant="outline" className="border-amber-500/60 text-amber-600">
+                <Pause className="h-3 w-3 mr-1" />
+                Pausado
+              </Badge>
+            )}
+          </div>
         </div>
         {!readOnly && (
           <div className="flex gap-2 shrink-0">
@@ -210,6 +219,12 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
                 <Button variant="outline" className="flex-1" onClick={() => setConfirm("completed")}>
                   Concluir plano
                 </Button>
+                {plan.trainerId && (
+                  <Button variant="outline" className="flex-1" disabled={isBusy} onClick={() => setPauseConfirm(openPause ? "resume" : "pause")}>
+                    {openPause ? <Play className="h-4 w-4 mr-1" /> : <Pause className="h-4 w-4 mr-1" />}
+                    {openPause ? "Retomar plano" : "Pausar plano"}
+                  </Button>
+                )}
                 <Button variant="destructive" className="flex-1" onClick={() => setConfirm("cancelled")}>
                   Excluir plano
                 </Button>
@@ -295,6 +310,37 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
       />
 
       <EditPlanDialog key={`${plan.id}-${editOpen}`} plan={plan} open={editOpen} onOpenChange={setEditOpen} onSaved={onChanged} />
+
+      <Dialog open={!!pauseConfirm} onOpenChange={(open) => !open && setPauseConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{pauseConfirm === "resume" ? "Retomar plano?" : "Pausar plano?"}</DialogTitle>
+            <DialogDescription>
+              {pauseConfirm === "resume"
+                ? "O plano volta a valer hoje e os treinos voltam à semana do aluno e à sua agenda."
+                : "O plano fica pausado a partir de hoje: os treinos pendentes saem da semana do aluno e da sua agenda. Pausas maiores que 7 dias zeram o Foco do aluno (o XP e as medalhas ficam). Só você pode retomar um plano pausado por você."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setPauseConfirm(null)}>
+              Voltar
+            </Button>
+            <Button
+              variant="hero"
+              className="flex-1"
+              disabled={isBusy}
+              onClick={async () => {
+                const action = pauseConfirm;
+                setPauseConfirm(null);
+                if (action === "pause") await run(async () => void (await pausePlan(plan.id)), "Plano pausado");
+                if (action === "resume") await run(async () => resumePlan(plan.id), "Plano retomado");
+              }}
+            >
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
         <DialogContent>

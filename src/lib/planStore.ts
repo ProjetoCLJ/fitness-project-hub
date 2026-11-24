@@ -49,6 +49,8 @@ export interface Workout {
 export interface PlanPause {
   startsOn: string;
   endsOn: string | null;
+  /** Pausa feita pelo profissional: só ele retoma. */
+  byTrainer?: boolean;
 }
 
 export interface Plan {
@@ -186,7 +188,7 @@ type PlanRow = {
   trainer_id: string | null;
   sport: SportCode | null;
   removed_at: string | null;
-  plan_pauses: { starts_on: string; ends_on: string | null }[] | null;
+  plan_pauses: { starts_on: string; ends_on: string | null; by_trainer?: boolean | null }[] | null;
   title: string;
   objective: string | null;
   description: string | null;
@@ -243,7 +245,7 @@ const mapPlan = (row: PlanRow): Plan => ({
   trainerName: row.trainer_id ? row.trainer_profiles?.profiles?.full_name ?? "Profissional" : "Você",
   sport: row.sport ?? "outro",
   removedAt: row.removed_at,
-  pauses: (row.plan_pauses ?? []).map((p) => ({ startsOn: p.starts_on, endsOn: p.ends_on })),
+  pauses: (row.plan_pauses ?? []).map((p) => ({ startsOn: p.starts_on, endsOn: p.ends_on, byTrainer: !!p.by_trainer })),
   title: row.title,
   objective: row.objective ?? "",
   description: row.description ?? "",
@@ -257,11 +259,13 @@ const mapPlan = (row: PlanRow): Plan => ({
 
 const PLAN_SELECT_LEGACY = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*))";
 const PLAN_SELECT = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*)), plan_pauses(starts_on, ends_on)";
+const PLAN_SELECT_V2 = "*, trainer_profiles(profiles(full_name)), workouts(*, workout_exercises(*)), plan_pauses(starts_on, ends_on, by_trainer)";
 
 /** Planos de um aluno. Para o profissional, o banco só devolve os planos criados por ele. */
 export const fetchPlansForStudent = async (studentId: string): Promise<Plan[]> => {
   const query = (select: string) => db.from("plans").select(select).eq("student_id", studentId).order("created_at", { ascending: false });
-  let { data, error } = await query(PLAN_SELECT);
+  let { data, error } = await query(PLAN_SELECT_V2);
+  if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT));
   if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT_LEGACY));
   if (error) throw error;
   return ((data ?? []) as unknown as PlanRow[]).map(mapPlan);
@@ -270,7 +274,8 @@ export const fetchPlansForStudent = async (studentId: string): Promise<Plan[]> =
 /** Planos ativos criados por um profissional (para a agenda dele). */
 export const fetchPlansForTrainer = async (trainerId: string): Promise<Plan[]> => {
   const query = (select: string) => db.from("plans").select(select).eq("trainer_id", trainerId).order("created_at", { ascending: false });
-  let { data, error } = await query(PLAN_SELECT);
+  let { data, error } = await query(PLAN_SELECT_V2);
+  if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT));
   if (missingSchema(error)) ({ data, error } = await query(PLAN_SELECT_LEGACY));
   if (error) throw error;
   return ((data ?? []) as unknown as PlanRow[]).map(mapPlan).filter((p) => p.status === "active");

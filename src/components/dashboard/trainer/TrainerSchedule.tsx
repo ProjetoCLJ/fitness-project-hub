@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAccompaniedEvents } from "@/lib/planAgenda";
 import { DayTimeline } from "@/components/agenda/DayTimeline";
-import { AccompaniedWorkoutDialog } from "@/components/agenda/AccompaniedWorkoutDialog";
+import { PlanEventDialog } from "@/components/agenda/PlanEventDialog";
 import { DayBand, fmtMin } from "@/lib/dayLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -124,7 +124,7 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
 
   // Toque num espaço livre do expediente: nova aula nesse horário (1 hora, até o fim do expediente).
   const openFree = (minute: number, band: DayBand) => {
-    const end = Math.min(minute + 60, band.end);
+    const end = Math.min(minute + 60, band.end, 1439);
     const expedienteEvent = band.events.find((e) => minute >= parseMin(e.startTime) && minute < parseMin(e.endTime)) ?? band.events[0];
     setContext({ date: dateISO, start: fmtMin(minute), end: fmtMin(end), expedienteEvent, defaultType: "aula" });
   };
@@ -206,10 +206,16 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
         )}
       </Card>
 
-      <AccompaniedWorkoutDialog
+      <PlanEventDialog
+        key={planEvent ? `${planEvent.id}` : "none"}
         event={planEvent}
         dateISO={dateISO}
         onClose={() => setPlanEvent(null)}
+        onSaved={async () => {
+          setPlanEvent(null);
+          await reload();
+          onBookingsChange?.();
+        }}
         onOpenStudent={(studentId) => navigate(`/dashboard/trainer/clients/${studentId}`)}
         onStart={(studentId, workoutId) => navigate(`/dashboard/trainer/clients/${studentId}/session/${workoutId}`)}
       />

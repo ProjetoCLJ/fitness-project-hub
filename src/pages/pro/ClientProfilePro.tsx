@@ -47,10 +47,20 @@ interface StudentInfo {
   fitnessGoals: string;
 }
 
+/** Plano ativo que está pausado neste momento. */
+const isPaused = (plan: Plan) => plan.status === "active" && plan.pauses.some((p) => !p.endsOn && p.startsOn <= toLocalISO(new Date()));
+
 const PlanCard = ({ plan, onOpen }: { plan: Plan; onOpen: () => void }) => (
   <Card className="p-4 flex items-center justify-between gap-3 cursor-pointer hover:shadow-medium transition-smooth" onClick={onOpen}>
     <div className="min-w-0">
-      <p className="font-semibold truncate">{plan.title}</p>
+      <div className="flex items-center gap-2 min-w-0">
+        <p className="font-semibold truncate">{plan.title}</p>
+        {isPaused(plan) && (
+          <Badge variant="outline" className="border-amber-500/60 text-amber-600 shrink-0">
+            Pausado
+          </Badge>
+        )}
+      </div>
       <p className="text-sm text-muted-foreground truncate">{plan.objective || "Sem objetivo definido"}</p>
       <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
         <CalendarClock className="h-3.5 w-3.5" />
@@ -348,9 +358,9 @@ const ClientProfilePro = () => {
                   activePlans.map((p) => <PlanCard key={p.id} plan={p} onOpen={() => setSelectedPlanId(p.id)} />)
                 )}
 
-                <h2 className="font-semibold text-base sm:text-lg pt-4">Planos encerrados</h2>
+                <h2 className="font-semibold text-base sm:text-lg pt-4">Histórico</h2>
                 {pastPlans.length === 0 ? (
-                  <Card className="p-6 text-center text-sm text-muted-foreground">Nenhum plano encerrado ainda.</Card>
+                  <Card className="p-6 text-center text-sm text-muted-foreground">Nenhum plano no histórico ainda.</Card>
                 ) : (
                   pastPlans.map((p) => (
                     <div key={p.id} className="relative">

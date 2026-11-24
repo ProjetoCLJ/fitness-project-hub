@@ -57,7 +57,7 @@ export const buildAccompaniedEvents = (
           startTime: start,
           endTime: end,
           publicVisible: false,
-          fromPlan: { studentId: plan.studentId, planId: plan.id, workoutName: workout.name },
+          fromPlan: { studentId: plan.studentId, planId: plan.id, workoutId: workout.id, workoutName: workout.name, planTitle: plan.title },
         });
       }
     }

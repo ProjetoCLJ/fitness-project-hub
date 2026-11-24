@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAccompaniedEvents } from "@/lib/planAgenda";
+import { DayTimeline } from "@/components/agenda/DayTimeline";
+import { AccompaniedWorkoutDialog } from "@/components/agenda/AccompaniedWorkoutDialog";
+import { DayBand, fmtMin } from "@/lib/dayLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AlertTriangle, Calendar as CalendarIcon, Clock, EyeOff, Plus, Settings2, X } from "lucide-react";
+import { AlertTriangle, Calendar as CalendarIcon, Clock, Plus, Settings2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,16 +35,12 @@ import {
   HiddenSlots,
   fetchHiddenSlots,
   isSlotHidden,
-  isSlotPublic,
   setSlotHidden,
-  ScheduleSlot,
   createScheduleEvent,
   deleteScheduleEvent,
-  eventTitle,
   fetchLinkedStudents,
   fetchTrainerEvents,
   getScheduleConflicts,
-  getSlotsForDate,
   toLocalISO,
   updateScheduleEvent,
 } from "@/lib/agendaStore";
@@ -55,11 +54,9 @@ interface TrainerScheduleProps {
   refreshSignal?: number;
 }
 
-const statusStyles: Record<ScheduleSlot["status"], string> = {
-  available: "border-border bg-background hover:shadow-soft",
-  aula: "border-primary/40 bg-primary/15 text-primary",
-  bloqueado: "border-destructive/60 bg-destructive/30 text-destructive font-medium",
-  fora_expediente: "border-destructive/25 bg-destructive/5 text-destructive/70",
+const parseMin = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + (m || 0);
 };
 
 interface SlotContext {
@@ -82,9 +79,9 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
   const [isLoading, setIsLoading] = useState(true);
   const [context, setContext] = useState<SlotContext | null>(null);
   const [hidden, setHidden] = useState<HiddenSlots>(new Set());
+  const [planEvent, setPlanEvent] = useState<ScheduleEvent | null>(null);
 
   const dateISO = format(selectedDate, "yyyy-MM-dd");
-  const slots = useMemo(() => getSlotsForDate(events, dateISO), [events, dateISO]);
   const conflicts = useMemo(() => getScheduleConflicts(events), [events]);
   const currentYear = new Date().getFullYear();
 
@@ -116,16 +113,25 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
     toast({ title: "Inconsistência selecionada", description: "Resolva desbloqueando o horário ou reagendando a aula." });
   };
 
-  const openSlot = (slot: ScheduleSlot) => {
-    if (slot.event?.fromPlan) {
-      navigate(`/dashboard/trainer/clients/${slot.event.fromPlan.studentId}`);
+  // Toque num bloco: treino acompanhado abre as informações dele; aula e bloqueio abrem a edição.
+  const openBlock = (event: ScheduleEvent) => {
+    if (event.fromPlan) {
+      setPlanEvent(event);
       return;
     }
-    if (slot.event?.type === "expediente") {
-      setContext({ date: dateISO, start: slot.start, end: slot.end, expedienteEvent: slot.event, defaultType: "aula" });
-    } else {
-      setContext({ date: dateISO, start: slot.start, end: slot.end, event: slot.event, defaultType: "expediente" });
-    }
+    setContext({ date: dateISO, start: event.startTime, end: event.endTime, event, defaultType: "expediente" });
+  };
+
+  // Toque num espaço livre do expediente: nova aula nesse horário (1 hora, até o fim do expediente).
+  const openFree = (minute: number, band: DayBand) => {
+    const end = Math.min(minute + 60, band.end);
+    const expedienteEvent = band.events.find((e) => minute >= parseMin(e.startTime) && minute < parseMin(e.endTime)) ?? band.events[0];
+    setContext({ date: dateISO, start: fmtMin(minute), end: fmtMin(end), expedienteEvent, defaultType: "aula" });
+  };
+
+  // Toque numa faixa fora do expediente: definir o horário de atendimento daquele trecho.
+  const openOff = (band: DayBand) => {
+    setContext({ date: dateISO, start: fmtMin(band.start), end: fmtMin(band.end), defaultType: "expediente" });
   };
 
   return (
@@ -196,34 +202,17 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando agenda...</p>
         ) : (
-          <div className="space-y-2">
-            {slots.map((slot) => (
-              <div
-                key={slot.start}
-                onClick={() => openSlot(slot)}
-                className={`flex items-center justify-between p-3 sm:p-4 border rounded-lg transition-smooth cursor-pointer ${statusStyles[slot.status]} ${slot.isPast ? "opacity-60" : ""}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 shrink-0" />
-                  <span className="font-medium text-sm sm:text-base">
-                    {slot.start} - {slot.end}
-                  </span>
-                </div>
-                {slot.event && slot.event.type !== "expediente" && (
-                  <span className="text-sm truncate max-w-[55%] text-right">{eventTitle(slot.event)}</span>
-                )}
-                {slot.status === "fora_expediente" && <span className="text-xs">Fora de expediente</span>}
-                {slot.status === "available" && !isSlotPublic(events, hidden, dateISO, slot) && (
-                  <span className="text-xs flex items-center gap-1 text-muted-foreground">
-                    <EyeOff className="h-3.5 w-3.5" />
-                    Oculto na busca
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+          <DayTimeline dateISO={dateISO} events={events} onBlockClick={openBlock} onFreeClick={openFree} onOffClick={openOff} />
         )}
       </Card>
+
+      <AccompaniedWorkoutDialog
+        event={planEvent}
+        dateISO={dateISO}
+        onClose={() => setPlanEvent(null)}
+        onOpenStudent={(studentId) => navigate(`/dashboard/trainer/clients/${studentId}`)}
+        onStart={(studentId, workoutId) => navigate(`/dashboard/trainer/clients/${studentId}/session/${workoutId}`)}
+      />
 
       {context && (
         <EventDialog

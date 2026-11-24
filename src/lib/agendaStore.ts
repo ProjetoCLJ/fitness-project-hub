@@ -34,7 +34,7 @@ export interface ScheduleEvent {
   /** Só expediente: aparece na busca/agendamento de novos alunos. */
   publicVisible: boolean;
   /** Treino acompanhado vindo de um plano (não é editado na agenda: abre o aluno). */
-  fromPlan?: { studentId: string; planId: string; workoutName: string };
+  fromPlan?: { studentId: string; planId: string; workoutId: string; workoutName: string; planTitle: string };
 }
 
 export interface ScheduleEventInput {

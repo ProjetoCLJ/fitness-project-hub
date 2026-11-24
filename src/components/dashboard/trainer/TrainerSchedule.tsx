@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchAccompaniedEvents } from "@/lib/planAgenda";
+import { fetchLedEvents, withoutDoneDuplicates } from "@/lib/ledExecutions";
 import { DayTimeline } from "@/components/agenda/DayTimeline";
 import { PlanEventDialog } from "@/components/agenda/PlanEventDialog";
 import { DayBand, fmtMin } from "@/lib/dayLayout";
@@ -80,9 +81,10 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
   const [context, setContext] = useState<SlotContext | null>(null);
   const [hidden, setHidden] = useState<HiddenSlots>(new Set());
   const [planEvent, setPlanEvent] = useState<ScheduleEvent | null>(null);
+  const [doneEvent, setDoneEvent] = useState<ScheduleEvent | null>(null);
 
   const dateISO = format(selectedDate, "yyyy-MM-dd");
-  const conflicts = useMemo(() => getScheduleConflicts(events), [events]);
+  const conflicts = useMemo(() => getScheduleConflicts(events.filter((e) => !e.fromExecution)), [events]);
   const currentYear = new Date().getFullYear();
 
   const reload = useCallback(async () => {
@@ -94,7 +96,9 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
       ]);
       // Treinos acompanhados dos planos entram na agenda (somente leitura).
       const accompanied = await fetchAccompaniedEvents(trainerId, loadedStudents).catch(() => []);
-      setEvents([...loadedEvents, ...accompanied]);
+      // Treinos que o profissional conduziu (mesmo fora da rotina) entram sozinhos, no horário real.
+      const led = await fetchLedEvents(trainerId).catch(() => []);
+      setEvents([...loadedEvents, ...withoutDoneDuplicates(accompanied, led), ...led]);
       setStudents(loadedStudents);
       setHidden(loadedHidden);
     } catch {
@@ -115,6 +119,10 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
 
   // Toque num bloco: treino acompanhado abre as informações dele; aula e bloqueio abrem a edição.
   const openBlock = (event: ScheduleEvent) => {
+    if (event.fromExecution) {
+      setDoneEvent(event);
+      return;
+    }
     if (event.fromPlan) {
       setPlanEvent(event);
       return;
@@ -219,6 +227,25 @@ const TrainerSchedule = ({ trainerId, onBookingsChange, refreshSignal = 0 }: Tra
         onOpenStudent={(studentId) => navigate(`/dashboard/trainer/clients/${studentId}`)}
         onStart={(studentId, workoutId) => navigate(`/dashboard/trainer/clients/${studentId}/session/${workoutId}`)}
       />
+
+      <Dialog open={!!doneEvent} onOpenChange={(open) => !open && setDoneEvent(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Treino realizado</DialogTitle>
+            <DialogDescription>Registrado automaticamente quando você acompanhou o treino.</DialogDescription>
+          </DialogHeader>
+          {doneEvent?.fromExecution && (
+            <div className="space-y-2 text-sm">
+              <p><span className="text-muted-foreground">Aluno:</span> {doneEvent.studentNames[0]}</p>
+              <p><span className="text-muted-foreground">Treino:</span> {doneEvent.fromExecution.workoutName}</p>
+              <p><span className="text-muted-foreground">Horário:</span> {doneEvent.startTime} – {doneEvent.endTime} ({doneEvent.fromExecution.minutes} min)</p>
+              <Button variant="outline" className="w-full" onClick={() => navigate(`/dashboard/trainer/clients/${doneEvent.fromExecution!.studentId}`)}>
+                Abrir perfil do aluno
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {context && (
         <EventDialog

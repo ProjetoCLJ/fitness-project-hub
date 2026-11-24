@@ -69,7 +69,7 @@ export const PlanWorkoutsView = ({ plan, executions, todayISO, onStart, trainerV
             </div>
           ))
         )}
-        {pendingToday.length === 0 && (
+        {(trainerView || pendingToday.length === 0) && (
           <Button variant="outline" className="w-full" onClick={() => setAdvancing(true)}>
             <Shuffle className="h-4 w-4 mr-2" />
             {trainerView ? "Iniciar outro treino" : "Adiantar treino"}

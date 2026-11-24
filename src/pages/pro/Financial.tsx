@@ -13,7 +13,9 @@ import { TrendingUp, Info, ArrowRight, Plus, Wallet } from "lucide-react";
 import TrainerEarnings from "@/components/dashboard/trainer/TrainerEarnings";
 import TrainerPricing from "@/components/dashboard/trainer/TrainerPricing";
 import { fetchLinkedStudents, fetchTrainerEvents } from "@/lib/agendaStore";
-import { MonthRevenue, computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
+import { LedgerRow, MonthRevenue, computeLedger, computeMonthRevenue, fetchBasePrice } from "@/lib/financeCalc";
+import { fetchLedExecutions } from "@/lib/ledExecutions";
+import { toLocalISO } from "@/lib/agendaStore";
 import { Payment, deletePayment, fetchTrainerPayments, formatBRL, realizedThisMonth } from "@/lib/financeStore";
 
 const Financial = () => {
@@ -22,6 +24,7 @@ const Financial = () => {
   const navigate = useNavigate();
   const [revenue, setRevenue] = useState<MonthRevenue>({ aulaSlots: 0, availableSlots: 0, previsto: 0, possivel: 0 });
   const [basePrice, setBasePrice] = useState(0);
+  const [ledgerBase, setLedgerBase] = useState<{ executions: Awaited<ReturnType<typeof fetchLedExecutions>>; students: Awaited<ReturnType<typeof fetchLinkedStudents>> }>({ executions: [], students: [] });
   const [payments, setPayments] = useState<Payment[]>([]);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -48,6 +51,10 @@ const Financial = () => {
           fetchBasePrice(user.id),
         ]);
         setBasePrice(price);
+        const now = new Date();
+        const first = toLocalISO(new Date(now.getFullYear(), now.getMonth(), 1));
+        const last = toLocalISO(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+        setLedgerBase({ executions: await fetchLedExecutions(first, last), students });
         setRevenue(computeMonthRevenue(events, students, price));
       } catch {
         // mantém os valores zerados
@@ -58,6 +65,7 @@ const Financial = () => {
   if (!user || user.userType !== "trainer") return null;
 
   const realizado = realizedThisMonth(payments);
+  const ledger: LedgerRow[] = computeLedger({ executions: ledgerBase.executions, payments, students: ledgerBase.students, basePrice });
 
   const startNewPayment = () => {
     setNewMenuOpen(false);
@@ -140,6 +148,30 @@ const Financial = () => {
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
+              </Card>
+            )}
+
+            {ledger.length > 0 && (
+              <Card className="p-4 sm:p-6 space-y-3">
+                <div>
+                  <h3 className="font-semibold">Aulas acompanhadas no mês</h3>
+                  <p className="text-xs text-muted-foreground">Treinos que você conduziu com o aluno, pelo tempo real, contra o que ele já pagou.</p>
+                </div>
+                <div className="divide-y">
+                  {ledger.map((l) => (
+                    <div key={l.studentId} className="flex items-center justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{l.studentName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {l.aulas} {l.aulas === 1 ? "aula" : "aulas"} · {Math.floor(l.minutes / 60)}h{String(l.minutes % 60).padStart(2, "0")} · devido {formatBRL(l.devido)} · pago {formatBRL(l.recebido)}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-sm font-semibold ${l.saldo < 0 ? "text-destructive" : "text-green-600"}`}>
+                        {l.saldo < 0 ? `A receber ${formatBRL(-l.saldo)}` : l.saldo > 0 ? `Saldo ${formatBRL(l.saldo)}` : "Em dia"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </Card>
             )}
 

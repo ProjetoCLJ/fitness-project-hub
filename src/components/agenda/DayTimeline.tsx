@@ -119,16 +119,8 @@ export const DayTimeline = ({ dateISO, events, onBlockClick, onFreeClick, onOffC
                 }}
               >
                 <span className="flex h-full items-start gap-2">
-                  <span className="shrink-0 text-[11px] font-semibold leading-tight">
-                    {roomy ? (
-                      <>
-                        {b.startLabel}
-                        <br />
-                        {b.endLabel}
-                      </>
-                    ) : (
-                      `${b.startLabel}–${b.endLabel}`
-                    )}
+                  <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold leading-tight">
+                    {`${b.startLabel} – ${b.endLabel}`}
                   </span>
                   <span className="min-w-0 flex-1 text-right">
                     <span className="block text-xs leading-tight truncate">{b.title}</span>

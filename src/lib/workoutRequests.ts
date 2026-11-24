@@ -35,6 +35,8 @@ export interface WorkoutRequest {
   responseMessage: string | null;
   respondedAt: string | null;
   createdAt: string;
+  /** Duração do treino em minutos (para conferir o horário livre). */
+  durationMinutes: number;
 }
 
 type Row = {
@@ -56,7 +58,7 @@ type Row = {
   response_message: string | null;
   responded_at: string | null;
   created_at: string;
-  workouts: { name: string } | null;
+  workouts: { name: string; duration_minutes?: number | null } | null;
   student_profiles: { profiles: { full_name: string } | null } | null;
   trainer_profiles: { profiles: { full_name: string } | null } | null;
 };
@@ -74,6 +76,7 @@ export const ERRORS: Record<string, string> = {
   NO_TRAINER: "Esse treino não tem profissional vinculado.",
   MISSING_TARGET: "Escolha o novo dia e horário.",
   PLAN_ENDED: "Esse plano já foi encerrado.",
+  INVALID_DURATION: "A duração precisa ficar entre 15 minutos e 8 horas.",
   NOT_RECURRING: "Só treinos de plano em ciclo (que se repetem) podem mudar em todas as semanas.",
   WEEK_MISMATCH: "Para mudar em todas as semanas, escolha o novo dia dentro da mesma semana do treino.",
   INVALID_SCOPE: "Essa opção não vale para este tipo de pedido.",
@@ -83,8 +86,8 @@ const fail = (error: { message?: string } | null, fallback: string): never => {
   throw new Error(friendlyError(error, ERRORS, fallback));
 };
 
-const SELECT =
-  "*, workouts(name), student_profiles(profiles(full_name)), trainer_profiles(profiles(full_name))";
+const SELECT_V2 = "*, workouts(name, duration_minutes), student_profiles(profiles(full_name)), trainer_profiles(profiles(full_name))";
+const SELECT = "*, workouts(name), student_profiles(profiles(full_name)), trainer_profiles(profiles(full_name))";
 
 const map = (r: Row): WorkoutRequest => ({
   id: r.id,
@@ -108,11 +111,14 @@ const map = (r: Row): WorkoutRequest => ({
   responseMessage: r.response_message,
   respondedAt: r.responded_at,
   createdAt: r.created_at,
+  durationMinutes: r.workouts?.duration_minutes ?? 60,
 });
 
 /** Todas as solicitações em que a pessoa é aluno ou profissional (o banco só devolve as dela). */
 export const fetchWorkoutRequests = async (): Promise<WorkoutRequest[]> => {
-  const { data, error } = await db.from("workout_requests").select(SELECT).order("created_at", { ascending: false });
+  let { data, error } = await db.from("workout_requests").select(SELECT_V2).order("created_at", { ascending: false });
+  // Banco ainda sem a coluna de duração (migração 0024): lê sem ela.
+  if (error && (error as { code?: string }).code === "42703") ({ data, error } = await db.from("workout_requests").select(SELECT).order("created_at", { ascending: false }));
   if (error) {
     // Banco sem a migração 0018: a página funciona só com as solicitações antigas.
     if (["42P01", "PGRST205", "PGRST200"].includes((error as { code?: string }).code ?? "")) return [];
@@ -167,6 +173,8 @@ export const trainerChangeWorkout = async (input: {
   toDate: string;
   start: string;
   scope: "single" | "all";
+  /** Nova duração em minutos (vazio = mantém). */
+  duration?: number;
 }): Promise<void> => {
   const { error } = await db.rpc("trainer_change_workout", {
     p_workout: input.workoutId,
@@ -174,6 +182,7 @@ export const trainerChangeWorkout = async (input: {
     p_to: input.toDate,
     p_start: input.start,
     p_scope: input.scope,
+    p_duration: input.duration ?? null,
   });
   if (error) fail(error, "Não foi possível alterar o treino.");
 };
@@ -195,6 +204,8 @@ export interface AgendaCell {
   start: string;
   end: string;
   free: boolean;
+  /** Fora do expediente do profissional: o aluno nem vê essa hora. */
+  off: boolean;
 }
 
 /** Agenda do profissional só com livre/ocupado por hora (sem detalhes de quem ocupa). */
@@ -218,6 +229,7 @@ export const fetchAgendaAvailability = async (
     start: r.slot_start.slice(0, 5),
     end: r.slot_end.slice(0, 5),
     free: r.status === "free",
+    off: r.status === "off",
   }));
 };
 

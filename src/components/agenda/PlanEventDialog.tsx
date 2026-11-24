@@ -57,14 +57,24 @@ export const PlanEventDialog = ({ event, dateISO, onClose, onSaved, onOpenStuden
   const [weekday, setWeekday] = useState(String(weekdayOfEvent));
   const [start, setStart] = useState(event?.startTime ?? "08:00");
   const [busy, setBusy] = useState(false);
+  const initialMinutes = Math.max(15, toMin(event?.endTime ?? "09:00") - toMin(event?.startTime ?? "08:00"));
+  const [minutes, setMinutes] = useState(initialMinutes);
 
   const recurring = !!info?.cycleWeeks;
-  const end = fmtMin(Math.min(toMin(start || "00:00") + 60, 1439));
+  const end = fmtMin(Math.min(toMin(start || "00:00") + (minutes || 0), 1439));
+  const setEnd = (value: string) => {
+    if (!value || !start) return;
+    setMinutes(toMin(value) - toMin(start));
+  };
 
   const save = async () => {
     if (!event || !info) return;
     if (!start) {
       toast({ title: "Informe o horário", variant: "destructive" });
+      return;
+    }
+    if (!(minutes >= 15 && minutes <= 480)) {
+      toast({ title: "Duração inválida", description: "O treino precisa durar de 15 minutos a 8 horas.", variant: "destructive" });
       return;
     }
     const toDate = scope === "all" ? dateInWeekOf(dateISO, Number(weekday)) : date;
@@ -74,7 +84,7 @@ export const PlanEventDialog = ({ event, dateISO, onClose, onSaved, onOpenStuden
     }
     setBusy(true);
     try {
-      await trainerChangeWorkout({ workoutId: info.workoutId, fromDate: dateISO, toDate, start, scope });
+      await trainerChangeWorkout({ workoutId: info.workoutId, fromDate: dateISO, toDate, start, scope, duration: minutes });
       toast({
         title: "Treino atualizado",
         description: scope === "all" ? "Vale em todas as semanas, daqui para frente, no plano e na agenda do aluno." : "O plano e a agenda do aluno foram atualizados.",
@@ -167,10 +177,10 @@ export const PlanEventDialog = ({ event, dateISO, onClose, onSaved, onOpenStuden
               </div>
               <div className="space-y-2">
                 <Label htmlFor="plan-event-end">Fim</Label>
-                <Input id="plan-event-end" type="time" value={end} disabled readOnly />
+                <Input id="plan-event-end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground -mt-3">O treino acompanhado dura 1 hora: o fim acompanha o início.</p>
+            <p className="text-xs text-muted-foreground -mt-3">Duração: {minutes >= 15 ? `${minutes} min` : "defina um fim depois do início"}. Muda no plano e na agenda do aluno.</p>
 
             <div className="flex flex-col gap-2">
               <Button variant="hero" className="w-full" onClick={save} disabled={busy}>

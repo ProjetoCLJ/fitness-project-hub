@@ -88,6 +88,7 @@ const blockTitle = (event: ScheduleEvent): { title: string; subtitle?: string } 
   if (event.type === "bloqueado") return { title: event.title ? `Bloqueado - ${event.title}` : "Bloqueado" };
   const names = event.studentNames.filter(Boolean);
   const who = names.length === 0 ? "Aula" : names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+  if (event.fromExecution) return { title: who, subtitle: `${event.fromExecution.workoutName} · realizado` };
   if (event.fromPlan) return { title: who, subtitle: event.fromPlan.workoutName };
   return { title: who };
 };
@@ -133,7 +134,7 @@ export const layoutDay = (events: ScheduleEvent[], dateISO: string): { blocks: D
       const { title, subtitle } = blockTitle(event);
       return {
         id: `${event.id}`,
-        kind: (event.type === "bloqueado" ? "bloqueado" : event.fromPlan ? "treino" : "aula") as BlockKind,
+        kind: (event.type === "bloqueado" ? "bloqueado" : event.fromPlan || event.fromExecution ? "treino" : "aula") as BlockKind,
         start: clamp(startRaw),
         end: clamp(endRaw),
         startLabel: event.startTime,

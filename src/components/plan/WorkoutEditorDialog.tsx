@@ -22,6 +22,8 @@ export interface WorkoutDraft {
   accompanied: boolean;
   /** HH:MM ou vazio. */
   startTime: string;
+  /** Duração em minutos (15 a 480). */
+  durationMinutes: number;
 }
 
 interface WorkoutEditorDialogProps {
@@ -48,7 +50,7 @@ const emptyExercise = (): Exercise => ({
 });
 
 export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompany = false, open, onOpenChange, onSave, onDelete }: WorkoutEditorDialogProps) => {
-  const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "" });
+  const [draft, setDraft] = useState<WorkoutDraft>({ name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "", durationMinutes: 60 });
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
@@ -61,8 +63,9 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
               exercises: workout.exercises.map((e) => ({ ...e })),
               accompanied: workout.accompanied,
               startTime: workout.startTime ?? "",
+              durationMinutes: workout.durationMinutes ?? 60,
             }
-          : { name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "" }
+          : { name: "", description: "", exercises: [emptyExercise()], accompanied: false, startTime: "", durationMinutes: 60 }
       );
     }
   }, [open, workout]);
@@ -120,7 +123,8 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
   };
 
   const needsTime = canAccompany && draft.accompanied && !draft.startTime;
-  const canSave = draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0) && !needsTime;
+  const durationOk = Number.isInteger(draft.durationMinutes) && draft.durationMinutes >= 15 && draft.durationMinutes <= 480;
+  const canSave = durationOk && draft.name.trim().length > 0 && draft.exercises.every((ex) => ex.name.trim().length > 0) && !needsTime;
 
   const handleSave = async () => {
     setIsBusy(true);
@@ -198,6 +202,25 @@ export const WorkoutEditorDialog = ({ workout, positionLabel, sport, canAccompan
                 onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value }))}
               />
             </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label htmlFor="workout-duration" className="font-medium">
+                  Duração (minutos)
+                </Label>
+                <p className="text-xs text-muted-foreground">Define quanto tempo o treino ocupa na agenda (15 a 480).</p>
+              </div>
+              <Input
+                id="workout-duration"
+                type="number"
+                min={15}
+                max={480}
+                step={5}
+                className="w-24"
+                value={Number.isFinite(draft.durationMinutes) ? draft.durationMinutes : ""}
+                onChange={(e) => setDraft((prev) => ({ ...prev, durationMinutes: e.target.value === "" ? NaN : Number(e.target.value) }))}
+              />
+            </div>
+            {!durationOk && <p className="text-xs text-destructive">A duração precisa ficar entre 15 e 480 minutos.</p>}
             {needsTime && <p className="text-xs text-destructive">Informe o horário para o treino aparecer na sua agenda.</p>}
           </div>
 

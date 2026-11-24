@@ -44,6 +44,8 @@ export interface Workout {
   /** Horário do treino (HH:MM), quando definido. */
   startTime: string | null;
   exercises: Exercise[];
+  /** Duração do acompanhamento em minutos (15 a 480). */
+  durationMinutes: number;
 }
 
 export interface PlanPause {
@@ -178,6 +180,7 @@ type WorkoutRow = {
   removed_at: string | null;
   accompanied: boolean | null;
   start_time: string | null;
+  duration_minutes?: number | null;
   order_index: number | null;
   workout_exercises: ExerciseRow[] | null;
 };
@@ -212,6 +215,7 @@ const mapWorkout = (row: WorkoutRow): Workout => ({
   removedAt: row.removed_at,
   accompanied: !!row.accompanied,
   startTime: row.start_time ? row.start_time.slice(0, 5) : null,
+  durationMinutes: row.duration_minutes ?? 60,
   exercises: [...(row.workout_exercises ?? [])]
     .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
     .map((ex) => ({
@@ -362,6 +366,7 @@ export interface WorkoutInput {
   exercises: Exercise[];
   accompanied?: boolean;
   startTime?: string | null;
+  durationMinutes?: number;
 }
 
 export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<void> => {
@@ -376,16 +381,19 @@ export const saveWorkout = async (planId: string, input: WorkoutInput): Promise<
 
   // Campos de acompanhamento só vão se o banco já tiver as colunas (migração 0015).
   const extra = { accompanied: !!input.accompanied, start_time: input.startTime || null };
+  const extraFull = { ...extra, duration_minutes: input.durationMinutes ?? 60 };
 
   let workoutId = input.id;
   if (workoutId) {
-    let { error } = await db.from("workouts").update({ ...row, ...extra }).eq("id", workoutId);
+    let { error } = await db.from("workouts").update({ ...row, ...extraFull }).eq("id", workoutId);
+    if (missingSchema(error)) ({ error } = await db.from("workouts").update({ ...row, ...extra }).eq("id", workoutId));
     if (missingSchema(error)) ({ error } = await db.from("workouts").update(row).eq("id", workoutId));
     if (error) throw error;
     const del = await db.from("workout_exercises").delete().eq("workout_id", workoutId);
     if (del.error) throw del.error;
   } else {
-    let { data, error } = await db.from("workouts").insert({ ...row, ...extra }).select("id").single();
+    let { data, error } = await db.from("workouts").insert({ ...row, ...extraFull }).select("id").single();
+    if (missingSchema(error)) ({ data, error } = await db.from("workouts").insert({ ...row, ...extra }).select("id").single());
     if (missingSchema(error)) ({ data, error } = await db.from("workouts").insert(row).select("id").single());
     if (error || !data) throw error;
     workoutId = data.id;
@@ -654,18 +662,17 @@ export interface SlotInfo {
   accompanied: boolean;
   startTime: string | null;
   status: "pending" | "done" | "missed";
+  durationMinutes: number;
 }
 
 /** Treinos planejados (já materializados) do aluno entre duas datas. Vazio se o banco ainda não tem a migração. */
 export const fetchSlots = async (studentId: string, fromISO: string, toISO: string): Promise<SlotInfo[]> => {
-  const { data, error } = await db
-    .from("planned_slots")
-    .select("id, workout_id, planned_date, accompanied, start_time, status")
-    .eq("student_id", studentId)
-    .gte("planned_date", fromISO)
-    .lte("planned_date", toISO);
+  const run = (cols: string) =>
+    db.from("planned_slots").select(cols).eq("student_id", studentId).gte("planned_date", fromISO).lte("planned_date", toISO);
+  let { data, error } = await run("id, workout_id, planned_date, accompanied, start_time, duration_minutes, status");
+  if (missingSchema(error)) ({ data, error } = await run("id, workout_id, planned_date, accompanied, start_time, status"));
   if (error) return [];
-  return ((data ?? []) as { id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; status: SlotInfo["status"] }[])
+  return ((data ?? []) as unknown as { id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; duration_minutes?: number | null; status: SlotInfo["status"] }[])
     .filter((r) => r.workout_id)
     .map((r) => ({
       id: r.id,
@@ -673,6 +680,7 @@ export const fetchSlots = async (studentId: string, fromISO: string, toISO: stri
       date: r.planned_date,
       accompanied: !!r.accompanied,
       startTime: r.start_time ? r.start_time.slice(0, 5) : null,
+      durationMinutes: r.duration_minutes ?? 60,
       status: r.status,
     }));
 };
@@ -680,14 +688,12 @@ export const fetchSlots = async (studentId: string, fromISO: string, toISO: stri
 /** Treinos planejados de vários planos (agenda do profissional). Vazio se o banco ainda não permite a leitura. */
 export const fetchSlotsForPlans = async (planIds: string[], fromISO: string, toISO: string): Promise<(SlotInfo & { planId: string; studentId: string })[]> => {
   if (planIds.length === 0) return [];
-  const { data, error } = await db
-    .from("planned_slots")
-    .select("id, plan_id, student_id, workout_id, planned_date, accompanied, start_time, status")
-    .in("plan_id", planIds)
-    .gte("planned_date", fromISO)
-    .lte("planned_date", toISO);
+  const run = (cols: string) =>
+    db.from("planned_slots").select(cols).in("plan_id", planIds).gte("planned_date", fromISO).lte("planned_date", toISO);
+  let { data, error } = await run("id, plan_id, student_id, workout_id, planned_date, accompanied, start_time, duration_minutes, status");
+  if (missingSchema(error)) ({ data, error } = await run("id, plan_id, student_id, workout_id, planned_date, accompanied, start_time, status"));
   if (error) return [];
-  return ((data ?? []) as { id: string; plan_id: string; student_id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; status: SlotInfo["status"] }[])
+  return ((data ?? []) as unknown as { id: string; plan_id: string; student_id: string; workout_id: string | null; planned_date: string; accompanied: boolean | null; start_time: string | null; duration_minutes?: number | null; status: SlotInfo["status"] }[])
     .filter((r) => r.workout_id)
     .map((r) => ({
       id: r.id,
@@ -697,6 +703,7 @@ export const fetchSlotsForPlans = async (planIds: string[], fromISO: string, toI
       date: r.planned_date,
       accompanied: !!r.accompanied,
       startTime: r.start_time ? r.start_time.slice(0, 5) : null,
+      durationMinutes: r.duration_minutes ?? 60,
       status: r.status,
     }));
 };

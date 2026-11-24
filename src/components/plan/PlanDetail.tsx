@@ -83,6 +83,7 @@ export const PlanDetail = ({ plan, onBack, onChanged, canEdit = true, descriptio
           exercises: draft.exercises,
           accompanied: draft.accompanied,
           startTime: draft.startTime || null,
+          durationMinutes: draft.durationMinutes,
         }),
       editor.workout ? "Treino atualizado" : "Treino criado"
     );

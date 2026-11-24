@@ -119,7 +119,8 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, d
     return map;
   }, [cells]);
 
-  const dayCells = (cells ?? []).filter((c) => c.date === day);
+  // O aluno só vê as horas dentro do expediente do profissional.
+  const dayCells = (cells ?? []).filter((c) => c.date === day && (detailed || !c.off));
 
   return (
     <div className="space-y-3">
@@ -153,6 +154,7 @@ export const AgendaPicker = ({ trainerId, value, onChange, exclude, days = 14, d
         </div>
       ) : (
         <div className={`grid gap-2 ${detailed ? "grid-cols-3" : "grid-cols-4"}`}>
+          {dayCells.length === 0 && <p className="col-span-full py-4 text-center text-sm text-muted-foreground">Sem horários neste dia (fora do expediente).</p>}
           {dayCells.map((c) => {
             const selected = value?.date === c.date && value.start === c.start;
             return (

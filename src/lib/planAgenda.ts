@@ -2,7 +2,7 @@ import { LinkedStudent, ScheduleEvent, toLocalISO } from "@/lib/agendaStore";
 import { Plan, SlotInfo, fetchPlansForTrainer, fetchSlotsForPlans } from "@/lib/planStore";
 import { PlanChanges, fetchPlanChanges, occurrencesOn } from "@/lib/planChanges";
 
-/** Duração padrão de um treino acompanhado na agenda. */
+/** Duração padrão de um treino acompanhado (cada treino pode ter a sua). */
 export const ACCOMPANIED_MINUTES = 60;
 
 const toMin = (t: string) => {
@@ -42,7 +42,8 @@ export const buildAccompaniedEvents = (
         const accompanied = slot ? slot.accompanied : workout.accompanied;
         const start = slot ? slot.startTime ?? workout.startTime : workout.startTime;
         if (!accompanied || !start) continue;
-        const end = fromMin(Math.min(23 * 60 + 59, toMin(start) + ACCOMPANIED_MINUTES));
+        const minutes = slot?.durationMinutes ?? workout.durationMinutes ?? ACCOMPANIED_MINUTES;
+        const end = fromMin(Math.min(23 * 60 + 59, toMin(start) + minutes));
         events.push({
           id: `plan:${plan.id}:${workout.id}:${date}`,
           trainerId,
